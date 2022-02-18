@@ -2,6 +2,27 @@ import { readFile } from "mz/fs";
 import { Connection, Keypair } from "@solana/web3.js";
 import { getOrca, OrcaFarmConfig, OrcaPoolConfig, Network } from "@orca-so/sdk";
 import Decimal from "decimal.js";
+// import { initializeApp } from "firebase/app";
+
+require('dotenv').config()
+
+// Import the functions you need from the SDKs you need
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+/*const firebaseConfig = {
+  apiKey: process.env.FIREBASE_APIKEY,
+  authDomain: process.env.FIREBASE_DOMAIN,
+  databaseURL: process.env.FIREBASE_DATABASE_URL,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID
+};*/
+
+// Initialize Firebase
+// const app = initializeApp(firebaseConfig);
 
 const main = async () => {
   /*** Setup ***/
@@ -12,7 +33,8 @@ const main = async () => {
   const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
   const owner = Keypair.fromSecretKey(secretKey);
 
-  // 2. Initialzie Orca object with mainnet connection
+  // Initialzie Orca object with mainnet connection
+
   // Production Settings
   //const connection = new Connection("https://api.mainnet-beta.solana.com", "singleGossip");
   //const orca = getOrca(connection);
@@ -22,27 +44,28 @@ const main = async () => {
   const orca = getOrca(connection, Network.DEVNET)
 
   try {
-    /*** Swap ***/
-    // 3. We will be swapping 0.1 SOL for some ORCA
-    const orcaSolPool = orca.getPool(OrcaPoolConfig.ORCA_SOL);
-    const solToken = orcaSolPool.getTokenB();
-    const solAmount = new Decimal(0.1);
-    const quote = await orcaSolPool.getQuote(solToken, solAmount);
-    console.log(quote);
-    console.log(quote.getExpectedOutputAmount().toDecimal());
-    console.log(quote.getLPFees().toDecimal());
-    console.log(quote.getMinOutputAmount().toDecimal());
-    console.log(quote.getNetworkFees().toDecimal());
-    console.log(quote.getPriceImpact());
-    console.log(quote.getRate());
+    const pools = [
+      OrcaPoolConfig.SOL_USDC,
+    ]
 
-    /*const orcaAmount = quote.getMinOutputAmount();
+    // Gather swapping data
+    pools.forEach(async function(pool) {
+      const currentPool = orca.getPool(pool);
 
-    console.log(`Swap ${solAmount.toString()} SOL for at least ${orcaAmount.toNumber()} ORCA`);
-    const swapPayload = await orcaSolPool.swap(owner, solToken, solAmount, orcaAmount);
-    const swapTxId = await swapPayload.execute();
-    console.log("Swapped:", swapTxId, "\n");
-    */
+      const coinToken = currentPool.getTokenA();
+      const usdcToken = currentPool.getTokenB();
+
+      const tradingAmount = new Decimal(0.1);
+      const buyQuote = await currentPool.getQuote(usdcToken, tradingAmount);
+      const sellQuote = await currentPool.getQuote(coinToken, tradingAmount);
+
+      console.log('Swap ' + tradingAmount + ' USDC for at least ' + buyQuote.getMinOutputAmount().toNumber() + ' SOL')
+      console.log('Swap ' + tradingAmount + ' SOL for at least ' + sellQuote.getMinOutputAmount().toNumber() + ' USDC')
+
+      // Update Firebase Real-time Database
+      //const poolName = Object.keys(OrcaPoolConfig).find(key => OrcaPoolConfig[key] === pool)
+
+    })
   } catch (err) {
     console.warn(err);
   }
