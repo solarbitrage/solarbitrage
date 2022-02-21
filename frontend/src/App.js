@@ -3,6 +3,7 @@ import './App.css';
 
 import { initializeApp, deleteApp } from "firebase/app";
 import { collection, query, where, onSnapshot, getFirestore } from "firebase/firestore";
+import { useState, useEffect } from "react";
 
 var firebaseConfig = {
   apiKey: "super secret",
@@ -17,14 +18,20 @@ var firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 const database = getFirestore(app);
-const q = query(collection(database, "dummy"));
-const dummyDatas = [];
-  const dart = onSnapshot(q, (querySnapshot) => {
-    querySnapshot.forEach((doc) => {
-      dummyDatas.push(doc.data().a_string);
-    });
-  });
+
 function App() {
+  const [datas, setDatas] = useState([]);
+
+  useEffect(() => {
+    const q = query(collection(database, "dummy"));
+    onSnapshot(q, (querySnapshot) => {
+      setDatas(querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        data: doc.data()
+      })))
+    })
+  },[])
+
   return (
     <div className="App">
       <header className="App-header">
@@ -44,7 +51,9 @@ function App() {
       <h1>Howdy!</h1>
 
       <p>
-        {dummyDatas[0]}
+        {datas.map((dummy) => (
+          dummy.data.a_string
+        ))}
       </p>      
 
 
