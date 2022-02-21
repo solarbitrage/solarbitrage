@@ -1,14 +1,11 @@
 import logo from './logo.svg';
 import './App.css';
 
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { initializeApp, deleteApp } from "firebase/app";
+import { collection, query, where, onSnapshot, getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyA43GkvEwu2rVvitE1G9-biG-RhO-ieKMQ",
+var firebaseConfig = {
+  apiKey: "super secret",
   authDomain: "solarbitrage-tamu.firebaseapp.com",
   databaseURL: "https://solarbitrage-tamu-default-rtdb.firebaseio.com",
   projectId: "solarbitrage-tamu",
@@ -17,13 +14,16 @@ const firebaseConfig = {
   appId: "1:764784752645:web:ab86d8a2c9a0132403846c"
 };
 
-import { getFirestore } from "firebase/firestore";
-
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-let defaultFirestore = getFirestore(app);
-
+const database = getFirestore(app);
+const q = query(collection(database, "dummy"));
+const dummyDatas = [];
+  const dart = onSnapshot(q, (querySnapshot) => {
+    querySnapshot.forEach((doc) => {
+      dummyDatas.push(doc.data().a_string);
+    });
+  });
 function App() {
   return (
     <div className="App">
@@ -42,6 +42,12 @@ function App() {
         </a>
       </header>
       <h1>Howdy!</h1>
+
+      <p>
+        {dummyDatas[0]}
+      </p>      
+
+
     </div>
   );
 }
