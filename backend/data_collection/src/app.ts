@@ -4,7 +4,7 @@ import { getOrca, OrcaPoolConfig, Network } from "@orca-so/sdk";
 import Decimal from "decimal.js";
 
 import { initializeApp, deleteApp } from "firebase/app";
-import { getDatabase, ref, set, update } from "firebase/database";
+import { getDatabase, ref, set, update, serverTimestamp } from "firebase/database";
 
 import config from "./config"
 
@@ -71,13 +71,13 @@ const orcaRequests = async () => {
 };
 
 function updateDatabase(poolName, quote) {
-  set(ref(database, 'latest_prices/' + poolName), {
+  update(ref(database, 'latest_prices/' + poolName), {
     expected_output_amount: quote.getExpectedOutputAmount().toNumber(),
     lp_fees: quote.getLPFees().toNumber(),
     min_output_amount: quote.getMinOutputAmount().toNumber(),
     network_fees: quote.getNetworkFees().toNumber(),
     price_impact: quote.getPriceImpact().toNumber(),
-    rate: quote.getRate().toNumber()
+    rate: quote.getRate().toNumber(),
   });
 }
 
