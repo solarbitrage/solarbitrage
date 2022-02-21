@@ -3,8 +3,8 @@ import { Connection, Keypair } from "@solana/web3.js";
 import { getOrca, OrcaPoolConfig, Network } from "@orca-so/sdk";
 import Decimal from "decimal.js";
 
-import { initializeApp, deleteApp } from "firebase/app";
-import { getDatabase, ref, set, update, serverTimestamp } from "firebase/database";
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, update } from "firebase/database";
 
 import config from "./config"
 
@@ -40,20 +40,20 @@ const orcaRequests = async () => {
   try {
     console.log('Gathering ORCA data')
     const pools = [
+      OrcaPoolConfig.ORCA_USDC,
       OrcaPoolConfig.SOL_USDC,
+      OrcaPoolConfig.BTC_USDC,
     ]
 
     // Gather swapping data
-    pools.forEach(async function(pool) {
+    for (const pool of pools) {
       const currentPool = orca.getPool(pool);
 
       const coinToken = currentPool.getTokenA();
       const usdcToken = currentPool.getTokenB();
 
       const tradingAmount = new Decimal(1);
-      const buyQuote = await currentPool.getQuote(usdcToken, tradingAmount);
-      const sellQuote = await currentPool.getQuote(coinToken, tradingAmount);
-
+      const [buyQuote, sellQuote] = await Promise.all([currentPool.getQuote(usdcToken, tradingAmount), currentPool.getQuote(coinToken, tradingAmount)]);
       // Update Firebase Real-time Database
       const poolName = Object.keys(OrcaPoolConfig).find(key => OrcaPoolConfig[key] === pool)
       updateDatabase('ORCA_' + poolName + '_BUY', buyQuote);
@@ -62,12 +62,11 @@ const orcaRequests = async () => {
       console.log('Update complete')
       console.log('Waiting until next call')
       console.log('\n')
-
-      setTimeout(orcaRequests, 5000)
-    })
+    }
   } catch (err) {
     console.warn(err);
   }
+  setTimeout(orcaRequests, 1000)
 };
 
 function updateDatabase(poolName, quote) {
