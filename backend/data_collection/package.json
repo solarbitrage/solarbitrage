@@ -1,7 +1,7 @@
 {
-  "name": "backend",
+  "name": "data-collection",
   "version": "1.0.0",
-  "description": "Backend for Solarbitrage",
+  "description": "Data collection for Solarbitrage",
   "main": "dist/app.js",
   "scripts": {
     "start": "tsc && node dist/app.js",

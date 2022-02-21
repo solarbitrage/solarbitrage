@@ -1,7 +1,0 @@
-# Specific files
-.env
-
-# Directories
-node_modules
-wallets
-dist
