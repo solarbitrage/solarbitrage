@@ -5,14 +5,16 @@ import { initializeApp, deleteApp } from "firebase/app";
 import { collection, query, where, onSnapshot, getFirestore } from "firebase/firestore";
 import { useState, useEffect } from "react";
 
+import config from "./firestore.config";
+
 var firebaseConfig = {
-  apiKey: "super secret",
-  authDomain: "solarbitrage-tamu.firebaseapp.com",
-  databaseURL: "https://solarbitrage-tamu-default-rtdb.firebaseio.com",
-  projectId: "solarbitrage-tamu",
-  storageBucket: "solarbitrage-tamu.appspot.com",
-  messagingSenderId: "764784752645",
-  appId: "1:764784752645:web:ab86d8a2c9a0132403846c"
+  apiKey: config.FIREBASE_API_KEY,
+  authDomain: config.FIREBASE_DOMAIN,
+  databaseURL: config.FIREBASE_DATABASE_URL,
+  projectId: config.FIREBASE_PROJECT_ID,
+  storageBucket: config.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: config.FIREBASE_MESSAGING_SENDER_ID,
+  appId: config.FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
