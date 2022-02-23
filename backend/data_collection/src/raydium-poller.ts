@@ -62,37 +62,40 @@ function updateDatabase(poolName, data) {
   for (;;) {
     for (const pool of lpPools) {
       const poolKeys = jsonInfo2PoolKeys(pool);
-      const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys })
-      
-      const price = Liquidity.getRate(poolInfo);
-      const coinTickers = poolMintAddrToName[pool.id].split("_")
-      const poolName = `RAYDIUM_${poolMintAddrToName[pool.id]}`;
-      
-      const results = {
-        network_fees: 10000,
+      try {
+        const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys })
+        
+        const price = Liquidity.getRate(poolInfo);
+        const coinTickers = poolMintAddrToName[pool.id].split("_")
+        const poolName = `RAYDIUM_${poolMintAddrToName[pool.id]}`;
+        
+        const results = {
+          network_fees: 10000,
+        }
+        
+        const sellResults = {
+          ...results,
+          rate: parseFloat(price.toFixed(9)),
+          from: coinTickers[0],
+          to: coinTickers[1],
+        }
+        
+        const buyResults = {
+          ...results,
+          rate: parseFloat(price.invert().toFixed(9)),
+          from: coinTickers[1],
+          to: coinTickers[0],
+        }
+        
+        console.log(`${poolName}_BUY`, buyResults)
+        console.log(`${poolName}_SELL`, sellResults)
+        
+        updateDatabase(`${poolName}_BUY`, buyResults)
+        updateDatabase(`${poolName}_SELL`, sellResults)
+      } catch(e) {
+        console.error(e);
       }
-      
-      const sellResults = {
-        ...results,
-        rate: parseFloat(price.toFixed(9)),
-        from: coinTickers[0],
-        to: coinTickers[1],
-      }
-      
-      const buyResults = {
-        ...results,
-        rate: parseFloat(price.invert().toFixed(9)),
-        from: coinTickers[1],
-        to: coinTickers[0],
-      }
-
-      console.log(`${poolName}_BUY`, buyResults)
-      console.log(`${poolName}_SELL`, sellResults)
-      
-      updateDatabase(`${poolName}_BUY`, buyResults)
-      updateDatabase(`${poolName}_SELL`, sellResults)
     }
-
     await sleep(400)
   }
 
