@@ -1,38 +1,36 @@
 import logo from './logo.svg';
 import './App.css';
 
-import { initializeApp, deleteApp } from "firebase/app";
-import { collection, query, where, onSnapshot, getFirestore } from "firebase/firestore";
+import { collection, query, where, onSnapshot, limitToFirst, orderByChild } from "firebase/firestore";
 import { useState, useEffect } from "react";
 
-import config from "./firestore.config";
+import PriceHistoryPlot from './components/dashboard/pricingHistoryPlot';
 
-var firebaseConfig = {
-  apiKey: config.FIREBASE_API_KEY,
-  authDomain: config.FIREBASE_DOMAIN,
-  databaseURL: config.FIREBASE_DATABASE_URL,
-  projectId: config.FIREBASE_PROJECT_ID,
-  storageBucket: config.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: config.FIREBASE_MESSAGING_SENDER_ID,
-  appId: config.FIREBASE_APP_ID
-};
-
-const app = initializeApp(firebaseConfig);
-
-const database = getFirestore(app);
+//import database from "./firestore.config";
 
 function App() {
-  const [datas, setDatas] = useState([]);
+  // const [datas, setDatas] = useState([]);
 
-  useEffect(() => {
-    const q = query(collection(database, "dummy"));
-    onSnapshot(q, (querySnapshot) => {
-      setDatas(querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        data: doc.data()
-      })))
-    })
-  },[])
+  // useEffect(() => {
+  //   const q = query(collection(database, "dummy"));
+  //   onSnapshot(q, (querySnapshot) => {
+  //     setDatas(querySnapshot.docs.map(doc => ({
+  //       id: doc.id,
+  //       data: doc.data()
+  //     })))
+  //   })
+  // },[])
+
+  // const [pricingHistory, setPricingHistory] = useState([]);
+  // useEffect(() => {
+  //   const q = query(collection(database, "pricing_history")).orderByChild("timestamp").limitToFirst(50);
+  //   onSnapshot(q, (querySnapshot) => {
+  //     setPricingHistory(querySnapshot.docs.map(doc => ({
+  //       id: doc.id,
+  //       data: doc.data()
+  //     })))
+  //   })
+  // }, [])
 
   return (
     <div className="App">
@@ -53,12 +51,18 @@ function App() {
       <h1>Howdy!</h1>
 
       <p>
-        {datas.map((dummy) => (
+        {/* {datas.map((dummy) => (
           dummy.data.a_string
-        ))}
-      </p>      
+        ))} */}
 
+        {
+          
+        }
+      </p>
 
+      <PriceHistoryPlot 
+        times={[0, 1, 2, 3]} 
+        prices={[0.5, 10, 20, 5]} />
     </div>
   );
 }
