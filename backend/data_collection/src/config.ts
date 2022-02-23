@@ -1,4 +1,5 @@
-require('dotenv').config();
+import dotenv from "dotenv"
+dotenv.config();
 
 interface ENV {
     FIREBASE_API_KEY: string | undefined;
