@@ -3,8 +3,8 @@ import { Connection, Keypair } from "@solana/web3.js";
 import { getOrca, OrcaPoolConfig, Network } from "@orca-so/sdk";
 import Decimal from "decimal.js";
 
-import { initializeApp, deleteApp } from "firebase/app";
-import { getDatabase, ref, set, update } from "firebase/database";
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, update } from "firebase/database";
 
 import config from "./config"
 
@@ -40,44 +40,47 @@ const orcaRequests = async () => {
   try {
     console.log('Gathering ORCA data')
     const pools = [
+      OrcaPoolConfig.ORCA_USDC,
       OrcaPoolConfig.SOL_USDC,
+      OrcaPoolConfig.BTC_USDC,
+      OrcaPoolConfig.ORCA_SOL,
     ]
 
     // Gather swapping data
-    pools.forEach(async function(pool) {
+    for (const pool of pools) {
       const currentPool = orca.getPool(pool);
 
-      const coinToken = currentPool.getTokenA();
-      const usdcToken = currentPool.getTokenB();
+      const coinA = currentPool.getTokenA();
+      const coinB = currentPool.getTokenB();
 
       const tradingAmount = new Decimal(1);
-      const buyQuote = await currentPool.getQuote(usdcToken, tradingAmount);
-      const sellQuote = await currentPool.getQuote(coinToken, tradingAmount);
-
+      const [buyQuote, sellQuote] = await Promise.all([currentPool.getQuote(coinB, tradingAmount), currentPool.getQuote(coinA, tradingAmount)]);
+      
       // Update Firebase Real-time Database
       const poolName = Object.keys(OrcaPoolConfig).find(key => OrcaPoolConfig[key] === pool)
-      updateDatabase('ORCA_' + poolName + '_BUY', buyQuote);
-      updateDatabase('ORCA_' + poolName + '_SELL', sellQuote);
+      updateDatabase('ORCA_' + poolName + '_BUY', buyQuote, coinB, coinA)
+      updateDatabase('ORCA_' + poolName + '_SELL', sellQuote, coinA, coinB);
 
       console.log('Update complete')
       console.log('Waiting until next call')
       console.log('\n')
-
-      setTimeout(orcaRequests, 5000)
-    })
+    }
   } catch (err) {
     console.warn(err);
   }
+  setTimeout(orcaRequests, 1000)
 };
 
-function updateDatabase(poolName, quote) {
-  set(ref(database, 'latest_prices/' + poolName), {
+function updateDatabase(poolName, quote, fromToken, toToken) {
+  update(ref(database, 'latest_prices/' + poolName), {
     expected_output_amount: quote.getExpectedOutputAmount().toNumber(),
     lp_fees: quote.getLPFees().toNumber(),
     min_output_amount: quote.getMinOutputAmount().toNumber(),
     network_fees: quote.getNetworkFees().toNumber(),
     price_impact: quote.getPriceImpact().toNumber(),
-    rate: quote.getRate().toNumber()
+    rate: quote.getRate().toNumber(),
+    from: fromToken.tag,
+    to: toToken.tag
   });
 }
 

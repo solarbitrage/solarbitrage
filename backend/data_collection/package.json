@@ -4,7 +4,9 @@
   "description": "Data collection for Solarbitrage",
   "main": "dist/app.js",
   "scripts": {
-    "start": "tsc && node dist/app.js",
+    "start": "tsc && concurrently -kill-others \"npm run data-collection\" \"npm run listener\"",
+    "data-collection": "node dist/app.js",
+    "listener": "node dist/firestorelistener.js",
     "lint": "eslint . --ext .ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
