@@ -56,8 +56,8 @@ const orcaRequests = async () => {
       const [buyQuote, sellQuote] = await Promise.all([currentPool.getQuote(usdcToken, tradingAmount), currentPool.getQuote(coinToken, tradingAmount)]);
       // Update Firebase Real-time Database
       const poolName = Object.keys(OrcaPoolConfig).find(key => OrcaPoolConfig[key] === pool)
-      updateDatabase('ORCA_' + poolName + '_BUY', buyQuote);
-      updateDatabase('ORCA_' + poolName + '_SELL', sellQuote);
+      updateDatabase('ORCA_' + poolName + '_BUY', buyQuote, usdcToken, coinToken)
+      updateDatabase('ORCA_' + poolName + '_SELL', sellQuote, coinToken, usdcToken);
 
       console.log('Update complete')
       console.log('Waiting until next call')
@@ -69,7 +69,7 @@ const orcaRequests = async () => {
   setTimeout(orcaRequests, 1000)
 };
 
-function updateDatabase(poolName, quote) {
+function updateDatabase(poolName, quote, fromToken, toToken) {
   update(ref(database, 'latest_prices/' + poolName), {
     expected_output_amount: quote.getExpectedOutputAmount().toNumber(),
     lp_fees: quote.getLPFees().toNumber(),
@@ -77,6 +77,8 @@ function updateDatabase(poolName, quote) {
     network_fees: quote.getNetworkFees().toNumber(),
     price_impact: quote.getPriceImpact().toNumber(),
     rate: quote.getRate().toNumber(),
+    from: fromToken.tag,
+    to: toToken.tag
   });
 }
 
