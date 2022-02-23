@@ -4,8 +4,10 @@
   "description": "Data collection for Solarbitrage",
   "main": "dist/app.js",
   "scripts": {
-    "start": "tsc && concurrently -kill-others \"npm run data-collection\" \"npm run listener\"",
-    "data-collection": "node dist/app.js",
+    "start": "tsc || npm run data-collection",
+    "data-collection": "concurrently -kill-others npm:data-collection-orca npm:data-collection-raydium",
+    "data-collection-orca": "node dist/app.js",
+    "data-collection-raydium": "node dist/raydium-poller.js",
     "listener": "node dist/firestorelistener.js",
     "lint": "eslint . --ext .ts",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -19,8 +21,6 @@
   "dependencies": {
     "@orca-so/sdk": "^1.2.22",
     "@raydium-io/raydium-sdk": "^1.0.1-beta.32",
-    "@solana/spl-token": "^0.2.0",
-    "@solana/web3.js": "^1.34.0",
     "decimal.js": "^10.3.1",
     "dotenv": "^16.0.0",
     "express": "^4.17.1",
