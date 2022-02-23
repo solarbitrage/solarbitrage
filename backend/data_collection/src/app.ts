@@ -63,12 +63,11 @@ const orcaRequests = async () => {
 
       console.log('Update complete')
       console.log('Waiting until next call')
-      console.log('\n')
     }
   } catch (err) {
     console.warn(err);
   }
-  setTimeout(orcaRequests, 1000)
+  setTimeout(orcaRequests, 250)
 };
 
 function updateDatabase(poolName, quote, fromToken, toToken) {
