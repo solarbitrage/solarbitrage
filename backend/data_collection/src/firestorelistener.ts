@@ -27,12 +27,12 @@ function main() {
         addDoc(collection(firestore, "pricing_history"), {
             pool_id: data.key,
             timestamp: serverTimestamp(),
-            expected_output_amount: data.val().expected_output_amount,
-            lp_fees: data.val().lp_fees,
-            min_output_amount: data.val().min_output_amount,
-            network_fees: data.val().network_fees,
-            price_impact: data.val().price_impact,
-            rate: data.val().rate,
+            expected_output_amount: data.val().expected_output_amount || null,
+            lp_fees: data.val().lp_fees || null,
+            min_output_amount: data.val().min_output_amount || null,
+            network_fees: data.val().network_fees || null,
+            price_impact: data.val().price_impact || null,
+            rate: data.val().rate || null,
         })
     })
 }
