@@ -43,21 +43,23 @@ const orcaRequests = async () => {
       OrcaPoolConfig.ORCA_USDC,
       OrcaPoolConfig.SOL_USDC,
       OrcaPoolConfig.BTC_USDC,
+      OrcaPoolConfig.ORCA_SOL,
     ]
 
     // Gather swapping data
     for (const pool of pools) {
       const currentPool = orca.getPool(pool);
 
-      const coinToken = currentPool.getTokenA();
-      const usdcToken = currentPool.getTokenB();
+      const coinA = currentPool.getTokenA();
+      const coinB = currentPool.getTokenB();
 
       const tradingAmount = new Decimal(1);
-      const [buyQuote, sellQuote] = await Promise.all([currentPool.getQuote(usdcToken, tradingAmount), currentPool.getQuote(coinToken, tradingAmount)]);
+      const [buyQuote, sellQuote] = await Promise.all([currentPool.getQuote(coinB, tradingAmount), currentPool.getQuote(coinA, tradingAmount)]);
+      
       // Update Firebase Real-time Database
       const poolName = Object.keys(OrcaPoolConfig).find(key => OrcaPoolConfig[key] === pool)
-      updateDatabase('ORCA_' + poolName + '_BUY', buyQuote, usdcToken, coinToken)
-      updateDatabase('ORCA_' + poolName + '_SELL', sellQuote, coinToken, usdcToken);
+      updateDatabase('ORCA_' + poolName + '_BUY', buyQuote, coinB, coinA)
+      updateDatabase('ORCA_' + poolName + '_SELL', sellQuote, coinA, coinB);
 
       console.log('Update complete')
       console.log('Waiting until next call')
