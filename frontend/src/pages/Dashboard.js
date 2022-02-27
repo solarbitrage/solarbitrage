@@ -36,13 +36,20 @@ function Dashboard() {
 
 			<div className="earningsOverTimePlot">
 				<PriceHistoryPlot 
+					title="Monies over the time"
 					times={[0, 1, 2, 3]} 
 					prices={[0.5, 10, 20, 5]} />
 			</div>
 			
 			<div className="botMetrics">
 				<h2>Bots</h2>
-				<BotInformation />
+				<BotInformation 
+					name="George"
+					strategyUsing="Sub Par"
+					averageEarnings="-0.05%"
+					amms={["Orca", "Raydium"]}
+					currencies={["Solana", "USDC"]}
+				/>
 				<BotInformation
 					name="Daniel"
 					strategyUsing="The Best"

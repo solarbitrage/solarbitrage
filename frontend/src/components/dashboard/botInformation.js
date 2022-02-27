@@ -5,10 +5,10 @@ class BotInformation extends React.Component {
 	constructor(props) {
 		super(props);
 		
-		this.name = "George"
+		this.name = ""
 		this.times = [];
 		this.gains = [];
-		this.strategyUsing = "default";
+		this.strategyUsing = "";
 		this.averageEarnings = "-0.5%"
 		this.amms = ["Raydium", "Orca"];
 		this.currencies = ["USDC", "Solana"];
@@ -17,7 +17,7 @@ class BotInformation extends React.Component {
 	render() {
 		return (
 			<div className="bot">
-				<h4>Bot {this.name}</h4>
+				<h4>Bot {this.props.name}</h4>
 				<div className="botInformation">
 					<div className="botGraph">
 						<Plot
@@ -35,10 +35,10 @@ class BotInformation extends React.Component {
 					</div>
 
 					<div className="botData">
-						<p>Average Earnings: {this.averageEarnings}</p>
-						<p>Current Strategy: {this.strategyUsing}</p>
-						<p>AMMs: {this.amms}</p>
-						<p>Currencies: {this.currencies}</p>
+						<p>Current Strategy: {this.props.strategyUsing}</p>
+						<p>Average Earnings: {this.props.averageEarnings}</p>
+						<p>AMMs: {this.props.amms}</p>
+						<p>Currencies: {this.props.currencies}</p>
 					</div>
 				</div>
 			</div>

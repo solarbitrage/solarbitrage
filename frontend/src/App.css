@@ -19,11 +19,12 @@ h1 {
 
 .userInformation {
   display: flex;
-  background-color: rgb(255, 255, 255);
+  background-color: rgb(221, 221, 221);
   flex-wrap: wrap;
   align-content: center;
   justify-content: center;
   align-items: center;
+  padding: 10px;
 }
 
 .userInformation .userMetric {
@@ -47,5 +48,6 @@ h1 {
 
 .botInformation {
   display: flex;
+  flex-wrap: wrap;
   align-items: center
 }

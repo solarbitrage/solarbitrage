@@ -6,6 +6,7 @@ class PriceHistoryPlot extends React.Component {
 	constructor(props) {
 		super(props);
 
+		this.title = "";
 		this.times = [];
 		this.prices = [];
 	}
@@ -22,7 +23,7 @@ class PriceHistoryPlot extends React.Component {
 						marker: {color: 'red'},
 					}
 				]}
-				layout={ {width: 1280, height: 720, title: 'Prices over time for Orca'} }
+				layout={ {width: 1280, height: 720, title: this.props.title} }
 			/>
 		);
 	}
