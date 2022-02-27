@@ -37,8 +37,8 @@ class BotInformation extends React.Component {
 					<div className="botData">
 						<p>Current Strategy: {this.props.strategyUsing}</p>
 						<p>Average Earnings: {this.props.averageEarnings}</p>
-						<p>AMMs: {this.props.amms}</p>
-						<p>Currencies: {this.props.currencies}</p>
+						<p>AMMs: {this.props.amms.join(", ")}</p>
+						<p>Currencies: {this.props.currencies.join(", ")}</p>
 					</div>
 				</div>
 			</div>
