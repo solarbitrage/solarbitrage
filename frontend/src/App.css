@@ -1,38 +1,51 @@
 .App {
-  text-align: center;
+  text-align: left;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.NavBar a {
+  padding: 10px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+h1 {
+  font-size: xx-large;
+  padding: 20px;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.container {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+.userInformation {
+  display: flex;
+  background-color: rgb(255, 255, 255);
+  flex-wrap: wrap;
+  align-content: center;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  align-items: center;
 }
 
-.App-link {
-  color: #61dafb;
+.userInformation .userMetric {
+  margin: 5px;
+  width: 300px;
+  height: 300px;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.userInformation .userMetric:nth-child(odd) {
+  background-color: rgb(187, 187, 187);
+}
+
+.userInformation .userMetric:nth-child(even) {
+  background-color: rgb(241, 241, 241);
+}
+
+.botMetrics {
+  padding: 50px;
+  background-color: rgb(233, 233, 233);
+}
+
+.botInformation {
+  display: flex;
+  align-items: center
 }

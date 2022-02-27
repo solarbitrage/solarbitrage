@@ -19,7 +19,7 @@ class PriceHistoryPlot extends React.Component {
                         y: this.props.prices,
                         type: 'scatter',
                         mode: 'lines+markers',
-                        marker: {color: ['red', 'red', 'blue', 'red']},
+                        marker: {color: 'red'},
                     }
                 ]}
                 layout={ {width: 1280, height: 720, title: 'Prices over time for Orca'} }

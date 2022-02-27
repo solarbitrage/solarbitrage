@@ -1,11 +1,17 @@
-import logo from './logo.svg';
 import './App.css';
 
-import { collection, query, where, onSnapshot, limitToFirst, orderByChild } from "firebase/firestore";
-import { useState, useEffect } from "react";
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route
+} from "react-router-dom";
 
-import PriceHistoryPlot from './components/dashboard/pricingHistoryPlot';
+import NavBar from './components/navbar/navbar';
+import Dashboard from "./pages/Dashboard";
+import Metrics from "./pages/Metrics";
 
+//import { collection, query, where, onSnapshot, limitToFirst, orderByChild } from "firebase/firestore";
 //import database from "./firestore.config";
 
 function App() {
@@ -21,48 +27,16 @@ function App() {
   //   })
   // },[])
 
-  // const [pricingHistory, setPricingHistory] = useState([]);
-  // useEffect(() => {
-  //   const q = query(collection(database, "pricing_history")).orderByChild("timestamp").limitToFirst(50);
-  //   onSnapshot(q, (querySnapshot) => {
-  //     setPricingHistory(querySnapshot.docs.map(doc => ({
-  //       id: doc.id,
-  //       data: doc.data()
-  //     })))
-  //   })
-  // }, [])
-
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-      <h1>Howdy!</h1>
-
-      <p>
-        {/* {datas.map((dummy) => (
-          dummy.data.a_string
-        ))} */}
-
-        {
-          
-        }
-      </p>
-
-      <PriceHistoryPlot 
-        times={[0, 1, 2, 3]} 
-        prices={[0.5, 10, 20, 5]} />
+      <Router>
+        <NavBar />
+        <Routes>
+            <Route element={ <App /> } />
+            <Route path="/dashboard" element={ <Dashboard /> } />
+            <Route path="/metrics" element={ <Metrics /> } />
+        </Routes>
+    </Router>
     </div>
   );
 }
