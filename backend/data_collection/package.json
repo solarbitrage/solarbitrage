@@ -6,7 +6,7 @@
   "scripts": {
     "start": "tsc || npm run data-collection",
     "data-collection": "concurrently -kill-others npm:data-collection-orca npm:data-collection-raydium npm:listener",
-    "data-collection-orca": "node dist/app.js",
+    "data-collection-orca": "node dist/orca-poller.js",
     "data-collection-raydium": "node dist/raydium-poller.js",
     "listener": "node dist/firestorelistener.js",
     "lint": "eslint . --ext .ts",
