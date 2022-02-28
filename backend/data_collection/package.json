@@ -1,0 +1,38 @@
+{
+  "name": "data-collection",
+  "version": "1.0.0",
+  "description": "Data collection for Solarbitrage",
+  "main": "dist/app.js",
+  "scripts": {
+    "start": "tsc || npm run data-collection",
+    "data-collection": "concurrently -kill-others npm:data-collection-orca npm:data-collection-raydium npm:listener",
+    "data-collection-orca": "node dist/orca-poller.js",
+    "data-collection-raydium": "node dist/raydium-poller.js",
+    "listener": "node dist/firestorelistener.js",
+    "lint": "eslint . --ext .ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.tamu.edu/solarbitrage/solarbitrage"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@orca-so/sdk": "^1.2.22",
+    "@raydium-io/raydium-sdk": "^1.0.1-beta.32",
+    "decimal.js": "^10.3.1",
+    "dotenv": "^16.0.0",
+    "express": "^4.17.1",
+    "firebase": "^9.6.7",
+    "mz": "^2.7.0",
+    "node-fetch": "2.6.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.1",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "concurrently": "^7.0.0",
+    "eslint": "^8.9.0"
+  }
+}
