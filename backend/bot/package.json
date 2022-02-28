@@ -2,12 +2,12 @@
   "name": "solarbitrage",
   "version": "1.0.0",
   "description": "arbitrage bot for solarbitrage",
-  "main": "dist/test.js",
+  "main": "dist/bot.js",
   "scripts": {
-    "start": "tsc && node dist/test.js",
+    "start": "tsc && node dist/bot.js",
     "lint": "eslint . --ext .ts",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon testfirebase.ts"
+    "dev": "nodemon bot.ts"
   },
   "repository": {
     "type": "git",
