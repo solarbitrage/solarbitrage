@@ -23,7 +23,7 @@ class PriceHistoryPlot extends React.Component {
 						marker: {color: 'red'},
 					}
 				]}
-				layout={ {width: 1280, height: 720, title: this.props.title} }
+				layout={ {width: 950, height: 460, title: this.props.title} }
 			/>
 		);
 	}
