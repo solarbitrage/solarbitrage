@@ -60,9 +60,6 @@ const orcaRequests = async () => {
       const poolName = Object.keys(OrcaPoolConfig).find(key => OrcaPoolConfig[key] === pool)
       updateDatabase('ORCA_' + poolName + '_BUY', buyQuote, coinB, coinA)
       updateDatabase('ORCA_' + poolName + '_SELL', sellQuote, coinA, coinB);
-
-      console.log('Update complete')
-      console.log('Waiting until next call')
     }
   } catch (err) {
     console.warn(err);
@@ -71,7 +68,7 @@ const orcaRequests = async () => {
 };
 
 function updateDatabase(poolName, quote, fromToken, toToken) {
-  update(ref(database, 'latest_prices/' + poolName), {
+  const results = {
     expected_output_amount: quote.getExpectedOutputAmount().toNumber(),
     lp_fees: quote.getLPFees().toNumber(),
     min_output_amount: quote.getMinOutputAmount().toNumber(),
@@ -80,7 +77,11 @@ function updateDatabase(poolName, quote, fromToken, toToken) {
     rate: quote.getRate().toNumber(),
     from: fromToken.tag,
     to: toToken.tag
-  });
+  };
+
+  console.log(poolName, results)
+
+  update(ref(database, 'latest_prices/' + poolName), results);
 }
 
 orcaRequests()
