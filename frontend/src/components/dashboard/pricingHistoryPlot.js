@@ -1,32 +1,43 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Plot from "react-plotly.js";
 
-class PriceHistoryPlot extends React.Component {
+import { collection, query, where, onSnapshot, limit, orderBy } from "firebase/firestore";
+import database from "../../firestore.config";
 
-	constructor(props) {
-		super(props);
+function PriceHistoryPlot(props) {
+	const [pricingHistory, setPricingHistory] = React.useState([]);
+  React.useEffect(() => {
+		const pricingRef = collection(database, "pricing_history");
+    const q = query(pricingRef, orderBy("timestamp", "desc"), limit(10));
+    onSnapshot(q, (querySnapshot) => {
+			const datas = querySnapshot.docs.map(doc => ({
+				id: doc.id,
+        data: doc.data()
+      }));
+      setPricingHistory(() => [...datas])
+    })
+  }, [setPricingHistory])
 
-		this.title = "";
-		this.times = [];
-		this.prices = [];
-	}
+	React.useEffect(() => {
+		console.log(pricingHistory);
+	}, [pricingHistory])
+	
 
-	render() {
-		return (
-			<Plot
-				data={[
-					{
-						x: this.props.times,
-						y: this.props.prices,
-						type: 'scatter',
-						mode: 'lines+markers',
-						marker: {color: 'red'},
-					}
-				]}
-				layout={ {width: 950, height: 460, title: this.props.title} }
-			/>
-		);
-	}
+	return (
+		<Plot
+			data={
+				pricingHistory.map(ph => ({
+					x: ph.data.timestamp,	
+					y: ph.data.rate,
+					type: 'scatter',
+					mode: 'lines+markers',
+					marker: {color: 'red'}
+				}))
+			}
+			layout={ {width: 950, height: 460, title: props.title} }
+		/>
+	);
+	
 }
 
 export default PriceHistoryPlot;

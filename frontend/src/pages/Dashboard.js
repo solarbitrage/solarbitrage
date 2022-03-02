@@ -1,25 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
 import PriceHistoryPlot from "../components/dashboard/pricingHistoryPlot";
 import BotInformation from "../components/dashboard/botInformation";
 
-// import { collection, query, where, onSnapshot, limit, orderBy } from "firebase/firestore";
-// import database from "../firestore.config";
-
 function Dashboard() {
-  // const [pricingHistory, setPricingHistory] = React.useState([]);
-  // React.useEffect(() => {
-	// 	const pricingRef = collection(database, "pricing_history");
-  //   const q = query(pricingRef, orderBy("timestamp"), limit(5));
-  //   onSnapshot(q, (querySnapshot) => {
-  //     setPricingHistory(querySnapshot.docs.map(doc => ({
-  //       id: doc.id,
-  //       data: doc.data()
-  //     })))
-
-	// 		console.log(pricingHistory);
-  //   })
-  // }, [])
-
 	return (
 	<div className="dashboard">
 		
