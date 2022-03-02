@@ -1,6 +1,6 @@
 import { readFile } from "mz/fs";
 import { Connection, Keypair } from "@solana/web3.js";
-import { getOrca, OrcaPoolConfig, Network } from "@orca-so/sdk";
+import { getOrca, OrcaPoolConfig, Network, Quote, OrcaPoolToken } from "@orca-so/sdk";
 import Decimal from "decimal.js";
 
 import { initializeApp } from "firebase/app";
@@ -55,7 +55,7 @@ const orcaRequests = async () => {
 
       const tradingAmount = new Decimal(1);
       const [buyQuote, sellQuote] = await Promise.all([currentPool.getQuote(coinB, tradingAmount), currentPool.getQuote(coinA, tradingAmount)]);
-      
+
       // Update Firebase Real-time Database
       const poolName = Object.keys(OrcaPoolConfig).find(key => OrcaPoolConfig[key] === pool)
       updateDatabase('ORCA_' + poolName, buyQuote, sellQuote, coinA, coinB)
@@ -66,7 +66,7 @@ const orcaRequests = async () => {
   setTimeout(orcaRequests, 250)
 };
 
-function updateDatabase(poolName, buyQuote, sellQuote, coinA, coinB) {
+function updateDatabase(poolName: String, buyQuote: Quote, sellQuote: Quote, coinA: OrcaPoolToken, coinB: OrcaPoolToken) {
   const results = {
     "buy": {
       expected_output_amount: buyQuote.getExpectedOutputAmount().toNumber(),
@@ -74,7 +74,8 @@ function updateDatabase(poolName, buyQuote, sellQuote, coinA, coinB) {
       min_output_amount: buyQuote.getMinOutputAmount().toNumber(),
       network_fees: buyQuote.getNetworkFees().toNumber(),
       price_impact: buyQuote.getPriceImpact().toNumber(),
-      rate: buyQuote.getRate().toNumber(),
+      rate: parseFloat(buyQuote.getRate().toFixed(15)),
+      rate_raw: buyQuote.getRate().toFixed(15),
       from: coinB.tag,
       to: coinA.tag
     }, 
@@ -84,7 +85,8 @@ function updateDatabase(poolName, buyQuote, sellQuote, coinA, coinB) {
       min_output_amount: sellQuote.getMinOutputAmount().toNumber(),
       network_fees: sellQuote.getNetworkFees().toNumber(),
       price_impact: sellQuote.getPriceImpact().toNumber(),
-      rate: sellQuote.getRate().toNumber(),
+      rate: parseFloat(sellQuote.getRate().toFixed(15)),
+      rate_raw: sellQuote.getRate().toFixed(15),
       from: coinA.tag,
       to: coinB.tag     
     }
@@ -93,7 +95,7 @@ function updateDatabase(poolName, buyQuote, sellQuote, coinA, coinB) {
   console.log(poolName, results)
 
   update(ref(database, 'latest_prices/' + poolName), results);
-}
+};
 
 orcaRequests()
   .then(() => {
