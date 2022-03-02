@@ -20,9 +20,6 @@ const firebaseConfig = {
     appId: config.FIREBASE_APP_ID
   };  
 
-  // don't do swap. NOtify best paths to making profit. based on raydium and orca
-      // keep local copy of database. keep a real time listerer to firebase and update local copy of database with changed values
-  // possibly still try doing swaps between orca pools to test out swaps. and test out net profit or loss after trade
 const app = initializeApp(firebaseConfig);
 
 // Get a reference to the database service
@@ -58,64 +55,70 @@ run_pools().then((queries)=>{
   calculate_trade();
 });
 
-
-const starCountRef = ref(database, 'latest_prices/');
-onChildChanged(starCountRef, (snapshot) => {
+let look_from:string, look_to:string, current_pool;
+const updated_pools = ref(database, 'latest_prices/');
+onChildChanged(updated_pools, (snapshot) => {
   // console.log("snapshot", snapshot)
 //  console.log("key", snapshot.key)
   const data = snapshot.val();
   local_database[snapshot.key] = data;
-  // updateStarCount(postElement, data);
-  console.log(data);
-  console.log('\n ------------------------------- \n')
+  // find the pools with the oppsite direction of coins
+  look_from = local_database[snapshot.key].to;
+  look_to = local_database[snapshot.key].from;
+  // console.log(snapshot.key);
+  // console.log(local_database[snapshot.key].from)
+
+  // look for the "from" and "to" and look for pools that have the inverse of from->to
+  // run trades based on sell rates comparison 
 
   //function that runs caclculations anytime there's a change
   calculate_trade(snapshot.key);
 });
 // calculate function
 
+// are we always starting from USDC_SOL? Or is only fixed thing is that we start with USDC
+// thereby checking multiple pools starting "from:USDC" and comparing the respective pools to same pools in other AMMs
+
+// are we checking usd->arbitrary coin a->usd?
+  // only if multiple pools exist. 
+  // in which case compare which arbitrary coin to select based on the greater rate difference?
+  // scope is for later 
+
+// get an array of all "from:USDC" and compare the rates between them? but right now only doing 2 trades (2 AMMs)
+// so basically get the from and compare rates and swap between the two.
 function calculate_trade(update?){
 // console.log(local_database, update)
   console.log("Calculating ...")
 
-//   let fromUSDC = Object.entries(local_database).filter(([key, value]) =>{
-//    return value.from === 'USDC'
-//   })
-
+  // let fromUSDC = Object.entries(local_database).filter(([key,value]) => {
+  //  return value['from'] === 'USDC'
+  // //  return value.from === 'look_from' && value.to === 'look_to'&& key.startsWith("ORCA") 
+  // })
+  // for (const [key, value] of Object.entries(local_database)) {
+  //   console.log(`${key}: ${value['buy']['from']}`);
+  // }
 // fromUSDC.forEach(pair=>{
-//   pair = pair[1]
-
+//   // pair = pair[1]
+//   console.log("ooooooooooooooooo",pair[1])
 // })
-
-  let rates = []
-  // console.log(local_database);
-  rates[0] = local_database.ORCA_SOL_USDC_BUY.rate;
-  rates[1] = local_database.ORCA_SOL_USDC_SELL.rate;
-  rates[2] = local_database.RAYDIUM_SOL_USDC_SELL.rate;
 
   // have rate_diff? don't trade till above base value?
   // rn calculate() called at any update in database -> not on sol_usdc pool of Raydium and Orca.
   // 
   let buy_from:string, sell_to:string;
   let usdc = 1;  // base value of $1
-  let rate_diff = Math.abs(local_database.ORCA_SOL_USDC_SELL.rate - local_database.RAYDIUM_SOL_USDC_SELL.rate);
+  let rate_diff = Math.abs(local_database.ORCA_SOL_USDC.sell.rate - local_database.RAYDIUM_SOL_USDC.sell.rate);
+  // run swaps based on this below threshold
   if(rate_diff > 0.1){
-    if(local_database.ORCA_SOL_USDC_SELL.rate < local_database.RAYDIUM_SOL_USDC_SELL.rate){
-      // buy sol from ORCA and sell sol to get usdc 
-      usdc = usdc*local_database.RAYDIUM_SOL_USDC_BUY.rate;
-      usdc = usdc*local_database.ORCA_SOL_USDC_SELL.rate;   
-      buy_from = "RAYDIUM_SOL_USDC";
-      sell_to = "ORCA_SOL_USDC";
+    if(local_database.ORCA_SOL_USDC.sell.rate < local_database.RAYDIUM_SOL_USDC.sell.rate){
+      usdc += rate_diff;
       console.log("Buy from Raydium, Sell to Orca");
     }
     else{
-      usdc = usdc*local_database.ORCA_SOL_USDC_BUY.rate;
-      usdc = usdc*local_database.RAYDIUM_SOL_USDC_SELL.rate;
-      buy_from = "ORCA_SOL_USDC";
-      sell_to = "RAYDIUM_SOL_USDC";
+      usdc += rate_diff;
       console.log("Buy from Orca, Sell to Raydium");
     }
-    console.log("Resulting USDC amount: " , usdc);
+    console.log("Estimated net USDC amount: " , usdc);
   }
   else{
     console.log("Not worth the trade\n");
@@ -133,3 +136,5 @@ function calculate_trade(update?){
   // } catch (e) {
   //   console.error("Error adding document: ", e);
   // }
+// /*
+}

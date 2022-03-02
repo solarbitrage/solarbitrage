@@ -25,17 +25,17 @@ const main = async () => {
   const orca = getOrca(connection, Network.DEVNET);
 
   try {
-    // // Getting USDC from SOL wallet
-    // const solUSDCPool = orca.getPool(OrcaPoolConfig.SOL_USDC);
-    // const solTokensell = solUSDCPool.getTokenA();
-    // const solAmountsell = new Decimal(0.011139);  // getting $1
-    // const solquotesell = await solUSDCPool.getQuote(solTokensell, solAmountsell);
-    // const USDCAmountbuy = solquotesell.getMinOutputAmount();
+    // Getting USDC from SOL wallet
+    const solUSDCPool = orca.getPool(OrcaPoolConfig.SOL_USDC);
+    const solTokensell = solUSDCPool.getTokenA();
+    const solAmountsell = new Decimal(0.011139);  // getting $1 0.01038672
+    const solquotesell = await solUSDCPool.getQuote(solTokensell, solAmountsell);
+    const USDCAmountbuy = solquotesell.getMinOutputAmount();
     
-    // console.log(`Swapertoto ${solAmountsell.toString()} SOL for at least ${USDCAmountbuy.toNumber()} USDC`);
-    // const swap = await solUSDCPool.swap(owner, solTokensell, solAmountsell, USDCAmountbuy);
-    // const swapped = await swap.execute();
-    // console.log("\n swap id: ", swapped)
+    console.log(`Swapertoto ${solAmountsell.toString()} SOL for at least ${USDCAmountbuy.toNumber()} USDC`);
+    const swap = await solUSDCPool.swap(owner, solTokensell, solAmountsell, USDCAmountbuy);
+    const swapped = await swap.execute();
+    console.log("\n swap id: ", swapped)
     // Getting USDC from SOL wallet
 
 
