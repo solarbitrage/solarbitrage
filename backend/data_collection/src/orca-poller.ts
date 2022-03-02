@@ -58,8 +58,7 @@ const orcaRequests = async () => {
       
       // Update Firebase Real-time Database
       const poolName = Object.keys(OrcaPoolConfig).find(key => OrcaPoolConfig[key] === pool)
-      updateDatabase('ORCA_' + poolName + '_BUY', buyQuote, coinB, coinA)
-      updateDatabase('ORCA_' + poolName + '_SELL', sellQuote, coinA, coinB);
+      updateDatabase('ORCA_' + poolName, buyQuote, sellQuote, coinA, coinB)
     }
   } catch (err) {
     console.warn(err);
@@ -67,16 +66,28 @@ const orcaRequests = async () => {
   setTimeout(orcaRequests, 250)
 };
 
-function updateDatabase(poolName, quote, fromToken, toToken) {
+function updateDatabase(poolName, buyQuote, sellQuote, coinA, coinB) {
   const results = {
-    expected_output_amount: quote.getExpectedOutputAmount().toNumber(),
-    lp_fees: quote.getLPFees().toNumber(),
-    min_output_amount: quote.getMinOutputAmount().toNumber(),
-    network_fees: quote.getNetworkFees().toNumber(),
-    price_impact: quote.getPriceImpact().toNumber(),
-    rate: quote.getRate().toNumber(),
-    from: fromToken.tag,
-    to: toToken.tag
+    "buy": {
+      expected_output_amount: buyQuote.getExpectedOutputAmount().toNumber(),
+      lp_fees: buyQuote.getLPFees().toNumber(),
+      min_output_amount: buyQuote.getMinOutputAmount().toNumber(),
+      network_fees: buyQuote.getNetworkFees().toNumber(),
+      price_impact: buyQuote.getPriceImpact().toNumber(),
+      rate: buyQuote.getRate().toNumber(),
+      from: coinB.tag,
+      to: coinA.tag
+    }, 
+    "sell": {
+      expected_output_amount: sellQuote.getExpectedOutputAmount().toNumber(),
+      lp_fees: sellQuote.getLPFees().toNumber(),
+      min_output_amount: sellQuote.getMinOutputAmount().toNumber(),
+      network_fees: sellQuote.getNetworkFees().toNumber(),
+      price_impact: sellQuote.getPriceImpact().toNumber(),
+      rate: sellQuote.getRate().toNumber(),
+      from: coinA.tag,
+      to: coinB.tag     
+    }
   };
 
   console.log(poolName, results)

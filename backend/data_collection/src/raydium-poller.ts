@@ -86,12 +86,19 @@ function updateDatabase(poolName, data) {
           from: coinTickers[1],
           to: coinTickers[0],
         }
+
+        const poolResults = {
+          buy: {
+            ...buyResults
+          },
+          sell: {
+            ...sellResults
+          }
+        }
         
-        console.log(`${poolName}_BUY`, buyResults)
-        console.log(`${poolName}_SELL`, sellResults)
+        console.log(`${poolName}`, poolResults)
         
-        updateDatabase(`${poolName}_BUY`, buyResults)
-        updateDatabase(`${poolName}_SELL`, sellResults)
+        updateDatabase(`${poolName}`, poolResults)
       } catch(e) {
         console.error(e);
       }
