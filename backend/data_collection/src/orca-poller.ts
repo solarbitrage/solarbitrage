@@ -1,6 +1,6 @@
 import { readFile } from "mz/fs";
 import { Connection, Keypair } from "@solana/web3.js";
-import { getOrca, OrcaPoolConfig, Network } from "@orca-so/sdk";
+import { getOrca, OrcaPoolConfig, Network, Quote } from "@orca-so/sdk";
 import Decimal from "decimal.js";
 
 import { initializeApp } from "firebase/app";
@@ -55,7 +55,7 @@ const orcaRequests = async () => {
 
       const tradingAmount = new Decimal(1);
       const [buyQuote, sellQuote] = await Promise.all([currentPool.getQuote(coinB, tradingAmount), currentPool.getQuote(coinA, tradingAmount)]);
-      
+
       // Update Firebase Real-time Database
       const poolName = Object.keys(OrcaPoolConfig).find(key => OrcaPoolConfig[key] === pool)
       updateDatabase('ORCA_' + poolName + '_BUY', buyQuote, coinB, coinA)
@@ -70,17 +70,20 @@ const orcaRequests = async () => {
   setTimeout(orcaRequests, 250)
 };
 
-function updateDatabase(poolName, quote, fromToken, toToken) {
+function updateDatabase(poolName, quote: Quote, fromToken, toToken) {
   update(ref(database, 'latest_prices/' + poolName), {
+    provider: "ORCA",
     expected_output_amount: quote.getExpectedOutputAmount().toNumber(),
     lp_fees: quote.getLPFees().toNumber(),
     min_output_amount: quote.getMinOutputAmount().toNumber(),
     network_fees: quote.getNetworkFees().toNumber(),
     price_impact: quote.getPriceImpact().toNumber(),
-    rate: quote.getRate().toNumber(),
+    rate: parseFloat(quote.getRate().toFixed(15)),
+    rate_raw: quote.getRate().toFixed(15),
     from: fromToken.tag,
     to: toToken.tag
   });
+  
 }
 
 orcaRequests()

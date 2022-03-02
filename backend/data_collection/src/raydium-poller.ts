@@ -70,19 +70,22 @@ function updateDatabase(poolName, data) {
         const poolName = `RAYDIUM_${poolMintAddrToName[pool.id]}`;
         
         const results = {
+          provider: "RAYDIUM",
           network_fees: 10000,
         }
         
         const sellResults = {
           ...results,
-          rate: parseFloat(price.toFixed(9)),
+          rate: parseFloat(price.toFixed(15)),
+          rate_raw: price.toFixed(15),
           from: coinTickers[0],
           to: coinTickers[1],
         }
         
         const buyResults = {
           ...results,
-          rate: parseFloat(price.invert().toFixed(9)),
+          rate: parseFloat(price.invert().toFixed(15)),
+          rate_raw: price.invert().toFixed(15),
           from: coinTickers[1],
           to: coinTickers[0],
         }
