@@ -1,11 +1,27 @@
-import React, { useEffect } from "react";
+import React from "react";
 import PriceHistoryPlot from "../components/dashboard/pricingHistoryPlot";
 import BotInformation from "../components/dashboard/botInformation";
 
+import { collection, query, where, onSnapshot, limit, orderBy } from "firebase/firestore";
+import database from "../firestore.config";
+//import Plotly from 'plotly.js';
+
 function Dashboard() {
+	// Hooks for the pricing history plot
+  const [pricingHistory, setPricingHistory] = React.useState([]);
+  React.useEffect(() => {
+		const pricingRef = collection(database, "pricing_history");
+    const q = query(pricingRef, orderBy("timestamp"), limit(5));
+    onSnapshot(q, (querySnapshot) => {
+      setPricingHistory(querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        data: doc.data()
+      })))
+    })
+  }, [setPricingHistory])
+
 	return (
 	<div className="dashboard">
-		
 		<div className="container">
 		<h1>Dashboard</h1>
 			<div className="userInformation">
@@ -24,10 +40,23 @@ function Dashboard() {
 			</div>
 
 			<div className="earningsOverTimePlot">
-				<PriceHistoryPlot 
-					title="Monies over the time"
-					times={[0, 1, 2, 3]} 
-					prices={[0.5, 10, 20, 5]} />
+				<PriceHistoryPlot
+					data={[
+						{
+							type: "scatter",
+							mode: "lines+points",
+							x: pricingHistory.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
+							y: pricingHistory.map(ph => ph.data.rate)
+						}
+					]}
+					layout = {
+						{
+							width: 950, 
+							height: 460, 
+							title: "Monies over time"
+						}
+					}
+				/>
 			</div>
 			
 			<div className="botMetrics">
