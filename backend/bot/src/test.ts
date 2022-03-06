@@ -1,6 +1,7 @@
 import { readFile } from "mz/fs";
 import { Connection, Keypair } from "@solana/web3.js";
 import { getOrca, OrcaFarmConfig, OrcaPoolConfig, Network } from "@orca-so/sdk";
+import { getDevnetPool } from "@orca-so/sdk/dist/public/devnet"
 import Decimal from "decimal.js";
 
 const main = async () => {
@@ -25,31 +26,30 @@ const main = async () => {
   const orca = getOrca(connection, Network.DEVNET);
 
   try {
-    // Getting USDC from SOL wallet
-    const solUSDCPool = orca.getPool(OrcaPoolConfig.SOL_USDC);
-    const solTokensell = solUSDCPool.getTokenA();
-    const solAmountsell = new Decimal(0.011139);  // getting $1 0.01038672
-    const solquotesell = await solUSDCPool.getQuote(solTokensell, solAmountsell);
-    const USDCAmountbuy = solquotesell.getMinOutputAmount();
+
+    // // Getting USDC from SOL wallet
+    // const solUSDCPool = orca.getPool(OrcaPoolConfig.SOL_USDC);
+    // const orcaTokensell = solUSDCPool.getTokenA();
+    // const orcaAmountsell = new Decimal(1);  // getting $1 0.01038672
+    // const orcaquotesell = await solUSDCPool.getQuote(orcaTokensell, orcaAmountsell);
+    // const USDCAmountbuy = orcaquotesell.getMinOutputAmount();
     
-    console.log(`Swapertoto ${solAmountsell.toString()} SOL for at least ${USDCAmountbuy.toNumber()} USDC`);
-    const swap = await solUSDCPool.swap(owner, solTokensell, solAmountsell, USDCAmountbuy);
-    const swapped = await swap.execute();
-    console.log("\n swap id: ", swapped)
-    // Getting USDC from SOL wallet
-
-
-    const pools = [
-      OrcaPoolConfig.ORCA_USDC,
-      OrcaPoolConfig.SOL_USDC,
-      OrcaPoolConfig.BTC_USDC,
-      OrcaPoolConfig.ORCA_SOL
-    ]
-    const orcaUSDCPool = orca.getPool(OrcaPoolConfig.ORCA_USDC);
-    const USDCToken = orcaUSDCPool.getTokenB();
-    const USDCAmount = new Decimal(1);
-    const USDCquote = await orcaUSDCPool.getQuote(USDCToken, USDCAmount);
-    const USDCorcaAmount = USDCquote.getMinOutputAmount();
+    // console.log(`Swapping dollass ${orcaAmountsell.toString()} SOL for at least ${USDCAmountbuy.toNumber()} USDC`);
+    // const swap = await solUSDCPool.swap(owner, orcaTokensell, orcaAmountsell, USDCAmountbuy);
+    // const swapId = await swap.execute();
+    // console.log("\n swap id: ", swapId);
+    // // Getting USDC from SOL wallet
+    // const pools = [
+    //   OrcaPoolConfig.ORCA_USDC,
+    //   OrcaPoolConfig.SOL_USDC,
+    //   OrcaPoolConfig.BTC_USDC,
+    //   OrcaPoolConfig.ORCA_SOL
+    // ]
+    // const orcaUSDCPool = orca.getPool(OrcaPoolConfig.ORCA_USDC);
+    // const USDCToken = orcaUSDCPool.getTokenB();
+    // const USDCAmount = new Decimal(1);
+    // const USDCquote = await orcaUSDCPool.getQuote(USDCToken, USDCAmount);
+    // const USDCorcaAmount = USDCquote.getMinOutputAmount();
 
     // const orcaSolPool = orca.getPool(OrcaPoolConfig.ORCA_SOL);
     // const solToken = orcaSolPool.getTokenB();
@@ -72,6 +72,35 @@ const main = async () => {
 
     console.log("Swapped:", swapTxId, "\n");
 
+    // Getting USDC from ORCA from above
+    const solUSDCPool = orca.getPool(OrcaPoolConfig.ORCA_USDC);
+    const orcaTokensell = solUSDCPool.getTokenA();
+    const orcaAmountsell = new Decimal(orcaAmount.toDecimal());  // getting $1 0.01038672
+    const usdcQuote = await solUSDCPool.getQuote(orcaTokensell, orcaAmountsell);
+    const USDCAmountbuy = usdcQuote.getMinOutputAmount();
+    
+    console.log(`Swapping ${orcaAmountsell.toString()} ORCA for at least ${USDCAmountbuy.toNumber()} USDC`);
+    const swap2 = await solUSDCPool.swap(owner, orcaTokensell, orcaAmountsell, USDCAmountbuy);
+    const swapId2 = await swap2.execute();
+    console.log("\n swap id: ", swapId2);
+    // Getting USDC from ORCA from above
+
+    // Getting SOL from USDC from above
+    // no matter what can't go from USDC -> SOL ...?
+    // works for USDC <-> ORCA && SOL <-> ORCA
+    // ----------- Getting ORCA from USDC -------------
+    const orcaUSDCsellPool = orca.getPool(OrcaPoolConfig.ORCA_USDC);
+    const usdcTokensell = orcaUSDCsellPool.getTokenB();
+    const usdcAmountsell = new Decimal(0.0089);  // getting $1 0.01038672
+    const orcaQuote = await orcaUSDCsellPool.getQuote(usdcTokensell, usdcAmountsell);
+    const orcaAmountbuy = orcaQuote.getMinOutputAmount();
+    
+    console.log(`Swapping  ${usdcAmountsell.toString()} USDC for at least ${orcaAmountbuy.toNumber()} ORCA`);
+    const swap3 = await orcaUSDCsellPool.swap(owner, usdcTokensell, usdcAmountsell, orcaAmountbuy);
+    const swapId3 = await swap3.execute();
+    console.log("\n swap id: ", swapId3);
+    // ----------- Getting ORCA from USDC -------------
+
     // just trade based on timer interval
     // /*** Pool Deposit ***/
     // // 4. Deposit SOL and ORCA for LP token
@@ -79,7 +108,7 @@ const main = async () => {
     //   orcaAmount,
     //   solAmount
     // );
-
+// haven't been able to work on it much. kinda busy with assignments 
     // console.log(
     //   `Deposit at most ${maxTokenBIn.toNumber()} SOL and ${maxTokenAIn.toNumber()} ORCA, for at least ${minPoolTokenAmountOut.toNumber()} LP tokens`
     // );
@@ -142,3 +171,12 @@ main()
   .catch((e) => {
     console.error(e);
   });
+
+
+
+// Rogan X
+//   The code on the SDK readme does work, you just need to be really careful with how you're making the swaps. From an account with only SOL, you can swap from SOL -> ORCA, and then you'll be able to make swaps SOL -> ORCA -> USDC on devnet (the pool ratios are messed up and do not reflect mainnet prices, but the swap functionality works)
+// To get it working, I had to start from a fresh project (yarn init -y and then yarn add @orca-so/sdk @solana/web3.js decimal - copy and paste the README code block, and then remove the mz/fs import and use a byte array private key instead).
+// The devnet pools are different from the mainnet pools
+
+// In case somebody runs in the same problem, it fixed itself by updating the orca package.
