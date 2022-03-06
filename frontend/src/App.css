@@ -2,53 +2,66 @@
   display: flex;
   flex-direction: column;
   text-align: left;
+  background-image: linear-gradient(#954AEF, #1BFC9C);
 }
 
-.NavBar a {
-  padding: 10px;
-}
-
-h1 {
-  font-size: xx-large;
-  padding: 20px;
-}
-
-.container {
+.page-container {
+  margin: 0px 100px 100px 100px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  border-radius: 0px 0px 25px 25px;
+  background-color: rgb(255, 255, 255);
 }
 
-.userInformation {
+.page-container h1 {
+  font-size: xx-large;
+  margin: 0;
+  padding: 40px;
+  align-self: flex-start;
+}
+
+.widget-container {
+  border-radius: 10px;
+  margin: 10px 0px 30px 0px;
   display: flex;
-  background-color: rgb(221, 221, 221);
+  background-color: rgb(255, 255, 255);
   flex-wrap: wrap;
   align-content: center;
   justify-content: center;
   align-items: center;
+  padding: 20px;
+  filter: drop-shadow(0px 0px 50px rgb(201, 201, 201));
+  
+}
+
+.user-metric {
   padding: 10px;
-}
-
-.userInformation .userMetric {
-  margin: 5px;
+  border-radius: 5px;
+  margin: 20px;
   width: 300px;
-  height: 300px;
+  height: 150px;
+  filter: drop-shadow(5px 5px 10px rgb(219, 219, 219));
 }
 
-.userInformation .userMetric:nth-child(odd) {
-  background-color: rgb(187, 187, 187);
+.user-metric h2{
+  margin: 20px;
 }
 
-.userInformation .userMetric:nth-child(even) {
-  background-color: rgb(241, 241, 241);
+.user-metric:nth-child(odd) {
+  background-color: rgb(214, 214, 214);
 }
 
-.botMetrics {
+.user-metric:nth-child(even) {
+  background-color: rgb(214, 214, 214);
+}
+
+.bot-metrics {
   padding: 50px;
   background-color: rgb(233, 233, 233);
 }
 
-.botInformation {
+.bot-information {
   display: flex;
   flex-wrap: wrap;
   align-items: center
@@ -65,12 +78,13 @@ h1 {
 
 /* Color/shape of burger icon bars */
 .bm-burger-bars {
-  background: #373a47;
+  background: #f1f1f1;
 }
 
 /* Color/shape of burger icon bars on hover*/
 .bm-burger-bars-hover {
-  background: #a90000;
+  background: #d3d3d3;
+  transition: .2s;
 }
 
 /* Position and sizing of clickable cross button */
@@ -81,7 +95,7 @@ h1 {
 
 /* Color/shape of close button cross */
 .bm-cross {
-  background: #bdc3c7;
+  background: #494949;
 }
 
 /*
@@ -95,9 +109,10 @@ Note: Beware of modifying this element as it can break the animations - you shou
 
 /* General sidebar styles */
 .bm-menu {
-  background: #373a47;
-  padding: 2.5em 1.5em 0;
+  background-color: #6e4f8d;
+  padding: 8em 0 0;
   font-size: 1.15em;
+  overflow: hidden !important;
 }
 
 /* Morph shape necessary with bubble or elastic */
@@ -108,13 +123,24 @@ Note: Beware of modifying this element as it can break the animations - you shou
 /* Wrapper for item list */
 .bm-item-list {
   color: #b8b7ad;
-  padding: 0.8em;
+  padding: 0;
 }
 
 /* Individual item */
 .bm-item {
+  font-size: xx-large;
   display: inline-block;
-  color:rgb(241, 241, 241);
+  color:rgb(175, 175, 175);
+  text-decoration: none;
+  background-image: #6e4f8d;
+  width: 100%;
+  padding: 10px;
+}
+
+.bm-item:hover {
+  color:rgb(247, 247, 247);
+  background-image: linear-gradient(to right, #80728d, #6e4f8d);
+  transition: .2s;
 }
 
 /* Styling of overlay */

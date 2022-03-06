@@ -18,8 +18,8 @@ class BotInformation extends React.Component {
 		return (
 			<div className="bot">
 				<h4>Bot {this.props.name}</h4>
-				<div className="botInformation">
-					<div className="botGraph">
+				<div className="bot-information">
+					<div className="bot-graph">
 						<Plot
 							data={[
 									{
@@ -34,7 +34,7 @@ class BotInformation extends React.Component {
 						/>
 					</div>
 
-					<div className="botData">
+					<div className="bot-data">
 						<p>Current Strategy: {this.props.strategyUsing}</p>
 						<p>Average Earnings: {this.props.averageEarnings}</p>
 						<p>AMMs: {this.props.amms.join(", ")}</p>
