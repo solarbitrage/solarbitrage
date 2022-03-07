@@ -2,16 +2,16 @@ import React from "react";
 import PriceHistoryPlot from "../components/dashboard/pricingHistoryPlot";
 import BotInformation from "../components/dashboard/botInformation";
 
+import { Accordion } from "react-bootstrap";
 import { collection, query, where, onSnapshot, limit, orderBy } from "firebase/firestore";
 import database from "../firestore.config";
-//import Plotly from 'plotly.js';
 
 function Dashboard() {
 	// Hooks for the pricing history plot
   const [pricingHistory, setPricingHistory] = React.useState([]);
   React.useEffect(() => {
 		const pricingRef = collection(database, "pricing_history");
-    const q = query(pricingRef, orderBy("timestamp"), limit(5));
+    const q = query(pricingRef, where("pool_id", "==", "ORCA_SOL_USDC_BUY"), orderBy("timestamp", "desc"), limit(100));
     onSnapshot(q, (querySnapshot) => {
       setPricingHistory(querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -55,7 +55,7 @@ function Dashboard() {
 								{
 									width: 950, 
 									height: 460, 
-									title: "Monies over time"
+									title: "ORCA_SOL_USDC_BUY"
 								}
 							}
 						/>
@@ -63,39 +63,60 @@ function Dashboard() {
 				</div>
 			</div>
 			
-			
 			<div className="bot-stats">
 				<div className="widget-container">
 					<div className="bot-metrics">
 						<h2>Bots</h2>
-						<BotInformation 
-							name="George"
-							strategyUsing="Sub Par"
-							averageEarnings="-0.05%"
-							amms={["Orca", "Raydium"]}
-							currencies={["Solana", "USDC"]}
-						/>
-						<BotInformation
-							name="Daniel"
-							strategyUsing="The Best"
-							averageEarnings="1000%"
-							amms = {["Dan"]}
-							currencies = {["Me"]}
-						/>
-						<BotInformation
-							name="Ryan"
-							strategyUsing="Something"
-							averageEarnings="0%"
-							amms = {["Dan"]}
-							currencies = {["Me"]}
-						/>
-						<BotInformation
-							name="Noel"
-							strategyUsing="Abra"
-							averageEarnings="Kadabra"
-							amms = {["Doge"]}
-							currencies = {["Coin"]}
-						/>
+						<Accordion defaultActiveKey={['0']} alwaysOpen>
+							<Accordion.Item eventKey="0">
+								<Accordion.Header>Bot 1</Accordion.Header>
+								<Accordion.Body>
+									<BotInformation 
+										name="George"
+										strategyUsing="Sub Par"
+										averageEarnings="-0.05%"
+										amms={["Orca", "Raydium"]}
+										currencies={["Solana", "USDC"]}
+									/>
+								</Accordion.Body>
+							</Accordion.Item>
+							<Accordion.Item eventKey="1">
+								<Accordion.Header>Bot 2</Accordion.Header>
+								<Accordion.Body>
+									<BotInformation
+										name="Daniel"
+										strategyUsing="The Best"
+										averageEarnings="1000%"
+										amms = {["Dan"]}
+										currencies = {["Me"]}
+									/>
+								</Accordion.Body>
+							</Accordion.Item>
+							<Accordion.Item eventKey="2">
+								<Accordion.Header>Bot 3</Accordion.Header>
+								<Accordion.Body>
+									<BotInformation
+										name="Daniel"
+										strategyUsing="The Best"
+										averageEarnings="1000%"
+										amms = {["Dan"]}
+										currencies = {["Me"]}
+									/>
+								</Accordion.Body>
+							</Accordion.Item>
+							<Accordion.Item eventKey="3">
+								<Accordion.Header>Bot 4</Accordion.Header>
+								<Accordion.Body>
+									<BotInformation
+										name="Daniel"
+										strategyUsing="The Best"
+										averageEarnings="1000%"
+										amms = {["Dan"]}
+										currencies = {["Me"]}
+									/>
+								</Accordion.Body>
+							</Accordion.Item>
+						</Accordion>
 					</div>
 				</div>
 			</div>
