@@ -20,6 +20,9 @@ const firebaseConfig = {
     appId: config.FIREBASE_APP_ID
   };  
 
+  // don't do swap. NOtify best paths to making profit. based on raydium and orca
+      // keep local copy of database. keep a real time listerer to firebase and update local copy of database with changed values
+  // possibly still try doing swaps between orca pools to test out swaps. and test out net profit or loss after trade
 const app = initializeApp(firebaseConfig);
 
 // Get a reference to the database service
@@ -28,6 +31,7 @@ const firestore = getFirestore(app);
 
 let local_database: any =  {};
 
+// function to set up local copy of the database
 async function run_pools()
 {
   // const query_pools = ['SOL_USDC_BUY', 'ORCA_SOL_BUY', 'ORCA_USDC_SELL'];
@@ -55,6 +59,7 @@ run_pools().then((queries)=>{
   calculate_trade();
 });
 
+// function to update pool prices from real time changes in firebase
 let look_from:string, look_to:string, current_pool;
 const updated_pools = ref(database, 'latest_prices/');
 onChildChanged(updated_pools, (snapshot) => {
@@ -65,19 +70,10 @@ onChildChanged(updated_pools, (snapshot) => {
   // find the pools with the oppsite direction of coins
   look_from = local_database[snapshot.key].to;
   look_to = local_database[snapshot.key].from;
-  // console.log(snapshot.key);
-  // console.log(local_database[snapshot.key].from)
-
-  // look for the "from" and "to" and look for pools that have the inverse of from->to
-  // run trades based on sell rates comparison 
 
   //function that runs caclculations anytime there's a change
   calculate_trade(snapshot.key);
 });
-// calculate function
-
-// are we always starting from USDC_SOL? Or is only fixed thing is that we start with USDC
-// thereby checking multiple pools starting "from:USDC" and comparing the respective pools to same pools in other AMMs
 
 // are we checking usd->arbitrary coin a->usd?
   // only if multiple pools exist. 
@@ -90,6 +86,8 @@ function calculate_trade(update?){
 // console.log(local_database, update)
   console.log("Calculating ...")
 
+  // -------------- getting all pools that start from USDC --------------
+
   // let fromUSDC = Object.entries(local_database).filter(([key,value]) => {
   //  return value['from'] === 'USDC'
   // //  return value.from === 'look_from' && value.to === 'look_to'&& key.startsWith("ORCA") 
@@ -101,10 +99,15 @@ function calculate_trade(update?){
 //   // pair = pair[1]
 //   console.log("ooooooooooooooooo",pair[1])
 // })
+  // -------------- getting all pools that start from USDC --------------
 
-  // have rate_diff? don't trade till above base value?
+// // let rates = [];
+// // // console.log(local_database);
+// //   rates[0] = local_database.ORCA_SOL_USDC_BUY.rate;
+// //   rates[2] = local_database.RAYDIUM_SOL_USDC_SELL.rate;
+// //   rates[1] = local_database.ORCA_SOL_USDC_SELL.rate;
+
   // rn calculate() called at any update in database -> not on sol_usdc pool of Raydium and Orca.
-  // 
   let buy_from:string, sell_to:string;
   let usdc = 1;  // base value of $1
   let rate_diff = Math.abs(local_database.ORCA_SOL_USDC.sell.rate - local_database.RAYDIUM_SOL_USDC.sell.rate);
@@ -123,18 +126,4 @@ function calculate_trade(update?){
   else{
     console.log("Not worth the trade\n");
   }
-
-  // write to firestore
-  // try {
-  //   const docRef = await addDoc(collection(firestore, "profitability_evaluation_history"), {
-  //     buy_from: buy_from,
-  //     sell_to: sell_to,
-  //     net_profit_rate: usdc,
-  //     time_stamp: serverTimestamp()
-  //   });
-  //   console.log("Document written with ID: ", docRef.id);
-  // } catch (e) {
-  //   console.error("Error adding document: ", e);
-  // }
-// /*
 }
