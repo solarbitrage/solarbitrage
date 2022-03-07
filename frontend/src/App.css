@@ -9,7 +9,7 @@
   margin: 0px 100px 100px 100px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: left;
   border-radius: 0px 0px 25px 25px;
   background-color: rgb(255, 255, 255);
 }
@@ -21,9 +21,21 @@
   align-self: flex-start;
 }
 
+.user-stats {
+  display: flex;
+  flex-direction: row;
+  padding: 10px 50px 10px 50px;
+}
+
+.bot-stats {
+  display: flex;
+  flex-direction: row;
+  padding: 10px 50px 10px 50px;
+}
+
 .widget-container {
   border-radius: 10px;
-  margin: 10px 0px 30px 0px;
+  margin: 10px 10px 30px 10px;
   display: flex;
   background-color: rgb(255, 255, 255);
   flex-wrap: wrap;
@@ -31,8 +43,7 @@
   justify-content: center;
   align-items: center;
   padding: 20px;
-  filter: drop-shadow(0px 0px 50px rgb(201, 201, 201));
-  
+  filter: drop-shadow(0px 0px 10px rgb(201, 201, 201));
 }
 
 .user-metric {
