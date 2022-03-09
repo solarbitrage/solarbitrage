@@ -54,8 +54,8 @@ export async function swap(
         throw new Error("Miss token info");
     }
 
-    const fromCoinMint = from.mint;
-    const toCoinMint = to.mint;
+    let fromCoinMint = from.mint;
+    let toCoinMint = to.mint;
 
     const amountIn = new TokenAmount(aIn, from.decimals, false);
     const amountOut = new TokenAmount(aOut, to.decimals, false);
@@ -64,31 +64,34 @@ export async function swap(
         transaction.add(
             closeAccount({
                 source: new PublicKey(wsolAddress),
-                destination: owner,
-                owner,
+                destination: owner.publicKey,
+                owner: owner.publicKey
             })
         );
+        console.log(`[!] closeAccount WSOL ${wsolAddress}`)
     }
 
-    let fromMint = fromCoinMint;
-    let toMint = toCoinMint;
-
-    if (fromMint === NATIVE_SOL.mint) {
-        fromMint = WSOL.mint;
+    if (fromCoinMint === NATIVE_SOL.mint) {
+        fromCoinMint = WSOL.mint;
     }
-    if (toMint === NATIVE_SOL.mint) {
-        toMint = WSOL.mint;
+    if (toCoinMint === NATIVE_SOL.mint) {
+        toCoinMint = WSOL.mint;
     }
 
-    let wrappedSolAccount: PublicKey | null = null;
-    let wrappedSolAccount2: PublicKey | null = null;
+    // from
+    let fromWrappedSolAcc: PublicKey | null = null;
+    
+    // to
+    let toWrappedSolAcc: PublicKey | null = null;
+
     let newFromTokenAccount = PublicKey.default;
     let newToTokenAccount = PublicKey.default;
 
-    if (fromCoinMint === NATIVE_SOL.mint) {
-        wrappedSolAccount = await createTokenAccountIfNotExist(
+    if (fromCoinMint === WSOL.mint) {
+        console.log(`[!] fromCoin WSOL ${getBigNumber(amountIn.wei) + 1e7}`)
+        fromWrappedSolAcc = await createTokenAccountIfNotExist(
             connection,
-            wrappedSolAccount?.toBase58(),
+            null,
             owner.publicKey,
             WSOL.mint,
             getBigNumber(amountIn.wei) + 1e7,
@@ -96,18 +99,20 @@ export async function swap(
             signers
         );
     } else {
+        console.log(`[!] fromCoin createTokenAccountIfNotExist Other`)
         newFromTokenAccount = await createAssociatedTokenAccountIfNotExist(
             fromTokenAccount,
             owner.publicKey,
-            fromMint,
+            fromCoinMint,
             transaction
         );
     }
 
-    if (toCoinMint === NATIVE_SOL.mint) {
-        wrappedSolAccount2 = await createTokenAccountIfNotExist(
+    if (toCoinMint === WSOL.mint) {
+        console.log(`[!] toCoin createTokenAccountIfNotExist WSOL ${1e7}`)
+        toWrappedSolAcc = await createTokenAccountIfNotExist(
             connection,
-            wrappedSolAccount2?.toBase58(),
+            null,
             owner.publicKey,
             WSOL.mint,
             1e7,
@@ -115,10 +120,11 @@ export async function swap(
             signers
         );
     } else {
+        console.log(`[!] toCoin createTokenAccountIfNotExist Other`)
         newToTokenAccount = await createAssociatedTokenAccountIfNotExist(
             toTokenAccount,
             owner.publicKey,
-            toMint,
+            toCoinMint,
             transaction
         );
     }
@@ -141,8 +147,8 @@ export async function swap(
                 poolKeys.marketBaseVault,
                 poolKeys.marketQuoteVault,
                 poolKeys.marketAuthority,
-                wrappedSolAccount ?? newFromTokenAccount,
-                wrappedSolAccount2 ?? newToTokenAccount,
+                fromWrappedSolAcc ?? newFromTokenAccount,
+                toWrappedSolAcc ?? newToTokenAccount,
                 owner.publicKey,
                 Math.floor(getBigNumber(amountIn.toWei())),
                 Math.floor(getBigNumber(amountOut.toWei()))
@@ -163,27 +169,29 @@ export async function swap(
                 poolKeys.marketBaseVault,
                 poolKeys.marketQuoteVault,
                 poolKeys.marketAuthority,
-                wrappedSolAccount ?? newFromTokenAccount,
-                wrappedSolAccount2 ?? newToTokenAccount,
+                fromWrappedSolAcc ?? newFromTokenAccount,
+                toWrappedSolAcc ?? newToTokenAccount,
                 owner.publicKey,
                 Math.floor(getBigNumber(amountIn.toWei())),
                 Math.floor(getBigNumber(amountOut.toWei()))
             )
     );
 
-    if (wrappedSolAccount) {
+    if (fromWrappedSolAcc) {
+        console.log("[!] from closeAccount WSOL")
         transaction.add(
             closeAccount({
-                source: wrappedSolAccount,
+                source: fromWrappedSolAcc,
                 destination: owner.publicKey,
                 owner: owner.publicKey,
             })
         );
     }
-    if (wrappedSolAccount2) {
+    if (toWrappedSolAcc) {
+        console.log("[!] to closeAccount WSOL")
         transaction.add(
             closeAccount({
-                source: wrappedSolAccount2,
+                source: toWrappedSolAcc,
                 destination: owner.publicKey,
                 owner: owner.publicKey,
             })

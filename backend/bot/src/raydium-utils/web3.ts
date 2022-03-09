@@ -207,7 +207,7 @@ export async function createProgramAccountIfNotExist(
   if (account) {
     publicKey = new PublicKey(account)
   } else {
-    const newAccount = new Keypair()
+    const newAccount = Keypair.generate()
     publicKey = newAccount.publicKey
 
     transaction.add(

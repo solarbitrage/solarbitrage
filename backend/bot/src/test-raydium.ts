@@ -1,4 +1,4 @@
-import { jsonInfo2PoolKeys, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
+import { jsonInfo2PoolKeys, Liquidity, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { readFile } from "mz/fs";
 import { NATIVE_SOL, swap } from "./raydium-swap-funcs";
@@ -32,7 +32,7 @@ const SOL_USDC_JSON = {
 
 const main = async () => {
     const secretKeyString = await readFile(
-        "../../data_collection/wallets/test-keypair.json",
+        "../data_collection/wallets/test-keypair.json",
         {
             encoding: "utf8",
         }
@@ -50,13 +50,13 @@ const main = async () => {
     const poolKeys = jsonInfo2PoolKeys(SOL_USDC_JSON);
 
     // how much are we putting in the pool?
-    const fromCoinAmount = "0.01"
+    const fromCoinAmount = "4.000"
 
     // minimum we expect out (should be fromCoin amount times conversion rate times (1 - slippage))
-    const toCoinAmount = "0.829702"
+    const toCoinAmount = "0.046155"
 
-    const fromToken = NATIVE_SOL
-    const toToken = MAINNET_SPL_TOKENS["USDC"]
+    const fromToken = MAINNET_SPL_TOKENS["USDC"]
+    const toToken = NATIVE_SOL
 
     // const { amountOutWithSlippage } = getSwapOutAmount(
     //     {coin: NATIVE_SOL, pc: usdcToken},
@@ -70,7 +70,6 @@ const main = async () => {
     // return
 
     const accounts = await connection.getParsedTokenAccountsByOwner(owner.publicKey, { programId: TOKEN_PROGRAM_ID })
-    console.log(accounts)
     
     const tokenAccounts = {};
     for (const tokenAccountInfo of accounts.value) {
@@ -84,9 +83,9 @@ const main = async () => {
             tokenAccountAddress,
             balance
         }
-    
     }
-    
+
+    console.log(tokenAccounts, tokenAccounts[fromToken.mint], tokenAccounts[toToken.mint])
 
     const res = await swap(
         connection, 
