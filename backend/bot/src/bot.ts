@@ -88,6 +88,7 @@ function calculate_trade(update?){
 
   // -------------- getting all pools that start from USDC --------------
 
+  //  look for string that has USDC 
   // let fromUSDC = Object.entries(local_database).filter(([key,value]) => {
   //  return value['from'] === 'USDC'
   // //  return value.from === 'look_from' && value.to === 'look_to'&& key.startsWith("ORCA") 
@@ -114,6 +115,7 @@ function calculate_trade(update?){
   // run swaps based on this below threshold
   if(rate_diff > 0.1){
     if(local_database.ORCA_SOL_USDC.sell.rate < local_database.RAYDIUM_SOL_USDC.sell.rate){
+      
       usdc += rate_diff;
       console.log("Buy from Raydium, Sell to Orca");
     }
