@@ -70,53 +70,51 @@ function Metrics() {
   }, [poolDatas])
 
   return (
-    <div className="metric">
-      <div className="page-container">
-        <h1>Metrics</h1>
-        <div className="widget-container">
+    <div className="page-container">
+      <h1>Metrics</h1>
+      <div className="widget-container">
 
-          <div className="checkboxes-container">
-            {pools.map((name, index) => {
-              return (
-                <Checkbox
-                  key={index}
-                  label={name}
-                  value={checkedState[index]}
-                  onChange={() => handleCheckboxOnChange(index)}
-                />
-              );
-            })}
-          </div>
-          
-          <PriceHistoryPlot
-						data={
-              poolDatas.map((data, index) => {
-                if (data) {
-                  const arrayData = {
-                    type: "scatter",
-                    mode: "lines+points",
-                    name: pools[index],
-                    x: data.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
-                    y: data.map(ph => ph.data.rate)
-                  }
-                  return arrayData;
-                } else {
-                  return {
-                    type: "scatter",
-                    mode: "lines+points"
-                  };
-                }
-            })}
-						layout = {
-							{
-								width: window.innerWidth, 
-								height: window.innerHeight, 
-								title: "Sell Rates over time"
-							}
-						}
-					/>
-          
+        <div className="checkboxes-container">
+          {pools.map((name, index) => {
+            return (
+              <Checkbox
+                key={index}
+                label={name}
+                value={checkedState[index]}
+                onChange={() => handleCheckboxOnChange(index)}
+              />
+            );
+          })}
         </div>
+        
+        <PriceHistoryPlot
+          data={
+            poolDatas.map((data, index) => {
+              if (data) {
+                const arrayData = {
+                  type: "scatter",
+                  mode: "lines+points",
+                  name: pools[index],
+                  x: data.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
+                  y: data.map(ph => ph.data.rate)
+                }
+                return arrayData;
+              } else {
+                return {
+                  type: "scatter",
+                  mode: "lines+points"
+                };
+              }
+          })}
+          layout = {
+            {
+              width: 950, 
+              height: 460, 
+              title: "Sell Rates over time"
+            }
+          }
+        />
+
       </div>
     </div>
   )

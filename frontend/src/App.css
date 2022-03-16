@@ -1,8 +1,20 @@
+* { 
+  padding: 0;
+  margin: 0; 
+}
+
+html body {
+  min-height: 100vh !important;
+  height: 100vh;
+}
+
 .App {
   display: flex;
   flex-direction: column;
   text-align: left;
   background-image: linear-gradient(#954AEF, #1BFC9C);
+  min-height: 100vh;
+  height: auto;
 }
 
 .page-container {
@@ -117,7 +129,7 @@ Note: Beware of modifying this element as it can break the animations - you shou
 */
 .bm-menu-wrap {
   position: fixed;
-  height: 100%;
+  height: 100vh;
 }
 
 /* General sidebar styles */
