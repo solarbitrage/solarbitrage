@@ -44,9 +44,12 @@ function Metrics() {
       if (index === position) {
         item = !item;
 
+        // Checkbox checked
         if (item) {
           fetchData(pools[index], index);
-        } else {
+        }
+        // Checkbox unchecked, remove data
+        else {
           setPoolDatas(existingData => {
             return existingData.map((poolItem, j) => {
               if (index === j) {
@@ -56,17 +59,14 @@ function Metrics() {
             })
           })
         }
-
-        
       }
       return item;
     })
-    console.log(updatedCheckedState);
     setCheckedState(updatedCheckedState);
   }
 
   React.useEffect(() => {
-    console.log();
+    //console.log();
   }, [poolDatas])
 
   return (
@@ -74,6 +74,7 @@ function Metrics() {
       <div className="page-container">
         <h1>Metrics</h1>
         <div className="widget-container">
+
           <div className="checkboxes-container">
             {pools.map((name, index) => {
               return (
@@ -86,7 +87,7 @@ function Metrics() {
               );
             })}
           </div>
-
+          
           <PriceHistoryPlot
 						data={
               poolDatas.map((data, index) => {
@@ -98,7 +99,6 @@ function Metrics() {
                     x: data.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
                     y: data.map(ph => ph.data.rate)
                   }
-                  //console.log(arrayData);
                   return arrayData;
                 } else {
                   return {
@@ -109,14 +109,14 @@ function Metrics() {
             })}
 						layout = {
 							{
-								width: 950, 
-								height: 460, 
+								width: window.innerWidth, 
+								height: window.innerHeight, 
 								title: "Sell Rates over time"
 							}
 						}
 					/>
+          
         </div>
-
       </div>
     </div>
   )
