@@ -56,6 +56,8 @@ function Metrics() {
             })
           })
         }
+
+        
       }
       return item;
     })
@@ -63,9 +65,8 @@ function Metrics() {
     setCheckedState(updatedCheckedState);
   }
 
-
   React.useEffect(() => {
-    console.log(poolDatas);
+    console.log();
   }, [poolDatas])
 
   return (
@@ -87,14 +88,25 @@ function Metrics() {
           </div>
 
           <PriceHistoryPlot
-						data={[
-							{
-								type: "scatter",
-								mode: "lines+points",
-								x: [0, 1, 2, 3, 4, 5],
-								y: [0, 1, 2, 3, 4, 5]
-							}
-						]}
+						data={
+              poolDatas.map((data, index) => {
+                if (data) {
+                  const arrayData = {
+                    type: "scatter",
+                    mode: "lines+points",
+                    name: pools[index],
+                    x: data.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
+                    y: data.map(ph => ph.data.rate)
+                  }
+                  //console.log(arrayData);
+                  return arrayData;
+                } else {
+                  return {
+                    type: "scatter",
+                    mode: "lines+points"
+                  };
+                }
+            })}
 						layout = {
 							{
 								width: 950, 
