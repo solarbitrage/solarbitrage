@@ -32,7 +32,7 @@ const SOL_USDC_JSON = {
 
 const main = async () => {
     const secretKeyString = await readFile(
-        "../../data_collection/wallets/test-keypair.json",
+        "/Users/noelb/my-solana-wallet/wallet-keypair.json",
         {
             encoding: "utf8",
         }
@@ -41,22 +41,24 @@ const main = async () => {
     const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
     const owner = Keypair.fromSecretKey(secretKey);
 
-    const connection = new Connection("https://api.mainnet-beta.solana.com", "singleGossip");
+    const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
     //   const connection = new Connection(
     //     "https://api.devnet.solana.com",
     //     "singleGossip"
     //   );
-
+    
+    let sol_balance = (await connection.getBalance(owner.publicKey)) * 0.000000001;
+    console.log("solbaalnace",sol_balance)
     const poolKeys = jsonInfo2PoolKeys(SOL_USDC_JSON);
 
     // how much are we putting in the pool?
     const fromCoinAmount = "0.01"
 
     // minimum we expect out (should be fromCoin amount times conversion rate times (1 - slippage))
-    const toCoinAmount = "0.829702"
+    const toCoinAmount = "0.919061"
 
     const fromToken = NATIVE_SOL
-    const toToken = MAINNET_SPL_TOKENS["USDC"]
+    const toToken =  MAINNET_SPL_TOKENS["USDC"]
 
     // const { amountOutWithSlippage } = getSwapOutAmount(
     //     {coin: NATIVE_SOL, pc: usdcToken},
@@ -70,7 +72,11 @@ const main = async () => {
     // return
 
     const accounts = await connection.getParsedTokenAccountsByOwner(owner.publicKey, { programId: TOKEN_PROGRAM_ID })
+    console.log("ACCOUNTS:")
     console.log(accounts)
+    // for (const tokenAccountInfo of accounts.value) {
+    //     console.log(tokenAccountInfo);
+    // }
     
     const tokenAccounts = {};
     for (const tokenAccountInfo of accounts.value) {
@@ -79,6 +85,7 @@ const main = async () => {
         const parsedInfo = tokenAccountInfo.account.data.parsed.info
         const mintAddress = parsedInfo.mint
         const balance = new TokenAmount(parsedInfo.tokenAmount.amount, parsedInfo.tokenAmount.decimals)
+        console.log(parsedInfo.tokenAmount.decimals);
 
         tokenAccounts[mintAddress] = {
             tokenAccountAddress,
@@ -86,22 +93,24 @@ const main = async () => {
         }
     
     }
+    // console.log(tokenAccounts["balance"].r)
     
 
-    const res = await swap(
-        connection, 
-        owner, 
-        poolKeys, 
-        fromToken, 
-        toToken, 
-        tokenAccounts[fromToken.mint]?.tokenAccountAddress, 
-        tokenAccounts[toToken.mint]?.tokenAccountAddress,
-        fromCoinAmount,
-        toCoinAmount,
-        tokenAccounts[WSOL.mint]?.tokenAccountAddress
-    );
-
-    console.log(res);
+    // const res = await swap(
+    //     connection, 
+    //     owner, 
+    //     poolKeys, 
+    //     fromToken, 
+    //     toToken, 
+    //     tokenAccounts[fromToken.mint]?.tokenAccountAddress, 
+    //     tokenAccounts[toToken.mint]?.tokenAccountAddress,
+    //     fromCoinAmount,
+    //     toCoinAmount,
+    //     tokenAccounts[WSOL.mint]?.tokenAccountAddress
+    // );
+    
+    // console.log("RES PRINTING")
+    // console.log(res);
 
 };
 

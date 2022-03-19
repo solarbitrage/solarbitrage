@@ -1,5 +1,5 @@
 import { LIQUIDITY_PROGRAM_ID_V4, nu64, SERUM_PROGRAM_ID_V3, SERUM_VERSION_TO_PROGRAMID, SplTokenInfo, struct, u8, WSOL } from "@raydium-io/raydium-sdk";
-import { Account, Connection, Keypair, PublicKey, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { Account, Connection, Keypair, PublicKey, sendAndConfirmTransaction, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { TokenAmount } from "./raydium-utils/safe-math";
 import { closeAccount } from '@project-serum/serum/lib/token-instructions'
 import { createAssociatedTokenAccountIfNotExist, createTokenAccountIfNotExist } from "./raydium-utils/web3";
@@ -201,7 +201,7 @@ export async function swap(
     signers.push(owner)
 
     console.log(JSON.stringify(transaction, null, 4))
-    return await connection.sendTransaction(transaction, signers);
+    return await sendAndConfirmTransaction(connection, transaction, signers, {commitment:"finalized",maxRetries:5});
 }
 
 export const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')

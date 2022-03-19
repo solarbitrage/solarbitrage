@@ -203,3 +203,47 @@ async function write_to_database(_start:number, _end:number){
 // The devnet pools are different from the mainnet pools
 
 // In case somebody runs in the same problem, it fixed itself by updating the orca package.
+
+
+
+
+
+// const main = async (startPool, endPool, fromCoinAmount) => {
+
+//     // first set flag to false
+//     ready_to_trade = false;
+//     /*** Setup ***/
+//     // 1. Read secret key file to get owner keypair
+//     const secretKeyString = await readFile("/Users/noelb/my-solana-wallet/my-keypair.json", {
+//         encoding: "utf8",
+//     });
+//     // "6VgdQS12EqfS31LkG9ksveqQQAJjiVbZ2F7rMzc8Cdec"
+//     const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
+//     const owner = Keypair.fromSecretKey(secretKey);
+
+//     // 2. Initialzie Orca object with mainnet connection
+//     const connection = new Connection("https://api.devnet.solana.com", "singleGossip");
+//     const orca = getOrca(connection, Network.DEVNET);
+
+//     try{
+//         // 3. We will be swapping 0.1 SOL for some ORCA
+//         const orcaSolPool = orca.getPool(OrcaPoolConfig.ORCA_SOL);
+//         const solToken = orcaSolPool.getTokenB();
+//         const solAmount = new Decimal(0.1);
+//         const quote = await orcaSolPool.getQuote(solToken, solAmount);
+//         const orcaAmountbuy1 = quote.getMinOutputAmount();
+
+//         console.log(`Swapping ${solAmount.toString()} SOL for at least ${orcaAmountbuy1.toNumber()} ORCA`);
+//         const swapPayload = await orcaSolPool.swap(owner, solToken, solAmount, orcaAmountbuy1);
+//         const swapTxId = await swapPayload.execute();
+//         console.log("here")
+
+//         console.log("Swapped:", swapTxId, "\n");
+//         console.log("-------------------------\n");
+
+//     }catch (err) {
+//         console.warn(err);
+//     }
+//     // set flag to true again
+//     ready_to_trade = true;
+// };
