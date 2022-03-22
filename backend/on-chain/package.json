@@ -1,0 +1,19 @@
+{
+  "name": "on-chain",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "dependencies": {
+    "@solana/spl-token": "^0.2.0",
+    "@solana/web3.js": "^1.33.0",
+    "bn.js": "^5.2.0",
+    "borsh": "^0.7.0",
+    "mz": "^2.7.0",
+    "yaml": "^1.10.2"
+  },
+  "license": "MIT"
+}
