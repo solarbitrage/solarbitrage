@@ -1,5 +1,5 @@
 [package]
-name = "on-chain"
+name = "solarbitrage"
 version = "0.1.0"
 edition = "2021"
 

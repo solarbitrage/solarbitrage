@@ -1440,19 +1440,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "on-chain"
-version = "0.1.0"
-dependencies = [
- "borsh",
- "borsh-derive",
- "solana-program",
- "solana-program-test",
- "solana-sdk",
- "spl-token",
- "thiserror",
-]
-
-[[package]]
 name = "once_cell"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2550,6 +2537,19 @@ dependencies = [
  "scroll",
  "thiserror",
  "time",
+]
+
+[[package]]
+name = "solarbitrage"
+version = "0.1.0"
+dependencies = [
+ "borsh",
+ "borsh-derive",
+ "solana-program",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token",
+ "thiserror",
 ]
 
 [[package]]
