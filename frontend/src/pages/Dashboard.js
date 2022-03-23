@@ -55,7 +55,7 @@ function Dashboard() {
 								{
 									width: 950, 
 									height: 460, 
-									title: "ORCA_SOL_USDC_BUY"
+									title: "Balance Over Time"
 								}
 							}
 						/>

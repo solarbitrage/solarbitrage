@@ -17,7 +17,7 @@ function Metrics() {
    * @param {number} index index of pool_id in the pools array
    */
   const fetchData = async(pool_id, index) => {
-    const q = query(collection(database, "pricing_history"), where("pool_id", "==", pool_id), orderBy("timestamp", "desc"), limit(10));
+    const q = query(collection(database, "pricing_history"), where("pool_id", "==", pool_id), orderBy("timestamp", "desc"), limit(100));
     const docSnap = await getDocs(q);
 
     // Saves existing data and updates new data.
