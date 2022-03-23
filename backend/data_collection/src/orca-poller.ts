@@ -34,7 +34,7 @@ const orcaRequests = async () => {
   // Initialzie Orca object with appropriate network connection
   // Production: https://api.mainnet-beta.solana.com, getOrca(connection)
   // Development: https://api.devnet.solana.com, getOrca(connection, Network.DEVNET)
-  const connection = new Connection("https://api.mainnet-beta.solana.com", "singleGossip");
+  const connection = new Connection("https://old-spring-shape.solana-mainnet.quiknode.pro/9c3788e894cbb3cdeb16e86e7664ba2f558887e7/", "singleGossip");
   const orca = getOrca(connection)
 
   try {
