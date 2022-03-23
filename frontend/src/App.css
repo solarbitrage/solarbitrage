@@ -1,0 +1,174 @@
+* { 
+  padding: 0;
+  margin: 0; 
+}
+
+html body {
+  min-height: 100vh !important;
+  height: 100vh;
+}
+
+.App {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  background-image: linear-gradient(#954AEF, #1BFC9C);
+  min-height: 100vh;
+  height: auto;
+}
+
+.page-container {
+  margin: 0px 100px 100px 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 0px 0px 25px 25px;
+  background-color: rgb(255, 255, 255);
+}
+
+.page-container h1 {
+  font-size: xx-large;
+  margin: 0;
+  padding: 40px;
+  align-self: flex-start;
+}
+
+.user-stats {
+  display: flex;
+  flex-direction: row;
+  padding: 10px 50px 10px 50px;
+  flex-wrap: wrap;
+}
+
+.bot-stats {
+  display: flex;
+  flex-direction: row;
+  padding: 10px 50px 10px 50px;
+}
+
+.widget-container {
+  border-radius: 10px;
+  margin: 10px 10px 30px 10px;
+  display: flex;
+  flex-direction: column;
+  background-color: rgb(255, 255, 255);
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  filter: drop-shadow(0px 0px 10px rgb(201, 201, 201));
+}
+
+.user-metric {
+  padding: 10px;
+  border-radius: 5px;
+  margin: 20px;
+  width: 300px;
+  height: 200px;
+  filter: drop-shadow(5px 5px 10px rgb(219, 219, 219));
+}
+
+.user-metric h2{
+  margin: 20px;
+}
+
+.user-metric:nth-child(odd) {
+  background-color: rgb(214, 214, 214);
+}
+
+.user-metric:nth-child(even) {
+  background-color: rgb(214, 214, 214);
+}
+
+.bot-metrics {
+  padding: 50px;
+  background-color: rgb(233, 233, 233);
+}
+
+.bot-information {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center
+}
+
+/* Position and sizing of burger button */
+.bm-burger-button {
+  position: fixed;
+  width: 36px;
+  height: 30px;
+  left: 36px;
+  top: 36px;
+}
+
+/* Color/shape of burger icon bars */
+.bm-burger-bars {
+  background: #f1f1f1;
+}
+
+/* Color/shape of burger icon bars on hover*/
+.bm-burger-bars-hover {
+  background: #d3d3d3;
+  transition: .2s;
+}
+
+/* Position and sizing of clickable cross button */
+.bm-cross-button {
+  height: 24px;
+  width: 24px;
+}
+
+/* Color/shape of close button cross */
+.bm-cross {
+  background: #494949;
+}
+
+/*
+Sidebar wrapper styles
+Note: Beware of modifying this element as it can break the animations - you should not need to touch it in most cases
+*/
+.bm-menu-wrap {
+  position: fixed;
+  height: 100vh;
+}
+
+/* General sidebar styles */
+.bm-menu {
+  background-color: #6e4f8d;
+  padding: 8em 0 0;
+  font-size: 1.15em;
+  overflow: hidden !important;
+}
+
+/* Morph shape necessary with bubble or elastic */
+.bm-morph-shape {
+  fill: #373a47;
+}
+
+/* Wrapper for item list */
+.bm-item-list {
+  color: #b8b7ad;
+  padding: 0;
+}
+
+/* Individual item */
+.bm-item {
+  font-size: xx-large;
+  display: inline-block;
+  color:rgb(175, 175, 175);
+  text-decoration: none;
+  background-image: #6e4f8d;
+  width: 100%;
+  padding: 10px;
+}
+
+.bm-item:hover {
+  color:rgb(247, 247, 247);
+  background-image: linear-gradient(to right, #80728d, #6e4f8d);
+  transition: .2s;
+}
+
+/* Styling of overlay */
+.bm-overlay {
+  background: rgba(0, 0, 0, 0.3);
+}
