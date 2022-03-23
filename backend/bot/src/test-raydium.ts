@@ -96,21 +96,21 @@ const main = async () => {
     // console.log(tokenAccounts["balance"].r)
     
 
-    // const res = await swap(
-    //     connection, 
-    //     owner, 
-    //     poolKeys, 
-    //     fromToken, 
-    //     toToken, 
-    //     tokenAccounts[fromToken.mint]?.tokenAccountAddress, 
-    //     tokenAccounts[toToken.mint]?.tokenAccountAddress,
-    //     fromCoinAmount,
-    //     toCoinAmount,
-    //     tokenAccounts[WSOL.mint]?.tokenAccountAddress
-    // );
+    const res = await swap(
+        connection, 
+        owner, 
+        poolKeys, 
+        fromToken, 
+        toToken, 
+        tokenAccounts[fromToken.mint]?.tokenAccountAddress, 
+        tokenAccounts[toToken.mint]?.tokenAccountAddress,
+        fromCoinAmount,
+        toCoinAmount,
+        tokenAccounts[WSOL.mint]?.tokenAccountAddress
+    );
     
     // console.log("RES PRINTING")
-    // console.log(res);
+    console.log(res);
 
 };
 

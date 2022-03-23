@@ -85,41 +85,44 @@ query_pools().then((queries)=>{
     console.log("init query");
     local_database = queries;
     
-    calculate_trade();
+    // calculate_trade();
 });
 // function to update pool prices from real time changes in firebase
-// const updated_pools = ref(database, 'latest_prices/');
-// onChildChanged(updated_pools, (snapshot) => {
-//     // console.log("snapshot", snapshot)
-//     //  console.log("key", snapshot.key)
-//     console.log("chanage in prices");
-//     const data = snapshot.val();
-//     local_database[snapshot.key] = data;
+const updated_pools = ref(database, 'latest_prices/');
+onChildChanged(updated_pools, (snapshot) => {
+    // console.log("snapshot", snapshot)
+    //  console.log("key", snapshot.key)
+    console.log("change in prices");
+    const data = snapshot.val();
+    local_database[snapshot.key] = data;
 
-//     //function that runs caclculations anytime there's a change
-//     // while(!ready_to_trade){
+    //function that runs caclculations anytime there's a change
+    // while(!ready_to_trade){
         
-//     // }
-//     // if(ready_to_trade)
-//         calculate_trade(snapshot.key);
+    // }
+    if(ready_to_trade){
+        calculate_trade(snapshot.key);
+    }
     
-//     console.log("going to check new change")
-// });
+    console.log("going to check new change")
+});
 
 function calculate_trade(update?){
     // console.log(local_database, update)
     console.log("Calculating ...")
 
     // rn calculate() called at any update in database -> not on sol_usdc pool of Raydium and Orca.
-    let usdc = 1;  // base value of $1
+    let usdc = 4;  // base value of $1
     let rate_diff = Math.abs(local_database.ORCA_SOL_USDC.buy.rate - local_database.RAYDIUM_SOL_USDC.buy.rate);
+    console.log("difference in rate: ", rate_diff);
     // run swaps based on this below threshold
-    if(rate_diff > 0.00001){                   // rate always > 0.00001. take into account slippage?
+    if(rate_diff > 0.00008){                   // rate always > 0.00001. take into account slippage? based on sol fees
         if(local_database.RAYDIUM_SOL_USDC.buy.rate > local_database.ORCA_SOL_USDC.buy.rate){
 
-            usdc += rate_diff;
+            // usdc += usdc*rate_diff;
+            usdc = usdc * local_database.RAYDIUM_SOL_USDC.buy.rate * local_database.ORCA_SOL_USDC.sell.rate;
             console.log("Buy from Raydium, Sell to Orca");
-            main("Raydium",1,local_database.RAYDIUM_SOL_USDC.buy.rate, local_database.ORCA_SOL_USDC.sell.rate)
+            main("Raydium",usdc,local_database.RAYDIUM_SOL_USDC.buy.rate, local_database.ORCA_SOL_USDC.sell.rate, usdc)
                 .then(() => {
                     console.log("Done");
                 })
@@ -128,10 +131,11 @@ function calculate_trade(update?){
                 });
         }
         else{
-            usdc += rate_diff;
+            // usdc += rate_diff;
+            usdc = usdc * local_database.ORCA_SOL_USDC.buy.rate * local_database.RAYDIUM_SOL_USDC.sell.rate;
             console.log("Buy from Orca, Sell to Raydium");
             // I need to send the rate for both swap directions
-            main("Orca",1,local_database.ORCA_SOL_USDC.buy.rate, local_database.RAYDIUM_SOL_USDC.sell.rate)
+            main("Orca",usdc,local_database.ORCA_SOL_USDC.buy.rate, local_database.RAYDIUM_SOL_USDC.sell.rate, usdc)
                 .then(() => {
                     console.log("Done");
                 })
@@ -152,7 +156,7 @@ function calculate_trade(update?){
 // if profitable trade exists, conduct a swap.
 // only after a swap is done, look for another database update?
 
-const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate) => {
+const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate, _expected_usdc) => {
     // first set flag to false
     ready_to_trade = false;
 
@@ -211,7 +215,7 @@ const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate) => 
                 toCoinAmount,
                 tokenAccounts[WSOL.mint]?.tokenAccountAddress
             );
-            // console.log(res);
+            console.log(res);
             console.log("RAYDIUM swap done USDC -> SOL")
             let current_sol_balance = (await connection.getBalance(owner.publicKey)) * 0.000000001;
 
@@ -229,6 +233,14 @@ const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate) => 
 
             console.log("Swapped: ", swapId3);
             console.log("ORCA swap done SOL -> USDC\n");
+
+            // Repoll for token account data
+            let net_usdc = 0; //
+            for (const tokenAccountInfo of accounts.value) {
+                const parsedInfo = tokenAccountInfo.account.data.parsed.info;
+                net_usdc = parsedInfo.tokenAmount.uiAmount;
+            }
+            write_to_database(fromCoinAmount, net_usdc , _expected_usdc);
 
         }
         else{
@@ -269,6 +281,14 @@ const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate) => 
             );
             console.log(res);
             console.log("RAYDIUM swap done SOL -> USDC")
+            
+            // Repoll for token account data
+            let net_usdc = 0; //
+            for (const tokenAccountInfo of accounts.value) {
+                const parsedInfo = tokenAccountInfo.account.data.parsed.info;
+                net_usdc = parsedInfo.tokenAmount.uiAmount;
+            }
+            write_to_database(fromCoinAmount, net_usdc , _expected_usdc);
         }
         // set flag to true again
         ready_to_trade = true;      // where to put this? in try-catch? or outside?
@@ -278,13 +298,19 @@ const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate) => 
 }
 
 
-// swaps can timeout sometimes, in which case need to try again. 
-// still losing money. Could be due to the SOL fees. 0.00001 and 0.0000115
-// need to test again with everytime the database has a change.
+// write to firestore
+async function write_to_database(_start:number, _end:number, _expected_profit:number){
+    try {
+      const docRef = await addDoc(collection(firestore, "trade_history"), {
+        starting_amount : _start,
+        ending_amount : _end,
+        net_profit: (_end - _start),
+        expected_profit: _expected_profit,
+        time_stamp: serverTimestamp()
+      });
+      console.log("Document written with ID: ", docRef.id);
+    } catch (e) {
+      console.error("Error adding document: ", e);
+    }
+}
 
-// fixx:
-//   balance
-//   rate diff: rate > 0.0001
-
-// check if profit-swap algo (threshold) is right
-// trade higher amounts?
