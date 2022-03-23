@@ -28,7 +28,7 @@ const sleep = (ms: number) => new Promise((res) => setTimeout(res,ms));
 
 // Production: https://api.mainnet-beta.solana.com
 // Development: https://api.devnet.solana.com
-const CONNECTION_ENDPOINT = "https://api.mainnet-beta.solana.com";
+const CONNECTION_ENDPOINT = "https://old-spring-shape.solana-mainnet.quiknode.pro/9c3788e894cbb3cdeb16e86e7664ba2f558887e7/";
 const CONNECTION_COMMITMENT = "singleGossip";
 const RAYDIUM_POOLS_ENDPOINT = "https://sdk.raydium.io/liquidity/mainnet.json"
 
