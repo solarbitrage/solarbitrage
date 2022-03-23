@@ -2,9 +2,9 @@
   "name": "solarbitrage",
   "version": "1.0.0",
   "description": "arbitrage bot for solarbitrage",
-  "main": "dist/bot.js",
+  "main": "dist/trading_bot.js",
   "scripts": {
-    "start": "tsc && node dist/bot.js",
+    "start": "tsc || node dist/trading_bot.js",
     "lint": "eslint . --ext .ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon bot.ts"

@@ -9,7 +9,7 @@ import Decimal from "decimal.js";
 // https://firebase.google.com/docs/web/setup#available-libraries
 // Your web app's Firebase configuration
 // import config from "./firebase_config"
-let config = require('../firebase_config')
+import config from "./common/src/config";
 const firebaseConfig = {
     apiKey: config.FIREBASE_API_KEY,
     authDomain: config.FIREBASE_DOMAIN,
@@ -18,7 +18,7 @@ const firebaseConfig = {
     storageBucket: config.FIREBASE_STORAGE_BUCKET,
     messagingSenderId: config.FIREBASE_MESSAGING_SENDER_ID,
     appId: config.FIREBASE_APP_ID
-  };  
+};  
 
   // don't do swap. NOtify best paths to making profit. based on raydium and orca
       // keep local copy of database. keep a real time listerer to firebase and update local copy of database with changed values

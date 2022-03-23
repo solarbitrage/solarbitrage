@@ -1,17 +1,16 @@
-import { readFile } from "mz/fs";
+import { getOrca, OrcaPoolConfig } from "@orca-so/sdk";
 import { jsonInfo2PoolKeys, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import Decimal from "decimal.js";
+import { initializeApp } from 'firebase/app';
+import { get, getDatabase, onChildChanged, ref } from "firebase/database";
+import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/firestore";
+import { readFile } from "mz/fs";
 import { NATIVE_SOL, swap } from "./raydium-swap-funcs";
 
-import { initializeApp } from 'firebase/app';
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { collection, getFirestore, addDoc, serverTimestamp} from "firebase/firestore";
-import { getDatabase, ref, child, get, onValue, onChildChanged, query, update} from "firebase/database";
-import { getOrca, OrcaFarmConfig, OrcaPoolConfig, Network } from "@orca-so/sdk";
-import { getDevnetPool } from "@orca-so/sdk/dist/public/devnet"
-import Decimal from "decimal.js";
-
 // ~~~~~~ firebase configs ~~~~~~
-let config = require('../firebase_config')
+import config from "./common/src/config";
+
 const firebaseConfig = {
     apiKey: config.FIREBASE_API_KEY,
     authDomain: config.FIREBASE_DOMAIN,
@@ -20,7 +19,7 @@ const firebaseConfig = {
     storageBucket: config.FIREBASE_STORAGE_BUCKET,
     messagingSenderId: config.FIREBASE_MESSAGING_SENDER_ID,
     appId: config.FIREBASE_APP_ID
-  };  
+};  
 
 const app = initializeApp(firebaseConfig);
 // Get a reference to the database service
@@ -28,32 +27,34 @@ const database = getDatabase(app);
 const firestore = getFirestore(app);
 // ~~~~~~ firebase configs ~~~~~~
 
+const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/Users/noelb/my-solana-wallet/wallet-keypair.json"
+
 let ready_to_trade = true;  // flag to look for updates only when a swap intruction is done
 
 // SOL_USDC Raydium token
 const SOL_USDC_JSON = {
-  "id": "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
-  "baseMint": "So11111111111111111111111111111111111111112",
-  "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-  "lpMint": "8HoQnePLqPj4M7PUDzfw8e3Ymdwgc7NLGnaTUapubyvu",
-  "version": 4,
-  "programId": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
-  "authority": "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1",
-  "openOrders": "HRk9CMrpq7Jn9sh7mzxE8CChHG8dneX9p475QKz4Fsfc",
-  "targetOrders": "CZza3Ej4Mc58MnxWA385itCC9jCo3L1D7zc3LKy1bZMR",
-  "baseVault": "DQyrAcCrDXQ7NeoqGgDCZwBvWDcYmFCjSb9JtteuvPpz",
-  "quoteVault": "HLmqeL62xR1QoZ1HKKbXRrdN1p3phKpxRMb2VVopvBBz",
-  "withdrawQueue": "G7xeGGLevkRwB5f44QNgQtrPKBdMfkT6ZZwpS9xcC97n",
-  "lpVault": "Awpt6N7ZYPBa4vG4BQNFhFxDj4sxExAA9rpBAoBw2uok",
-  "marketVersion": 3,
-  "marketProgramId": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
-  "marketId": "9wFFyRfZBsuAha4YcuxcXLKwMxJR43S7fPfQLusDBzvT",
-  "marketAuthority": "F8Vyqk3unwxkXukZFQeYyGmFfTG3CAX4v24iyrjEYBJV",
-  "marketBaseVault": "36c6YqAwyGKQG66XEp2dJc5JqjaBNv7sVghEtJv4c7u6",
-  "marketQuoteVault": "8CFo8bL8mZQK8abbFyypFMwEDd8tVJjHTTojMLgQTUSZ",
-  "marketBids": "14ivtgssEBoBjuZJtSAPKYgpUK7DmnSwuPMqJoVTSgKJ",
-  "marketAsks": "CEQdAFKdycHugujQg9k2wbmxjcpdYZyVLfV9WerTnafJ",
-  "marketEventQueue": "5KKsLVU6TcbVDK4BS6K1DGDxnh4Q9xjYJ8XaDCG5t8ht"
+    "id": "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
+    "baseMint": "So11111111111111111111111111111111111111112",
+    "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "lpMint": "8HoQnePLqPj4M7PUDzfw8e3Ymdwgc7NLGnaTUapubyvu",
+    "version": 4,
+    "programId": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+    "authority": "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1",
+    "openOrders": "HRk9CMrpq7Jn9sh7mzxE8CChHG8dneX9p475QKz4Fsfc",
+    "targetOrders": "CZza3Ej4Mc58MnxWA385itCC9jCo3L1D7zc3LKy1bZMR",
+    "baseVault": "DQyrAcCrDXQ7NeoqGgDCZwBvWDcYmFCjSb9JtteuvPpz",
+    "quoteVault": "HLmqeL62xR1QoZ1HKKbXRrdN1p3phKpxRMb2VVopvBBz",
+    "withdrawQueue": "G7xeGGLevkRwB5f44QNgQtrPKBdMfkT6ZZwpS9xcC97n",
+    "lpVault": "Awpt6N7ZYPBa4vG4BQNFhFxDj4sxExAA9rpBAoBw2uok",
+    "marketVersion": 3,
+    "marketProgramId": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+    "marketId": "9wFFyRfZBsuAha4YcuxcXLKwMxJR43S7fPfQLusDBzvT",
+    "marketAuthority": "F8Vyqk3unwxkXukZFQeYyGmFfTG3CAX4v24iyrjEYBJV",
+    "marketBaseVault": "36c6YqAwyGKQG66XEp2dJc5JqjaBNv7sVghEtJv4c7u6",
+    "marketQuoteVault": "8CFo8bL8mZQK8abbFyypFMwEDd8tVJjHTTojMLgQTUSZ",
+    "marketBids": "14ivtgssEBoBjuZJtSAPKYgpUK7DmnSwuPMqJoVTSgKJ",
+    "marketAsks": "CEQdAFKdycHugujQg9k2wbmxjcpdYZyVLfV9WerTnafJ",
+    "marketEventQueue": "5KKsLVU6TcbVDK4BS6K1DGDxnh4Q9xjYJ8XaDCG5t8ht"
 }
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 
@@ -162,7 +163,7 @@ const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate, _ex
 
     //  Setup 
     // 1. Read secret key file to get owner keypair
-    const secretKeyString = await readFile("/Users/noelb/my-solana-wallet/wallet-keypair.json", {
+    const secretKeyString = await readFile(WALLET_KEY_PATH, {
         encoding: "utf8",
     });
     const secretKey = Uint8Array.from(JSON.parse(secretKeyString));

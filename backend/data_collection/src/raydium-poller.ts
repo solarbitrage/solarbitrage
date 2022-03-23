@@ -5,7 +5,7 @@ import { Liquidity, LiquidityPoolJsonInfo, jsonInfo2PoolKeys } from "@raydium-io
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set } from "firebase/database";
 
-import config from "./config";
+import config from "./common/src/config";
 
 // Firebase Configuration
 const firebaseConfig = {
