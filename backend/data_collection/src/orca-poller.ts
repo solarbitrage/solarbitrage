@@ -23,6 +23,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
+const CONNECTION_ENDPOINT = "https://old-spring-shape.solana-mainnet.quiknode.pro/9c3788e894cbb3cdeb16e86e7664ba2f558887e7/";
+const CONNECTION_COMMITMENT = "singleGossip";
+
 const orcaRequests = async () => {
   // Read secret key file to get owner keypair
   const secretKeyString = await readFile("wallets/test-keypair.json", {
@@ -34,7 +37,7 @@ const orcaRequests = async () => {
   // Initialzie Orca object with appropriate network connection
   // Production: https://api.mainnet-beta.solana.com, getOrca(connection)
   // Development: https://api.devnet.solana.com, getOrca(connection, Network.DEVNET)
-  const connection = new Connection("https://old-spring-shape.solana-mainnet.quiknode.pro/9c3788e894cbb3cdeb16e86e7664ba2f558887e7/", "singleGossip");
+  const connection = new Connection(CONNECTION_ENDPOINT, CONNECTION_COMMITMENT);
   const orca = getOrca(connection)
 
   try {
