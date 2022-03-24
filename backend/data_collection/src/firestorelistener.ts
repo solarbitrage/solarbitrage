@@ -26,13 +26,26 @@ function main() {
         console.log(data.key, data.val())
         addDoc(collection(firestore, "pricing_history"), {
             pool_id: data.key,
+            direction: "buy",
             timestamp: serverTimestamp(),
-            expected_output_amount: data.val().expected_output_amount || null,
-            lp_fees: data.val().lp_fees || null,
-            min_output_amount: data.val().min_output_amount || null,
-            network_fees: data.val().network_fees || null,
-            price_impact: data.val().price_impact || null,
-            rate: data.val().rate || null,
+            expected_output_amount: data.val().buy.expected_output_amount || null,
+            lp_fees: data.val().buy.lp_fees || null,
+            min_output_amount: data.val().buy.min_output_amount || null,
+            network_fees: data.val().buy.network_fees || null,
+            price_impact: data.val().buy.price_impact || null,
+            rate: data.val().buy.rate || null,
+        })
+
+        addDoc(collection(firestore, "pricing_history"), {
+            pool_id: data.key,
+            direction: "sell",
+            timestamp: serverTimestamp(),
+            expected_output_amount: data.val().sell.expected_output_amount || null,
+            lp_fees: data.val().sell.lp_fees || null,
+            min_output_amount: data.val().sell.min_output_amount || null,
+            network_fees: data.val().sell.network_fees || null,
+            price_impact: data.val().sell.price_impact || null,
+            rate: data.val().sell.rate || null,
         })
     })
 }

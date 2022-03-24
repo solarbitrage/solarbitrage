@@ -6,7 +6,7 @@ import Decimal from "decimal.js";
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, update } from "firebase/database";
 
-import config from "./common/src/config"
+import config from "../config"
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -34,15 +34,14 @@ const orcaRequests = async () => {
   // Initialzie Orca object with appropriate network connection
   // Production: https://api.mainnet-beta.solana.com, getOrca(connection)
   // Development: https://api.devnet.solana.com, getOrca(connection, Network.DEVNET)
-  const connection = new Connection("https://api.mainnet-beta.solana.com", "singleGossip");
-  const orca = getOrca(connection)
+  const connection = new Connection("https://api.devnet.solana.com", "singleGossip");
+  const orca = getOrca(connection, Network.DEVNET)
 
   try {
     console.log('Gathering ORCA data')
     const pools = [
       OrcaPoolConfig.ORCA_USDC,
       OrcaPoolConfig.SOL_USDC,
-      OrcaPoolConfig.BTC_USDC,
       OrcaPoolConfig.ORCA_SOL,
     ]
 
@@ -94,7 +93,7 @@ function updateDatabase(poolName: String, buyQuote: Quote, sellQuote: Quote, coi
 
   console.log(poolName, results)
 
-  update(ref(database, 'latest_prices/' + poolName), results);
+  update(ref(database, 'latest_prices_devnet/' + poolName), results);
 };
 
 orcaRequests()
