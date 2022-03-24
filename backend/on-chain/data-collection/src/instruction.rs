@@ -7,10 +7,6 @@ use std::convert::TryInto;
 use solana_program::program_error::ProgramError;
 use crate::error::DataCollectionInstruction::InvalidInstruction;
 
-use solana_program::{
-    msg,
-};
-
 pub enum DataCollectionInstruction {
     
 }
