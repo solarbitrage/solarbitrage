@@ -19,7 +19,7 @@ const firebaseConfig = {
     storageBucket: config.FIREBASE_STORAGE_BUCKET,
     messagingSenderId: config.FIREBASE_MESSAGING_SENDER_ID,
     appId: config.FIREBASE_APP_ID
-};  
+};
 
 const app = initializeApp(firebaseConfig);
 // Get a reference to the database service
@@ -58,34 +58,33 @@ const SOL_USDC_JSON = {
 }
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 
-let local_database: any =  {};
+let local_database: any = {};
 
 // function to set up local copy of the database
-async function query_pools()
-{
-  // const query_pools = ['SOL_USDC_BUY', 'ORCA_SOL_BUY', 'ORCA_USDC_SELL'];
-  let query_objects = new Object();
+async function query_pools() {
+    // const query_pools = ['SOL_USDC_BUY', 'ORCA_SOL_BUY', 'ORCA_USDC_SELL'];
+    let query_objects = new Object();
 
     const latest_price = ref(database, 'latest_prices/');
-    await get(latest_price).then((snapshot)=>{
-      if (snapshot.exists()) {
-        query_objects = snapshot.val();
-      } else {
-        console.log("No data available");
-      }
-    }).catch((error)=>{
-      console.error(error);
+    await get(latest_price).then((snapshot) => {
+        if (snapshot.exists()) {
+            query_objects = snapshot.val();
+        } else {
+            console.log("No data available");
+        }
+    }).catch((error) => {
+        console.error(error);
     });
- return new Promise((resolve) =>{
-   resolve(query_objects)
- })
+    return new Promise((resolve) => {
+        resolve(query_objects)
+    })
 }
 
-query_pools().then((queries)=>{
+query_pools().then((queries) => {
     // console.log(queries[ORCA_USDC_SELL]);
     console.log("init query");
     local_database = queries;
-    
+
     // calculate_trade();
 });
 // function to update pool prices from real time changes in firebase
@@ -99,55 +98,53 @@ onChildChanged(updated_pools, (snapshot) => {
 
     //function that runs caclculations anytime there's a change
     // while(!ready_to_trade){
-        
+
     // }
-    if(ready_to_trade){
+    if (ready_to_trade) {
         calculate_trade(snapshot.key);
     }
-    
+
     console.log("going to check new change")
 });
 
-function calculate_trade(update?){
+function calculate_trade(update?) {
     // console.log(local_database, update)
     console.log("Calculating ...")
 
     // rn calculate() called at any update in database -> not on sol_usdc pool of Raydium and Orca.
     let usdc = 4;  // base value of $1
-    let rate_diff = Math.abs(local_database.ORCA_SOL_USDC.buy.rate - local_database.RAYDIUM_SOL_USDC.buy.rate);
-    console.log("difference in rate: ", rate_diff);
-    // run swaps based on this below threshold
-    if(rate_diff > 0.00008){                   // rate always > 0.00001. take into account slippage? based on sol fees
-        if(local_database.RAYDIUM_SOL_USDC.buy.rate > local_database.ORCA_SOL_USDC.buy.rate){
+    const FEES = 0.00001;
+    const THRESHOLD = 0.00003;
 
-            // usdc += usdc*rate_diff;
-            usdc = usdc * local_database.RAYDIUM_SOL_USDC.buy.rate * local_database.ORCA_SOL_USDC.sell.rate;
-            console.log("Buy from Raydium, Sell to Orca");
-            main("Raydium",usdc,local_database.RAYDIUM_SOL_USDC.buy.rate, local_database.ORCA_SOL_USDC.sell.rate, usdc)
-                .then(() => {
-                    console.log("Done");
-                })
-                .catch((e) => {
-                    console.error(e);
-                });
-        }
-        else{
-            // usdc += rate_diff;
-            usdc = usdc * local_database.ORCA_SOL_USDC.buy.rate * local_database.RAYDIUM_SOL_USDC.sell.rate;
-            console.log("Buy from Orca, Sell to Raydium");
-            // I need to send the rate for both swap directions
-            main("Orca",usdc,local_database.ORCA_SOL_USDC.buy.rate, local_database.RAYDIUM_SOL_USDC.sell.rate, usdc)
-                .then(() => {
-                    console.log("Done");
-                })
-                .catch((e) => {
-                    console.error(e);
-                });
-        }
-        console.log("Estimated net USDC amount: " , usdc);
+    let estimatedProfits = {
+        "Raydium then Orca": usdc - ((((usdc * local_database.RAYDIUM_SOL_USDC.buy.rate) - FEES) * local_database.ORCA_SOL_USDC.sell.rate) - FEES),
+        "Orca then Raydium": usdc - ((((usdc * local_database.ORCA_SOL_USDC.buy.rate) - FEES) * local_database.RAYDIUM_SOL_USDC.sell.rate) - FEES)
     }
-    else{
-    console.log("Not worth the trade\n");
+    console.log("Estimated Profit", estimatedProfits)
+
+    // run swaps based on this below threshold
+    if (estimatedProfits["Raydium then Orca"] > estimatedProfits["Orca then Raydium"] && estimatedProfits["Raydium then Orca"] > THRESHOLD) {
+        console.log("Buy from Raydium, Sell to Orca");
+        main("Raydium", usdc, local_database.RAYDIUM_SOL_USDC.buy.rate, local_database.ORCA_SOL_USDC.sell.rate, usdc + estimatedProfits["Raydium then Orca"])
+            .then(() => {
+                console.log("Done");
+            })
+            .catch((e) => {
+                console.error(e);
+            });
+    } else if (estimatedProfits["Orca then Raydium"] > estimatedProfits["Raydium then Orca"] && estimatedProfits["Orca then Raydium"] > THRESHOLD) {
+        console.log("Buy from Orca, Sell to Raydium");
+
+        // I need to send the rate for both swap directions
+        main("Orca", usdc, local_database.ORCA_SOL_USDC.buy.rate, local_database.RAYDIUM_SOL_USDC.sell.rate, usdc + estimatedProfits["Orca then Raydium"])
+            .then(() => {
+                console.log("Done");
+            })
+            .catch((e) => {
+                console.error(e);
+            });
+    } else {
+        console.log("Not worth the trade\n");
     }
 }
 
@@ -158,6 +155,7 @@ function calculate_trade(update?){
 // only after a swap is done, look for another database update?
 
 const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate, _expected_usdc) => {
+    console.log( { startPool, fromCoinAmount, exchangeArate, exchangeBrate, _expected_usdc })
     // first set flag to false
     ready_to_trade = false;
 
@@ -176,7 +174,7 @@ const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate, _ex
 
     const accounts = await connection.getParsedTokenAccountsByOwner(owner.publicKey, { programId: TOKEN_PROGRAM_ID })
     console.log(accounts)
-    
+
     // token account for Raydium
     const tokenAccounts = {};
     for (const tokenAccountInfo of accounts.value) {
@@ -194,23 +192,23 @@ const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate, _ex
     let previous_sol_balance = (await connection.getBalance(owner.publicKey)) * 0.000000001;
     // conditions for AMM trade direction 
     // RPC is not catching up to the latest block. wait some time for node to catch up?
-    try{
-        if(startPool === "Raydium"){
+    try {
+        if (startPool === "Raydium") {
             // USDC -> SOL on Raydium
             // minimum_expected_ouput = (fromCoinAmount * conversion rate * (1 - slippage(1%)))
-            const toCoinAmount = (fromCoinAmount * exchangeArate * (1-0.01)).toString();
+            const toCoinAmount = (fromCoinAmount * exchangeArate * (1 - 0.01)).toString();
             // const toCoinAmount = "0.00011987";
             fromCoinAmount = fromCoinAmount.toString();
             const fromToken = MAINNET_SPL_TOKENS["USDC"];
             const toToken = NATIVE_SOL;
 
             const res = await swap(
-                connection, 
-                owner, 
-                poolKeys, 
-                fromToken, 
-                toToken, 
-                tokenAccounts[fromToken.mint]?.tokenAccountAddress, 
+                connection,
+                owner,
+                poolKeys,
+                fromToken,
+                toToken,
+                tokenAccounts[fromToken.mint]?.tokenAccountAddress,
                 tokenAccounts[toToken.mint]?.tokenAccountAddress,
                 fromCoinAmount,
                 toCoinAmount,
@@ -223,6 +221,7 @@ const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate, _ex
             // SOL -> USDC on Orca
             const solUSDCPool = orca.getPool(OrcaPoolConfig.SOL_USDC);
             const solToken = solUSDCPool.getTokenA();
+            console.log("New SOL:", current_sol_balance - previous_sol_balance, "Expected New SOL:", (fromCoinAmount * exchangeArate) - 0.00001)
             const solAmount = new Decimal((current_sol_balance - previous_sol_balance));  // getting $1 0.01038672
             const usdcQuote = await solUSDCPool.getQuote(solToken, solAmount);
             const usdcAmountbuy = usdcQuote.getMinOutputAmount();
@@ -241,14 +240,14 @@ const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate, _ex
                 const parsedInfo = tokenAccountInfo.account.data.parsed.info;
                 net_usdc = parsedInfo.tokenAmount.uiAmount;
             }
-            write_to_database(fromCoinAmount, net_usdc , _expected_usdc);
+            write_to_database(fromCoinAmount, net_usdc, _expected_usdc);
 
         }
-        else{
+        else {
             // USDC -> SOL on Orca
             const solUSDCPool = orca.getPool(OrcaPoolConfig.SOL_USDC);
             const solToken = solUSDCPool.getTokenB();
-            const solAmount = new Decimal(fromCoinAmount.toDecimal());  // getting SOL worth $1 ... 0.01038672
+            const solAmount = new Decimal(fromCoinAmount);  // getting SOL worth $1 ... 0.01038672
             const usdcQuote = await solUSDCPool.getQuote(solToken, solAmount);
             const usdcAmountbuy = usdcQuote.getMinOutputAmount();
             // console.log(usdcQuote.getExpectedOutputAmount());
@@ -262,19 +261,22 @@ const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate, _ex
             let current_sol_balance = (await connection.getBalance(owner.publicKey)) * 0.000000001;
             let net_sol = current_sol_balance - previous_sol_balance;
 
+            console.log("New SOL:", current_sol_balance - previous_sol_balance, "Expected New SOL:", (fromCoinAmount * exchangeArate) - 0.00001)
+
+
             // SOL -> USDC on Raydium
-            const toCoinAmount = (net_sol * (exchangeBrate) * (1-0.01)).toString(); // slippage is 1%
+            const toCoinAmount = (net_sol * (exchangeBrate) * (1 - 0.01)).toString(); // slippage is 1%
             fromCoinAmount = net_sol.toString();
             const fromToken = NATIVE_SOL;
             const toToken = MAINNET_SPL_TOKENS["USDC"];
-
+            
             const res = await swap(
-                connection, 
-                owner, 
-                poolKeys, 
-                fromToken, 
-                toToken, 
-                tokenAccounts[fromToken.mint]?.tokenAccountAddress, 
+                connection,
+                owner,
+                poolKeys,
+                fromToken,
+                toToken,
+                tokenAccounts[fromToken.mint]?.tokenAccountAddress,
                 tokenAccounts[toToken.mint]?.tokenAccountAddress,
                 fromCoinAmount,
                 toCoinAmount,
@@ -282,36 +284,36 @@ const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate, _ex
             );
             console.log(res);
             console.log("RAYDIUM swap done SOL -> USDC")
-            
+
             // Repoll for token account data
             let net_usdc = 0; //
             for (const tokenAccountInfo of accounts.value) {
                 const parsedInfo = tokenAccountInfo.account.data.parsed.info;
                 net_usdc = parsedInfo.tokenAmount.uiAmount;
             }
-            write_to_database(fromCoinAmount, net_usdc , _expected_usdc);
+            write_to_database(fromCoinAmount, net_usdc, _expected_usdc);
         }
-        // set flag to true again
-        ready_to_trade = true;      // where to put this? in try-catch? or outside?
-    }catch (err) {
+    } catch (err) {
         console.warn(err);
     }
+    // set flag to true again
+    ready_to_trade = true;
 }
 
 
 // write to firestore
-async function write_to_database(_start:number, _end:number, _expected_profit:number){
+async function write_to_database(_start: number, _end: number, _expected_profit: number) {
     try {
-      const docRef = await addDoc(collection(firestore, "trade_history"), {
-        starting_amount : _start,
-        ending_amount : _end,
-        net_profit: (_end - _start),
-        expected_profit: _expected_profit,
-        time_stamp: serverTimestamp()
-      });
-      console.log("Document written with ID: ", docRef.id);
+        const docRef = await addDoc(collection(firestore, "trade_history"), {
+            starting_amount: _start,
+            ending_amount: _end,
+            net_profit: (_end - _start),
+            expected_profit: _expected_profit,
+            time_stamp: serverTimestamp()
+        });
+        console.log("Document written with ID: ", docRef.id);
     } catch (e) {
-      console.error("Error adding document: ", e);
+        console.error("Error adding document: ", e);
     }
 }
 

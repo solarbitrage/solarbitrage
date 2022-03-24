@@ -68,7 +68,6 @@ export async function swap(
                 owner: owner.publicKey
             })
         );
-        console.log(`[!] closeAccount WSOL ${wsolAddress}`)
     }
 
     if (fromCoinMint === NATIVE_SOL.mint) {
@@ -88,7 +87,6 @@ export async function swap(
     let newToTokenAccount = PublicKey.default;
 
     if (fromCoinMint === WSOL.mint) {
-        console.log(`[!] fromCoin WSOL ${getBigNumber(amountIn.wei) + 1e7}`)
         fromWrappedSolAcc = await createTokenAccountIfNotExist(
             connection,
             null,
@@ -99,7 +97,6 @@ export async function swap(
             signers
         );
     } else {
-        console.log(`[!] fromCoin createTokenAccountIfNotExist Other`)
         newFromTokenAccount = await createAssociatedTokenAccountIfNotExist(
             fromTokenAccount,
             owner.publicKey,
@@ -109,7 +106,6 @@ export async function swap(
     }
 
     if (toCoinMint === WSOL.mint) {
-        console.log(`[!] toCoin createTokenAccountIfNotExist WSOL ${1e7}`)
         toWrappedSolAcc = await createTokenAccountIfNotExist(
             connection,
             null,
@@ -120,7 +116,6 @@ export async function swap(
             signers
         );
     } else {
-        console.log(`[!] toCoin createTokenAccountIfNotExist Other`)
         newToTokenAccount = await createAssociatedTokenAccountIfNotExist(
             toTokenAccount,
             owner.publicKey,
@@ -178,7 +173,6 @@ export async function swap(
     );
 
     if (fromWrappedSolAcc) {
-        console.log("[!] from closeAccount WSOL")
         transaction.add(
             closeAccount({
                 source: fromWrappedSolAcc,
@@ -188,7 +182,6 @@ export async function swap(
         );
     }
     if (toWrappedSolAcc) {
-        console.log("[!] to closeAccount WSOL")
         transaction.add(
             closeAccount({
                 source: toWrappedSolAcc,
@@ -199,8 +192,7 @@ export async function swap(
     }
 
     signers.push(owner)
-
-    console.log(JSON.stringify(transaction, null, 4))
+    console.log("Sending Swap Transaction to Raydium...")
     return await sendAndConfirmTransaction(connection, transaction, signers, {commitment:"finalized",maxRetries:5});
 }
 
