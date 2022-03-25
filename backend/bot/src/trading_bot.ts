@@ -113,7 +113,12 @@ function calculate_trade(update?) {
 
     // rn calculate() called at any update in database -> not on sol_usdc pool of Raydium and Orca.
     let usdc = 4;  // base value of $1
-    const FEES = 0.00001;
+    /* TODO
+        update fees for directional fees
+        const sol_to_usdc_FEES = 0.000015;
+    */
+    const usdc_to_sol_FEES = 0.00001;
+    
     const THRESHOLD = 0.00003;
 
     let estimatedProfits = {
