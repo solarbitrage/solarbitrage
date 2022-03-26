@@ -20,13 +20,12 @@ class PriceHistoryPlot extends React.Component {
 
 	render() {
 		return (
-			<div ref={this.myRef} >
 				<Plot
 					data={this.state.data}
 					layout={ this.props.layout }
+					useResizeHandler={true}
+					style={{width: "100%", height: "100%"}}
 				/>
-			</div>
-				
 		);
 	}
 }

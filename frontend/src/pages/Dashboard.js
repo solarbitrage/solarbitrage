@@ -24,100 +24,93 @@ function Dashboard() {
 	<div className="dashboard">
 		<div className="page-container">
 		<h1>Dashboard</h1>
-			<div className="user-stats">
-				<div className="widget-container">
-					<div className="user-metric">
-						<h2>Current</h2>
-						<h2>Insert Money Here</h2>
-					</div>
-					<div className="user-metric">
-						<h2>Earnings / Day</h2>
-						<h2>0.0323 USDC</h2>
-					</div>
-					<div className="user-metric">
-						<h2>Bots running</h2>
-						<h2>2/4</h2>
-					</div>
+			<div className="widget-container white-boxed row-centric">
+				<div className="user-metric current-balance">
+					<h5>Current</h5>
+					<h3>40,000 USDC</h3>
 				</div>
-				
-				<div className="widget-container">
-					<div className="earnings-over-time-plot">
-						<PriceHistoryPlot
-							data={[
-								{
-									type: "scatter",
-									mode: "lines+points",
-									x: pricingHistory.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
-									y: pricingHistory.map(ph => ph.data.rate)
-								}
-							]}
-							layout = {
-								{
-									width: 950, 
-									height: 460, 
-									title: "Balance Over Time"
-								}
-							}
-						/>
-					</div>
+				<div className="user-metric earnings">
+					<h5>Earnings / Day</h5>
+					<h3>0.0323 USDC</h3>
+				</div>
+				<div className="user-metric transactions-performed">
+					<h5>Transactions Performed</h5>
+					<h3>555555</h3>
 				</div>
 			</div>
 			
-			<div className="bot-stats">
-				<div className="widget-container">
-					<div className="bot-metrics">
-						<h2>Bots</h2>
-						<Accordion defaultActiveKey={['0']} alwaysOpen>
-							<Accordion.Item eventKey="0">
-								<Accordion.Header>Bot 1</Accordion.Header>
-								<Accordion.Body>
-									<BotInformation 
-										name="George"
-										strategyUsing="Sub Par"
-										averageEarnings="-0.05%"
-										amms={["Orca", "Raydium"]}
-										currencies={["Solana", "USDC"]}
-									/>
-								</Accordion.Body>
-							</Accordion.Item>
-							<Accordion.Item eventKey="1">
-								<Accordion.Header>Bot 2</Accordion.Header>
-								<Accordion.Body>
-									<BotInformation
-										name="Daniel"
-										strategyUsing="The Best"
-										averageEarnings="1000%"
-										amms = {["Dan"]}
-										currencies = {["Me"]}
-									/>
-								</Accordion.Body>
-							</Accordion.Item>
-							<Accordion.Item eventKey="2">
-								<Accordion.Header>Bot 3</Accordion.Header>
-								<Accordion.Body>
-									<BotInformation
-										name="Daniel"
-										strategyUsing="The Best"
-										averageEarnings="1000%"
-										amms = {["Dan"]}
-										currencies = {["Me"]}
-									/>
-								</Accordion.Body>
-							</Accordion.Item>
-							<Accordion.Item eventKey="3">
-								<Accordion.Header>Bot 4</Accordion.Header>
-								<Accordion.Body>
-									<BotInformation
-										name="Daniel"
-										strategyUsing="The Best"
-										averageEarnings="1000%"
-										amms = {["Dan"]}
-										currencies = {["Me"]}
-									/>
-								</Accordion.Body>
-							</Accordion.Item>
-						</Accordion>
-					</div>
+			<div className="widget-container white-boxed">
+				<PriceHistoryPlot
+					data={[
+						{
+							type: "scatter",
+							mode: "lines+points",
+							x: pricingHistory.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
+							y: pricingHistory.map(ph => ph.data.rate)
+						}
+					]}
+					layout = {
+						{
+							autosize: true,
+							title: "Balance Over Time"
+						}
+					}
+				/>
+			</div>
+			
+			<div className="widget-container white-boxed">
+				<div className="bot-metrics">
+					<h2>Bots</h2>
+					<Accordion defaultActiveKey={['0']} alwaysOpen>
+						<Accordion.Item eventKey="0">
+							<Accordion.Header>Bot 1</Accordion.Header>
+							<Accordion.Body>
+								<BotInformation 
+									name="George"
+									strategyUsing="Sub Par"
+									averageEarnings="-0.05%"
+									amms={["Orca", "Raydium"]}
+									currencies={["Solana", "USDC"]}
+								/>
+							</Accordion.Body>
+						</Accordion.Item>
+						<Accordion.Item eventKey="1">
+							<Accordion.Header>Bot 2</Accordion.Header>
+							<Accordion.Body>
+								<BotInformation
+									name="Daniel"
+									strategyUsing="The Best"
+									averageEarnings="1000%"
+									amms = {["Dan"]}
+									currencies = {["Me"]}
+								/>
+							</Accordion.Body>
+						</Accordion.Item>
+						<Accordion.Item eventKey="2">
+							<Accordion.Header>Bot 3</Accordion.Header>
+							<Accordion.Body>
+								<BotInformation
+									name="Daniel"
+									strategyUsing="The Best"
+									averageEarnings="1000%"
+									amms = {["Dan"]}
+									currencies = {["Me"]}
+								/>
+							</Accordion.Body>
+						</Accordion.Item>
+						<Accordion.Item eventKey="3">
+							<Accordion.Header>Bot 4</Accordion.Header>
+							<Accordion.Body>
+								<BotInformation
+									name="Daniel"
+									strategyUsing="The Best"
+									averageEarnings="1000%"
+									amms = {["Dan"]}
+									currencies = {["Me"]}
+								/>
+							</Accordion.Body>
+						</Accordion.Item>
+					</Accordion>
 				</div>
 			</div>
 		</div>

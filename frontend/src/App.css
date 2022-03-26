@@ -23,11 +23,10 @@ html body {
   flex-direction: column;
   align-items: center;
   border-radius: 0px 0px 25px 25px;
-  background-color: rgb(255, 255, 255);
+  background-color: rgb(243, 244, 249);
 }
 
 .page-container h1 {
-  font-size: xx-large;
   margin: 0;
   padding: 40px;
   align-self: flex-start;
@@ -47,38 +46,71 @@ html body {
 }
 
 .widget-container {
-  border-radius: 10px;
-  margin: 10px 10px 30px 10px;
+  margin: 5px 0px 5px 0px;
+  padding: 5px 0px 5px 0px;
   display: flex;
-  flex-direction: column;
-  background-color: rgb(255, 255, 255);
   flex-wrap: wrap;
   align-content: center;
-  justify-content: center;
+  justify-content: space-evenly;
   align-items: center;
-  padding: 20px;
-  filter: drop-shadow(0px 0px 10px rgb(201, 201, 201));
+  width: 95%;
+}
+
+.white-boxed {
+  background-color: rgb(255, 255, 255);
+  border-radius: 10px;
+  filter: drop-shadow(0px 0px 5px rgb(201, 201, 201));
+}
+
+.row-centric {
+  flex-direction: row;
+}
+
+.col-centric {
+  flex-direction: column;
 }
 
 .user-metric {
   padding: 10px;
   border-radius: 5px;
   margin: 20px;
-  width: 300px;
-  height: 200px;
-  filter: drop-shadow(5px 5px 10px rgb(219, 219, 219));
+  width: 20vw;
+  height: 100px;
+  background-color: rgb(247, 247, 247);
 }
 
-.user-metric h2{
-  margin: 20px;
+.user-metric h5, .user-metric h3{
+  margin: 0px;
 }
 
-.user-metric:nth-child(odd) {
-  background-color: rgb(214, 214, 214);
+.current-balance {
+  border-color: #a66eeb;
+  border-style: solid;
+  border-width: 0px 0px 0px 10px;
 }
 
-.user-metric:nth-child(even) {
-  background-color: rgb(214, 214, 214);
+.current-balance h5 {
+  color: #a66eeb;
+}
+
+.earnings {
+  border-color: #6e8beb;
+  border-style: solid;
+  border-width: 0px 0px 0px 10px;
+}
+
+.earnings h5 {
+  color: #6e8beb;
+}
+
+.transactions-performed {
+  border-color: #64d3a3;
+  border-style: solid;
+  border-width: 0px 0px 0px 10px;
+}
+
+.transactions-performed h5 {
+  color: #64d3a3;
 }
 
 .bot-metrics {
@@ -134,7 +166,7 @@ Note: Beware of modifying this element as it can break the animations - you shou
 
 /* General sidebar styles */
 .bm-menu {
-  background-color: #6e4f8d;
+  background-color: #6e8beb;
   padding: 8em 0 0;
   font-size: 1.15em;
   overflow: hidden !important;
@@ -147,7 +179,7 @@ Note: Beware of modifying this element as it can break the animations - you shou
 
 /* Wrapper for item list */
 .bm-item-list {
-  color: #b8b7ad;
+  color: #42423d;
   padding: 0;
 }
 
@@ -155,7 +187,7 @@ Note: Beware of modifying this element as it can break the animations - you shou
 .bm-item {
   font-size: xx-large;
   display: inline-block;
-  color:rgb(175, 175, 175);
+  color:rgb(54, 54, 54);
   text-decoration: none;
   background-image: #6e4f8d;
   width: 100%;
@@ -163,8 +195,8 @@ Note: Beware of modifying this element as it can break the animations - you shou
 }
 
 .bm-item:hover {
-  color:rgb(247, 247, 247);
-  background-image: linear-gradient(to right, #80728d, #6e4f8d);
+  color:rgb(41, 41, 41);
+  background-image: linear-gradient(to right, #ccd3e9, #6e8beb);
   transition: .2s;
 }
 

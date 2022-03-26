@@ -4,97 +4,192 @@ import Checkbox from "../components/checkbox";
 
 import { collection, query, where, limit, orderBy, getDocs } from "firebase/firestore";
 import database from "../firestore.config";
+//import { async } from "@firebase/util";
 
-function Metrics() {  
-  const pools = ["ORCA_SOL_USDC_BUY", "RAYDIUM_SOL_USDC_BUY"];
-  const [poolDatas, setPoolDatas] = React.useState(new Array(pools.length).fill(null));
-  const [checkedState, setCheckedState] = React.useState(new Array(pools.length).fill(false));
+function Metrics() {
+  // Display names.
+  const ammsDisplay = ["Orca", "Raydium"];
+  const poolsDisplay = ["Sol to USDC"];
+  const directionsDisplay = ["Buy", "Sell"];
 
-  /**
-   * Fetches data and then updates poolDatas, which will automatically 
-   * update the metrics graph when changed.
-   * @param {string} pool_id id of the pool as listed in firestore
-   * @param {number} index index of pool_id in the pools array
-   */
-  const fetchData = async(pool_id, index) => {
-    const q = query(collection(database, "pricing_history"), where("pool_id", "==", pool_id), orderBy("timestamp", "desc"), limit(100));
-    const docSnap = await getDocs(q);
+  // Names as listed in the firestore database.
+  const amms = ["ORCA", "RAYDIUM"];
+  const pools = ["SOL_USDC"];
+  const directions = ["buy", "sell"];
 
-    // Saves existing data and updates new data.
-    setPoolDatas(existingData => {
-      return existingData.map((poolItem, j) => {
-        if (index === j) {
-          poolItem = docSnap.docs.map(doc => ({
-            id: doc.id,
-            data: doc.data()
-          }))
-        }
-        return poolItem;
-      })
-    })
-  }
+  const [ammCheckedState, setAMMCheckedState] = React.useState(new Array(amms.length).fill(false));
+  const [poolCheckedState, setPoolCheckedState] = React.useState(new Array(pools.length).fill(false));
+  const [directionCheckedState, setDirectionCheckedState] = React.useState(new Array(directions.length).fill(false));
+
+  const [rateDatas, setRateDatas] = React.useState(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length).fill(null));
+  const [rateDisplays, setRateDisplays] = React.useState(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length).fill(null));
 
   /**
-   * Fetches data if the checkbox in the corresponding position is true.
-   * If the checkbox turns false, removes data from poolDatas.
-   * @param {number} position the index of the checkbox. 
+   * Fetches data based on which filters are checked.
    */
-  const handleCheckboxOnChange = (position) => {
-    const updatedCheckedState = checkedState.map((item, index) => {
-      if (index === position) {
-        item = !item;
+  const fetchData = async() => {
+    for (let ammIndex = 0; ammIndex < amms.length; ammIndex++) {
+      for (let poolIndex = 0; poolIndex < pools.length; poolIndex++) {
+        for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
+          if (ammCheckedState[ammIndex] && poolCheckedState[poolIndex] && directionCheckedState[directionIndex]) {
+            let poolID = amms[ammIndex] + "_" + pools[poolIndex];
+            console.log(poolID);
+            const q = query(collection(database, "pricing_history"), 
+              where("pool_id", "==", poolID), 
+              where("direction", "==", directions[directionIndex]), 
+              orderBy("timestamp", "desc"),
+              limit(10));
+            
+            const docSnap = await getDocs(q);
 
-        // Checkbox checked
-        if (item) {
-          fetchData(pools[index], index);
-        }
-        // Checkbox unchecked, remove data
-        else {
-          setPoolDatas(existingData => {
-            return existingData.map((poolItem, j) => {
-              if (index === j) {
-                poolItem = null;
-              }
-              return poolItem;
+            setRateDatas(existingData => {
+              return existingData.map((data, i) => {
+                // Mapping a "3d" array to a 1d array
+                if ((ammIndex * pools.length * directions.length) 
+                  + (poolIndex * directions.length) 
+                  + directionIndex === i) {
+                  data = docSnap.docs.map(doc => ({
+                    id: doc.id,
+                    data: doc.data()
+                  }));
+                }
+                return data;
+              })
             })
-          })
+
+            setRateDisplays(exisitingDisplays => {
+              return exisitingDisplays.map((display, j) => {
+                if ((ammIndex * pools.length * directions.length) 
+                  + (poolIndex * directions.length) 
+                  + directionIndex === j) {
+                  display = ammsDisplay[ammIndex] + " " + poolsDisplay[poolIndex] + " " + directionsDisplay[directionIndex];
+                }
+                return display;
+              });
+            })
+          }
+          else {
+            setRateDatas(existingData => {
+              return existingData.map((data, i) => {
+                // Mapping a "3d" array to a 1d array
+                if ((ammIndex * pools.length * directions.length) 
+                  + (poolIndex * directions.length) 
+                  + directionIndex === i) {
+                  data = null;
+                }
+                return data;
+              })
+            })
+
+            setRateDisplays(exisitingDisplays => {
+              return exisitingDisplays.map((display, j) => {
+                if ((ammIndex * pools.length * directions.length) 
+                  + (poolIndex * directions.length) 
+                  + directionIndex === j) {
+                  display = null;
+                }
+                return display;
+              });
+            })
+          }
         }
       }
-      return item;
-    })
-    setCheckedState(updatedCheckedState);
+    }
   }
 
-  React.useEffect(() => {
-    //console.log();
-  }, [poolDatas])
+  /**
+   * Toggles the checkbox state of the AMMs filter.
+   * @param {number} position the index of the checkbox of the AMMs filter. 
+   */
+  const handleAMMCheckboxOnChange = (position) => {
+    const updatedAMMCheckedState = ammCheckedState.map((item, index) => {
+      return (index === position ? !item : item);
+    });
+    setAMMCheckedState(updatedAMMCheckedState);
+  }
+
+  /**
+   * Toggles the checkbox state of the pools filter.
+   * @param {number} position the index of the checkbox of the pool filter. 
+   */
+  const handlePoolCheckboxOnChange = (position) => {
+    const updatedPoolCheckedState = poolCheckedState.map((item, index) => {
+      return (index === position ? !item : item);
+    })
+    setPoolCheckedState(updatedPoolCheckedState);
+  }
+
+  /**
+   * Toggles the checkbox state of the directions filter.
+   * @param {number} position the index of the checkbox of the directions filter. 
+   */
+   const handleDirectionCheckboxOnChange = (position) => {
+    const updatedDirectionCheckedState = directionCheckedState.map((item, index) => {
+      return (index === position ? !item : item);
+    });
+    setDirectionCheckedState(updatedDirectionCheckedState);
+  }
 
   return (
     <div className="page-container">
       <h1>Metrics</h1>
-      <div className="widget-container">
+      <div className="widget-container white-boxed col-centric">
 
-        <div className="checkboxes-container">
-          {pools.map((name, index) => {
-            return (
-              <Checkbox
-                key={index}
-                label={name}
-                value={checkedState[index]}
-                onChange={() => handleCheckboxOnChange(index)}
-              />
-            );
-          })}
+        <div className="filters">
+          <div className="widget-container">
+            <div className="amm-checkbox-container">
+              {ammsDisplay.map((name, index) => {
+                return (
+                  <Checkbox
+                    key={index}
+                    label={name}
+                    value={ammCheckedState[index]}
+                    onChange={() => handleAMMCheckboxOnChange(index)}
+                  />
+                );
+              })}
+            </div>
+            <div className="pool-checkbox-container">
+              {poolsDisplay.map((name, index) => {
+                return (
+                  <Checkbox
+                    key={index}
+                    label={name}
+                    value={poolCheckedState[index]}
+                    onChange={() => handlePoolCheckboxOnChange(index)}
+                  />
+                );
+              })}
+            </div>
+            <div className="direction-checkbox-container">
+              {directionsDisplay.map((name, index) => {
+                return (
+                  <Checkbox
+                    key={index}
+                    label={name}
+                    value={directionCheckedState[index]}
+                    onChange={() => handleDirectionCheckboxOnChange(index)}
+                  />
+                );
+              })}
+            </div>
+
+            <div className="apply-button">
+              <button onClick={fetchData}>
+                Apply
+              </button>
+            </div>
+          </div>
         </div>
-        
+
         <PriceHistoryPlot
           data={
-            poolDatas.map((data, index) => {
+            rateDatas.map((data, index) => {
               if (data) {
                 const arrayData = {
                   type: "scatter",
                   mode: "lines+points",
-                  name: pools[index],
+                  name: rateDisplays[index],
                   x: data.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
                   y: data.map(ph => ph.data.rate)
                 }
@@ -108,9 +203,8 @@ function Metrics() {
           })}
           layout = {
             {
-              width: 950, 
-              height: 460, 
-              title: "Sell Rates over time"
+              autosize: true,
+              title: "Rates over time"
             }
           }
         />
