@@ -176,6 +176,8 @@ const orcaRaydiumArbitrage = async (startPool, fromCoinAmount, exchangeArate, ex
     // first set flag to false
     ready_to_trade = false;
 
+    let transactionId = "";
+
     const tokenAccounts = await getTokenAccounts();
 
     // conditions for AMM trade direction 
@@ -216,7 +218,7 @@ const orcaRaydiumArbitrage = async (startPool, fromCoinAmount, exchangeArate, ex
 
             console.log(JSON.stringify(res.transaction))
 
-            const transactionId = await sendAndConfirmTransaction(connection, res.transaction, [...res.signers, ...transactionPayload.signers], {commitment:"finalized",maxRetries:5, skipPreflight: true});
+            transactionId = await sendAndConfirmTransaction(connection, res.transaction, [...res.signers, ...transactionPayload.signers], {commitment:"finalized",maxRetries:5, skipPreflight: true});
             console.log({ transactionId });
             console.log("Raydium then Orca Swap Complete");
         }
@@ -255,7 +257,7 @@ const orcaRaydiumArbitrage = async (startPool, fromCoinAmount, exchangeArate, ex
 
             console.log(JSON.stringify(transactionPayload.transaction))
 
-            const transactionId = await sendAndConfirmTransaction(connection, transactionPayload.transaction, [...transactionPayload.signers, ...res.signers], {commitment:"finalized", maxRetries:5, skipPreflight: true});
+            transactionId = await sendAndConfirmTransaction(connection, transactionPayload.transaction, [...transactionPayload.signers, ...res.signers], {commitment:"finalized", maxRetries:5, skipPreflight: true});
             
             console.log({ transactionId });
             console.log("ORCA then Raydium Swap Complete")
@@ -270,7 +272,7 @@ const orcaRaydiumArbitrage = async (startPool, fromCoinAmount, exchangeArate, ex
         console.log("parsedInfo", parsedInfo)
         const net_usdc = parseFloat(parsedInfo.tokenAmount.uiAmount);
         
-        write_to_database(fromCoinAmount, net_usdc, _expected_usdc);
+        write_to_database(fromCoinAmount, net_usdc, _expected_usdc, transactionId);
     } catch (err) {
         console.warn(err);
     }
@@ -280,13 +282,14 @@ const orcaRaydiumArbitrage = async (startPool, fromCoinAmount, exchangeArate, ex
 
 
 // write to firestore
-async function write_to_database(_start: number, _end: number, _expected_profit: number) {
+async function write_to_database(_start: number, _end: number, _expected_profit: number, _transaction_id: string) {
     try {
         const docRef = await addDoc(collection(firestore, "trade_history"), {
             starting_amount: _start,
             ending_amount: _end,
             net_profit: (_end - _start),
             expected_profit: _expected_profit,
+            transaction_id: _transaction_id,
             time_stamp: serverTimestamp()
         });
         console.log("Document written with ID: ", docRef.id);
