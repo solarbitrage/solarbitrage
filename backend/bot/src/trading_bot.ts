@@ -1,15 +1,18 @@
 import { getOrca, OrcaPoolConfig } from "@orca-so/sdk";
-import { jsonInfo2PoolKeys, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { closeAccount } from "@project-serum/serum/lib/token-instructions";
+import { jsonInfo2PoolKeys, MAINNET_SPL_TOKENS, SPL_ACCOUNT_LAYOUT, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
+import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { initializeApp } from 'firebase/app';
 import { get, getDatabase, onChildChanged, ref } from "firebase/database";
 import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/firestore";
 import { readFile } from "mz/fs";
-import { NATIVE_SOL, swap } from "./raydium-swap-funcs";
-
 // ~~~~~~ firebase configs ~~~~~~
 import config from "./common/src/config";
+import { swap as orcaSwap } from "./orca-swap-funcs";
+import { NATIVE_SOL, swap as raydiumSwap } from "./raydium-swap-funcs";
+import { createTokenAccountIfNotExist } from "./raydium-utils/web3";
+
 
 const firebaseConfig = {
     apiKey: config.FIREBASE_API_KEY,
@@ -28,6 +31,9 @@ const firestore = getFirestore(app);
 // ~~~~~~ firebase configs ~~~~~~
 
 const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/Users/noelb/my-solana-wallet/wallet-keypair.json"
+const SLIPPAGE = 0.01;
+const THRESHOLD = 0.02;
+const STARTING_USDC_BET = 4
 
 let ready_to_trade = true;  // flag to look for updates only when a swap intruction is done
 
@@ -58,74 +64,86 @@ const SOL_USDC_JSON = {
 }
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 
+const connection = new Connection("https://api.mainnet-beta.solana.com", "singleGossip");
+const orca = getOrca(connection);
+const poolKeys = jsonInfo2PoolKeys(SOL_USDC_JSON);
+let owner: Keypair;
+let wSOLAccount: PublicKey;
+
 let local_database: any = {};
 
 // function to set up local copy of the database
 async function query_pools() {
-    // const query_pools = ['SOL_USDC_BUY', 'ORCA_SOL_BUY', 'ORCA_USDC_SELL'];
-    let query_objects = new Object();
-
     const latest_price = ref(database, 'latest_prices/');
-    await get(latest_price).then((snapshot) => {
-        if (snapshot.exists()) {
-            query_objects = snapshot.val();
-        } else {
-            console.log("No data available");
-        }
-    }).catch((error) => {
-        console.error(error);
-    });
-    return new Promise((resolve) => {
-        resolve(query_objects)
+    return get(latest_price).then((snapshot) => {
+        if (!snapshot.exists()) throw new Error("Snapshot doesn't exist");
+        return snapshot.val();
     })
 }
 
-query_pools().then((queries) => {
-    // console.log(queries[ORCA_USDC_SELL]);
-    console.log("init query");
+async function main() {
+    // ==== Setup 
+    // Read secret key file to get owner keypair
+    const secretKeyString = await readFile(WALLET_KEY_PATH, {
+        encoding: "utf8",
+    });
+
+    // local_database setup
+    const queries = await query_pools();
+    console.log("local_database setup");
     local_database = queries;
 
-    // calculate_trade();
-});
-// function to update pool prices from real time changes in firebase
-const updated_pools = ref(database, 'latest_prices/');
-onChildChanged(updated_pools, (snapshot) => {
-    // console.log("snapshot", snapshot)
-    //  console.log("key", snapshot.key)
-    console.log("change in prices");
-    const data = snapshot.val();
-    local_database[snapshot.key] = data;
+    // get wallet credentials
+    const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
+    owner = Keypair.fromSecretKey(secretKey);
+    console.log("wallet creds");
 
-    //function that runs caclculations anytime there's a change
-    // while(!ready_to_trade){
+    // setup wrapped SOL account
+    wSOLAccount = await setupWSOLTokenAccount();
+    console.log("setup WSOL Token Account");
 
-    // }
-    if (ready_to_trade) {
-        calculate_trade(snapshot.key);
-    }
+    // initial trade calculation
+    calculate_trade();
 
-    console.log("going to check new change")
-});
+    // ==== Start listener
+    const updated_pools = ref(database, 'latest_prices/');
+    onChildChanged(updated_pools, (snapshot) => {
+        // console.log("snapshot", snapshot)
+        //  console.log("key", snapshot.key)
+        const data = snapshot.val();
+        local_database[snapshot.key] = data;
+
+        //function that runs caclculations anytime there's a change
+        // while(!ready_to_trade){
+
+        // }
+        if (ready_to_trade) {
+            calculate_trade(snapshot.key);
+            console.log("going to check new change")
+        }
+
+    });
+}
+
+main().then(() => {}).catch(e => console.error(e))
 
 function calculate_trade(update?) {
     // console.log(local_database, update)
     console.log("Calculating ...")
 
     // rn calculate() called at any update in database -> not on sol_usdc pool of Raydium and Orca.
-    let usdc = 4;  // base value of $1
-    const FEES = 0.00001;
-    const THRESHOLD = 0.00003;
+    let usdc = STARTING_USDC_BET;  // base value of $1
 
     let estimatedProfits = {
-        "Raydium then Orca": usdc - ((((usdc * local_database.RAYDIUM_SOL_USDC.buy.rate) - FEES) * local_database.ORCA_SOL_USDC.sell.rate) - FEES),
-        "Orca then Raydium": usdc - ((((usdc * local_database.ORCA_SOL_USDC.buy.rate) - FEES) * local_database.RAYDIUM_SOL_USDC.sell.rate) - FEES)
+        "Raydium then Orca": ((1 * local_database.RAYDIUM_SOL_USDC.buy.rate * (1 - SLIPPAGE)) * local_database.ORCA_SOL_USDC.sell.rate    * (1 - SLIPPAGE)) - 1,
+        "Orca then Raydium": ((1 * local_database.ORCA_SOL_USDC.buy.rate    * (1 - SLIPPAGE)) * local_database.RAYDIUM_SOL_USDC.sell.rate * (1 - SLIPPAGE)) - 1
     }
-    console.log("Estimated Profit", estimatedProfits)
+    console.log("Estimated Profit", estimatedProfits, "Rates", { "Raydium then Orca": [local_database.RAYDIUM_SOL_USDC.buy.rate, local_database.ORCA_SOL_USDC.sell.rate], "Orca then Raydium": [local_database.ORCA_SOL_USDC.buy.rate, local_database.RAYDIUM_SOL_USDC.sell.rate]})
 
     // run swaps based on this below threshold
     if (estimatedProfits["Raydium then Orca"] > estimatedProfits["Orca then Raydium"] && estimatedProfits["Raydium then Orca"] > THRESHOLD) {
         console.log("Buy from Raydium, Sell to Orca");
-        main("Raydium", usdc, local_database.RAYDIUM_SOL_USDC.buy.rate, local_database.ORCA_SOL_USDC.sell.rate, usdc + estimatedProfits["Raydium then Orca"])
+        orcaRaydiumArbitrage("Raydium", usdc, local_database.RAYDIUM_SOL_USDC.buy.rate, local_database.ORCA_SOL_USDC.sell.rate, usdc + estimatedProfits["Raydium then Orca"])
             .then(() => {
                 console.log("Done");
             })
@@ -136,7 +154,7 @@ function calculate_trade(update?) {
         console.log("Buy from Orca, Sell to Raydium");
 
         // I need to send the rate for both swap directions
-        main("Orca", usdc, local_database.ORCA_SOL_USDC.buy.rate, local_database.RAYDIUM_SOL_USDC.sell.rate, usdc + estimatedProfits["Orca then Raydium"])
+        orcaRaydiumArbitrage("Orca", usdc, local_database.ORCA_SOL_USDC.buy.rate, local_database.RAYDIUM_SOL_USDC.sell.rate, usdc + estimatedProfits["Orca then Raydium"])
             .then(() => {
                 console.log("Done");
             })
@@ -154,55 +172,24 @@ function calculate_trade(update?) {
 // if profitable trade exists, conduct a swap.
 // only after a swap is done, look for another database update?
 
-const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate, _expected_usdc) => {
+const orcaRaydiumArbitrage = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate, _expected_usdc) => {
     console.log( { startPool, fromCoinAmount, exchangeArate, exchangeBrate, _expected_usdc })
     // first set flag to false
     ready_to_trade = false;
 
-    //  Setup 
-    // 1. Read secret key file to get owner keypair
-    const secretKeyString = await readFile(WALLET_KEY_PATH, {
-        encoding: "utf8",
-    });
-    const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
-    const owner = Keypair.fromSecretKey(secretKey);
+    const tokenAccounts = await getTokenAccounts();
 
-    // 2. Initialzie Orca object with mainnet connection
-    const connection = new Connection("https://api.mainnet-beta.solana.com", "singleGossip");
-    const orca = getOrca(connection);
-    const poolKeys = jsonInfo2PoolKeys(SOL_USDC_JSON);
-
-    const accounts = await connection.getParsedTokenAccountsByOwner(owner.publicKey, { programId: TOKEN_PROGRAM_ID })
-    console.log(accounts)
-
-    // token account for Raydium
-    const tokenAccounts = {};
-    for (const tokenAccountInfo of accounts.value) {
-        const tokenAccountPubkey = tokenAccountInfo.pubkey
-        const tokenAccountAddress = tokenAccountPubkey.toBase58()
-        const parsedInfo = tokenAccountInfo.account.data.parsed.info
-        const mintAddress = parsedInfo.mint
-        const balance = new TokenAmount(parsedInfo.tokenAmount.amount, parsedInfo.tokenAmount.decimals)
-
-        tokenAccounts[mintAddress] = {
-            tokenAccountAddress,
-            balance
-        }
-    }
-    let previous_sol_balance = (await connection.getBalance(owner.publicKey)) * 0.000000001;
     // conditions for AMM trade direction 
     // RPC is not catching up to the latest block. wait some time for node to catch up?
     try {
         if (startPool === "Raydium") {
             // USDC -> SOL on Raydium
-            // minimum_expected_ouput = (fromCoinAmount * conversion rate * (1 - slippage(1%)))
-            const toCoinAmount = (fromCoinAmount * exchangeArate * (1 - 0.01)).toString();
-            // const toCoinAmount = "0.00011987";
-            fromCoinAmount = fromCoinAmount.toString();
+            const newSOL = fromCoinAmount * exchangeArate * (1 - SLIPPAGE);
+
             const fromToken = MAINNET_SPL_TOKENS["USDC"];
             const toToken = NATIVE_SOL;
 
-            const res = await swap(
+            const {wrappedSolAcc, ...res} = await raydiumSwap(
                 connection,
                 owner,
                 poolKeys,
@@ -210,67 +197,49 @@ const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate, _ex
                 toToken,
                 tokenAccounts[fromToken.mint]?.tokenAccountAddress,
                 tokenAccounts[toToken.mint]?.tokenAccountAddress,
-                fromCoinAmount,
-                toCoinAmount,
+                fromCoinAmount.toString(),
+                newSOL.toString(),
                 tokenAccounts[WSOL.mint]?.tokenAccountAddress
             );
-            console.log(res);
-            console.log("RAYDIUM swap done USDC -> SOL")
-            let current_sol_balance = (await connection.getBalance(owner.publicKey)) * 0.000000001;
-
+            
             // SOL -> USDC on Orca
             const solUSDCPool = orca.getPool(OrcaPoolConfig.SOL_USDC);
             const solToken = solUSDCPool.getTokenA();
-            console.log("New SOL:", current_sol_balance - previous_sol_balance, "Expected New SOL:", (fromCoinAmount * exchangeArate) - 0.00001)
-            const solAmount = new Decimal((current_sol_balance - previous_sol_balance));  // getting $1 0.01038672
-            const usdcQuote = await solUSDCPool.getQuote(solToken, solAmount);
-            const usdcAmountbuy = usdcQuote.getMinOutputAmount();
+            const solAmount = new Decimal(newSOL);  // getting $1 0.01038672
+
+            // const usdcQuote = await solUSDCPool.getQuote(solToken, solAmount);
+            // const usdcAmountbuy = usdcQuote.getMinOutputAmount();
             // console.log(usdcQuote.getExpectedOutputAmount());
 
-            console.log(`Swapping  ${solAmount.toString()} SOL for at least ${usdcAmountbuy.toNumber()} USDC`);
-            const swap3 = await solUSDCPool.swap(owner, solToken, solAmount, usdcAmountbuy);
-            const swapId3 = await swap3.execute();
+            const {transactionPayload} = await orcaSwap(solUSDCPool, owner, solToken, solAmount, new Decimal(_expected_usdc), wrappedSolAcc);
+           
+            res.transaction.add(transactionPayload.transaction);
 
-            console.log("Swapped: ", swapId3);
-            console.log("ORCA swap done SOL -> USDC\n");
+            console.log(JSON.stringify(res.transaction))
 
-            // Repoll for token account data
-            let net_usdc = 0; //
-            for (const tokenAccountInfo of accounts.value) {
-                const parsedInfo = tokenAccountInfo.account.data.parsed.info;
-                net_usdc = parsedInfo.tokenAmount.uiAmount;
-            }
-            write_to_database(fromCoinAmount, net_usdc, _expected_usdc);
-
+            const transactionId = await sendAndConfirmTransaction(connection, res.transaction, [...res.signers, ...transactionPayload.signers], {commitment:"finalized",maxRetries:5, skipPreflight: true});
+            console.log({ transactionId });
+            console.log("Raydium then Orca Swap Complete");
         }
         else {
             // USDC -> SOL on Orca
             const solUSDCPool = orca.getPool(OrcaPoolConfig.SOL_USDC);
-            const solToken = solUSDCPool.getTokenB();
-            const solAmount = new Decimal(fromCoinAmount);  // getting SOL worth $1 ... 0.01038672
-            const usdcQuote = await solUSDCPool.getQuote(solToken, solAmount);
-            const usdcAmountbuy = usdcQuote.getMinOutputAmount();
+
+            const usdcToken = solUSDCPool.getTokenB();
+            const usdcAmount = new Decimal(fromCoinAmount);  // getting SOL worth $1 ... 0.01038672
+
             // console.log(usdcQuote.getExpectedOutputAmount());
+            const newSOL = (fromCoinAmount * exchangeArate * (1 - SLIPPAGE));
 
-            console.log(`Swapping  ${solAmount.toString()} USDC for at least ${usdcAmountbuy.toNumber()} SOL`);
-            const swap3 = await solUSDCPool.swap(owner, solToken, solAmount, usdcAmountbuy);
-            const swapId3 = await swap3.execute();
-
-            console.log("Swapped: ", swapId3);
-            console.log("ORCA swap done USDC -> SOL\n");
-            let current_sol_balance = (await connection.getBalance(owner.publicKey)) * 0.000000001;
-            let net_sol = current_sol_balance - previous_sol_balance;
-
-            console.log("New SOL:", current_sol_balance - previous_sol_balance, "Expected New SOL:", (fromCoinAmount * exchangeArate) - 0.00001)
-
+            console.log(`Swapping  ${usdcAmount.toString()} USDC for ${newSOL} SOL`);
+            const { transactionPayload, wrappedSolAcc } = await orcaSwap(solUSDCPool, owner, usdcToken, usdcAmount, new Decimal(newSOL), new PublicKey(tokenAccounts[WSOL.mint]?.tokenAccountAddress));
 
             // SOL -> USDC on Raydium
-            const toCoinAmount = (net_sol * (exchangeBrate) * (1 - 0.01)).toString(); // slippage is 1%
-            fromCoinAmount = net_sol.toString();
+            const toCoinAmount = newSOL * (exchangeBrate) * (1 - SLIPPAGE);
             const fromToken = NATIVE_SOL;
             const toToken = MAINNET_SPL_TOKENS["USDC"];
             
-            const res = await swap(
+            const res = await raydiumSwap(
                 connection,
                 owner,
                 poolKeys,
@@ -278,21 +247,31 @@ const main = async (startPool, fromCoinAmount, exchangeArate, exchangeBrate, _ex
                 toToken,
                 tokenAccounts[fromToken.mint]?.tokenAccountAddress,
                 tokenAccounts[toToken.mint]?.tokenAccountAddress,
-                fromCoinAmount,
-                toCoinAmount,
-                tokenAccounts[WSOL.mint]?.tokenAccountAddress
+                newSOL.toString(),
+                toCoinAmount.toString(),
+                wrappedSolAcc.toBase58()
             );
-            console.log(res);
-            console.log("RAYDIUM swap done SOL -> USDC")
 
-            // Repoll for token account data
-            let net_usdc = 0; //
-            for (const tokenAccountInfo of accounts.value) {
-                const parsedInfo = tokenAccountInfo.account.data.parsed.info;
-                net_usdc = parsedInfo.tokenAmount.uiAmount;
-            }
-            write_to_database(fromCoinAmount, net_usdc, _expected_usdc);
+            transactionPayload.transaction.add(res.transaction);
+
+            console.log(JSON.stringify(transactionPayload.transaction))
+
+            const transactionId = await sendAndConfirmTransaction(connection, transactionPayload.transaction, [...transactionPayload.signers, ...res.signers], {commitment:"finalized", maxRetries:5, skipPreflight: true});
+            
+            console.log({ transactionId });
+            console.log("ORCA then Raydium Swap Complete")
         }
+
+        // Repoll for token account data
+        const afterTokenAccounts = await getTokenAccounts();
+        if (!afterTokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint])
+            throw new Error("No USDC token account!");
+
+        const parsedInfo = afterTokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
+        console.log("parsedInfo", parsedInfo)
+        const net_usdc = parseFloat(parsedInfo.tokenAmount.uiAmount);
+        
+        write_to_database(fromCoinAmount, net_usdc, _expected_usdc);
     } catch (err) {
         console.warn(err);
     }
@@ -317,3 +296,66 @@ async function write_to_database(_start: number, _end: number, _expected_profit:
     }
 }
 
+async function getTokenAccounts() {
+    const accounts = await connection.getParsedTokenAccountsByOwner(owner.publicKey, { programId: TOKEN_PROGRAM_ID })
+
+    // token account for Raydium
+    const tokenAccounts = {};
+    for (const tokenAccountInfo of accounts.value) {
+        const tokenAccountPubkey = tokenAccountInfo.pubkey
+        const tokenAccountAddress = tokenAccountPubkey.toBase58()
+        const parsedInfo = tokenAccountInfo.account.data.parsed.info
+        const mintAddress = parsedInfo.mint
+        const balance = new TokenAmount(parsedInfo.tokenAmount.amount, parsedInfo.tokenAmount.decimals)
+
+        tokenAccounts[mintAddress] = {
+            tokenAccountAddress,
+            balance,
+            parsedInfo
+        }
+    }
+
+    return tokenAccounts;
+}
+
+async function setupWSOLTokenAccount() {
+    const tokenAccounts = await getTokenAccounts();
+    const currentSOLBalance = await connection.getBalance(owner.publicKey);
+
+    let solBalanceInAccount = 0;
+    const balanceNeededFoRentExcemption = await connection.getMinimumBalanceForRentExemption(SPL_ACCOUNT_LAYOUT.span);
+
+    const transaction = new Transaction();
+    const signers = [];
+
+    signers.push(owner)
+    
+    if (tokenAccounts[WSOL.mint]) {
+        transaction.add(closeAccount({
+            source: new PublicKey(tokenAccounts[WSOL.mint].tokenAccountAddress),
+            destination: owner.publicKey,
+            owner: owner.publicKey,
+        }));
+        solBalanceInAccount += tokenAccounts[WSOL.mint].balance.wei;
+        return new PublicKey(tokenAccounts[WSOL.mint].tokenAccountAddress);
+    }
+
+    const lamportsToPutInAcc = Math.max((currentSOLBalance  + solBalanceInAccount) * 0.8, balanceNeededFoRentExcemption);
+
+    const wrappedSOLAcc = await createTokenAccountIfNotExist(
+        connection,
+        null,
+        owner.publicKey,
+        WSOL.mint,
+        lamportsToPutInAcc,
+        transaction,
+        signers
+    ) as PublicKey;
+
+
+    const tx = await sendAndConfirmTransaction(connection, transaction, signers, { commitment: "singleGossip" });
+    
+    console.log("created WSOL acc: ", tx)
+
+    return wrappedSOLAcc;
+}

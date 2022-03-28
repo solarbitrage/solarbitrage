@@ -60,16 +60,6 @@ export async function swap(
     const amountIn = new TokenAmount(aIn, from.decimals, false);
     const amountOut = new TokenAmount(aOut, to.decimals, false);
 
-    if (fromCoinMint === NATIVE_SOL.mint && wsolAddress) {
-        transaction.add(
-            closeAccount({
-                source: new PublicKey(wsolAddress),
-                destination: owner.publicKey,
-                owner: owner.publicKey
-            })
-        );
-    }
-
     if (fromCoinMint === NATIVE_SOL.mint) {
         fromCoinMint = WSOL.mint;
     }
@@ -89,7 +79,7 @@ export async function swap(
     if (fromCoinMint === WSOL.mint) {
         fromWrappedSolAcc = await createTokenAccountIfNotExist(
             connection,
-            null,
+            wsolAddress,
             owner.publicKey,
             WSOL.mint,
             getBigNumber(amountIn.wei) + 1e7,
@@ -108,7 +98,7 @@ export async function swap(
     if (toCoinMint === WSOL.mint) {
         toWrappedSolAcc = await createTokenAccountIfNotExist(
             connection,
-            null,
+            wsolAddress,
             owner.publicKey,
             WSOL.mint,
             1e7,
@@ -172,28 +162,32 @@ export async function swap(
             )
     );
 
-    if (fromWrappedSolAcc) {
-        transaction.add(
-            closeAccount({
-                source: fromWrappedSolAcc,
-                destination: owner.publicKey,
-                owner: owner.publicKey,
-            })
-        );
-    }
-    if (toWrappedSolAcc) {
-        transaction.add(
-            closeAccount({
-                source: toWrappedSolAcc,
-                destination: owner.publicKey,
-                owner: owner.publicKey,
-            })
-        );
-    }
+    // NOTE: our swap functions do not close wSOL account!!!
 
-    signers.push(owner)
-    console.log("Sending Swap Transaction to Raydium...")
-    return await sendAndConfirmTransaction(connection, transaction, signers, {commitment:"finalized",maxRetries:5});
+    // if (fromWrappedSolAcc) {
+    //     transaction.add(
+    //         closeAccount({
+    //             source: fromWrappedSolAcc,
+    //             destination: owner.publicKey,
+    //             owner: owner.publicKey,
+    //         })
+    //     );
+    // }
+    // if (toWrappedSolAcc) {
+    //     transaction.add(
+    //         closeAccount({
+    //             source: toWrappedSolAcc,
+    //             destination: owner.publicKey,
+    //             owner: owner.publicKey,
+    //         })
+    //     );
+    // }
+
+    return {
+        transaction,
+        signers,
+        wrappedSolAcc: fromWrappedSolAcc || toWrappedSolAcc
+    }
 }
 
 export const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
