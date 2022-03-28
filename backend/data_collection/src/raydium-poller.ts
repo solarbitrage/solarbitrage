@@ -6,7 +6,7 @@ import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set } from "firebase/database";
 
 import config from "./common/src/config";
-
+import { useConnection } from "./common/src/connection";
 // Firebase Configuration
 const firebaseConfig = {
   apiKey: config.FIREBASE_API_KEY,
@@ -26,10 +26,8 @@ const sleep = (ms: number) => new Promise((res) => setTimeout(res,ms));
 
 // Connection info
 
-// Production: https://api.mainnet-beta.solana.com
-// Development: https://api.devnet.solana.com
-const CONNECTION_ENDPOINT = "https://api.mainnet-beta.solana.com";
-const CONNECTION_COMMITMENT = "singleGossip";
+const getNextConnection = useConnection();
+
 const RAYDIUM_POOLS_ENDPOINT = "https://sdk.raydium.io/liquidity/mainnet.json"
 
 const listeners = [
@@ -49,17 +47,12 @@ function updateDatabase(poolName, data) {
 }
 
 (async () => {
-  const connection = new Connection(
-    CONNECTION_ENDPOINT,
-    CONNECTION_COMMITMENT
-  );
-
-
   const lpMetadata = await fetch(RAYDIUM_POOLS_ENDPOINT).then(res => res.json())
   const allOfficialLpPools: LiquidityPoolJsonInfo[] = lpMetadata["official"];
   const lpPools = allOfficialLpPools.filter((val) => listeners.includes(val.id))
-
+  
   for (;;) {
+    const connection = getNextConnection();
     for (const pool of lpPools) {
       const poolKeys = jsonInfo2PoolKeys(pool);
       try {
