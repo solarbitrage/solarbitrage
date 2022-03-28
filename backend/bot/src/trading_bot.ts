@@ -130,9 +130,8 @@ main().then(() => {}).catch(e => console.error(e))
 function calculate_trade(update?) {
     // console.log(local_database, update)
     console.log("Calculating ...")
-
-    // rn calculate() called at any update in database -> not on sol_usdc pool of Raydium and Orca.
-    let usdc = STARTING_USDC_BET;  // base value of $1
+    
+    let usdc = STARTING_USDC_BET;
 
     let estimatedProfits = {
         "Raydium then Orca": ((1 * local_database.RAYDIUM_SOL_USDC.buy.rate * (1 - SLIPPAGE)) * local_database.ORCA_SOL_USDC.sell.rate    * (1 - SLIPPAGE)) - 1,
