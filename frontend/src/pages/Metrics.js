@@ -39,7 +39,7 @@ function Metrics() {
               where("pool_id", "==", poolID), 
               where("direction", "==", directions[directionIndex]), 
               orderBy("timestamp", "desc"),
-              limit(10));
+              limit(100));
             
             const docSnap = await getDocs(q);
 
