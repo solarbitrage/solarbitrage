@@ -1,5 +1,5 @@
 import dotenv from "dotenv"
-dotenv.config();
+dotenv.config({ path: "./src/common/.env" });
 
 interface ENV {
     FIREBASE_API_KEY: string | undefined;

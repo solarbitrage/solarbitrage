@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getDatabase, ref, onChildChanged } from "firebase/database";
 import { collection, getFirestore, addDoc, serverTimestamp} from "firebase/firestore";
 
-import config from "./config"
+import config from "./common/src/config"
 
 // Firebase Configuration
 const firebaseConfig = {
