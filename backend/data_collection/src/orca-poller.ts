@@ -1,12 +1,15 @@
-import { readFile } from "mz/fs";
-import { Connection, Keypair } from "@solana/web3.js";
-import { getOrca, OrcaPoolConfig, Network, Quote, OrcaPoolToken } from "@orca-so/sdk";
+import { getOrca, OrcaPoolConfig, OrcaPoolToken, Quote } from "@orca-so/sdk";
+import { Keypair } from "@solana/web3.js";
 import Decimal from "decimal.js";
-
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, update } from "firebase/database";
+import { readFile } from "mz/fs";
+import config from "./common/src/config";
+import { useConnection } from "./common/src/connection";
 
-import config from "./common/src/config"
+
+
+const getNextConnection = useConnection();
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -24,17 +27,9 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
 const orcaRequests = async () => {
-  // Read secret key file to get owner keypair
-  const secretKeyString = await readFile("wallets/test-keypair.json", {
-    encoding: "utf8",
-  });
-  const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
-  const owner = Keypair.fromSecretKey(secretKey);
-
+  
   // Initialzie Orca object with appropriate network connection
-  // Production: https://api.mainnet-beta.solana.com, getOrca(connection)
-  // Development: https://api.devnet.solana.com, getOrca(connection, Network.DEVNET)
-  const connection = new Connection("https://api.mainnet-beta.solana.com", "singleGossip");
+  const connection = getNextConnection();
   const orca = getOrca(connection)
 
   try {
@@ -66,7 +61,7 @@ const orcaRequests = async () => {
   setTimeout(orcaRequests, 250)
 };
 
-function updateDatabase(poolName: String, buyQuote: Quote, sellQuote: Quote, coinA: OrcaPoolToken, coinB: OrcaPoolToken) {
+function updateDatabase(poolName: string, buyQuote: Quote, sellQuote: Quote, coinA: OrcaPoolToken, coinB: OrcaPoolToken) {
   const results = {
     "buy": {
       expected_output_amount: buyQuote.getExpectedOutputAmount().toNumber(),

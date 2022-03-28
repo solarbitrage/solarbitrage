@@ -9,6 +9,7 @@ import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/fire
 import { readFile } from "mz/fs";
 // ~~~~~~ firebase configs ~~~~~~
 import config from "./common/src/config";
+import { useConnection } from "./common/src/connection";
 import { swap as orcaSwap } from "./orca-swap-funcs";
 import { NATIVE_SOL, swap as raydiumSwap } from "./raydium-swap-funcs";
 import { createTokenAccountIfNotExist } from "./raydium-utils/web3";
@@ -64,7 +65,9 @@ const SOL_USDC_JSON = {
 }
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 
-const connection = new Connection("https://api.mainnet-beta.solana.com", "singleGossip");
+const getNextConnection = useConnection();
+let connection = getNextConnection();
+
 const orca = getOrca(connection);
 const poolKeys = jsonInfo2PoolKeys(SOL_USDC_JSON);
 let owner: Keypair;
@@ -127,7 +130,7 @@ async function main() {
 
 main().then(() => {}).catch(e => console.error(e))
 
-function calculate_trade(update?) {
+async function calculate_trade(update?) {
     // console.log(local_database, update)
     console.log("Calculating ...")
     
@@ -142,10 +145,7 @@ function calculate_trade(update?) {
     // run swaps based on this below threshold
     if (estimatedProfits["Raydium then Orca"] > estimatedProfits["Orca then Raydium"] && estimatedProfits["Raydium then Orca"] > THRESHOLD) {
         console.log("Buy from Raydium, Sell to Orca");
-        orcaRaydiumArbitrage("Raydium", usdc, local_database.RAYDIUM_SOL_USDC.buy.rate, local_database.ORCA_SOL_USDC.sell.rate, usdc + estimatedProfits["Raydium then Orca"])
-            .then(() => {
-                console.log("Done");
-            })
+        await orcaRaydiumArbitrage("Raydium", usdc, local_database.RAYDIUM_SOL_USDC.buy.rate, local_database.ORCA_SOL_USDC.sell.rate, usdc + estimatedProfits["Raydium then Orca"])
             .catch((e) => {
                 console.error(e);
             });
@@ -153,16 +153,14 @@ function calculate_trade(update?) {
         console.log("Buy from Orca, Sell to Raydium");
 
         // I need to send the rate for both swap directions
-        orcaRaydiumArbitrage("Orca", usdc, local_database.ORCA_SOL_USDC.buy.rate, local_database.RAYDIUM_SOL_USDC.sell.rate, usdc + estimatedProfits["Orca then Raydium"])
-            .then(() => {
-                console.log("Done");
-            })
+        await orcaRaydiumArbitrage("Orca", usdc, local_database.ORCA_SOL_USDC.buy.rate, local_database.RAYDIUM_SOL_USDC.sell.rate, usdc + estimatedProfits["Orca then Raydium"])
             .catch((e) => {
                 console.error(e);
             });
     } else {
         console.log("Not worth the trade\n");
     }
+    connection = getNextConnection();
 }
 
 
