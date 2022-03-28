@@ -28,5 +28,5 @@ function filterPoolName(data, coin: string, amm: poolAMM) {
         return raydiumPools.indexOf(e) >= 0;
     }));
     
-    console.log(commonPools.size)
+    console.log(commonPools)
 })().catch((e) => console.error(e));
