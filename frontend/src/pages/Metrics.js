@@ -1,6 +1,7 @@
 import React from "react";
-import PriceHistoryPlot from "../components/dashboard/pricingHistoryPlot";
+import HistoryPlot from "../components/historyPlot";
 import Checkbox from "../components/checkbox";
+import {Button} from "react-bootstrap";
 
 import { collection, query, where, limit, orderBy, getDocs } from "firebase/firestore";
 import database from "../firestore.config";
@@ -135,9 +136,9 @@ function Metrics() {
       <h1>Metrics</h1>
       <div className="widget-container white-boxed col-centric">
 
-        <div className="filters">
           <div className="widget-container">
-            <div className="amm-checkbox-container">
+            <div className="amm-checkbox-container filter">
+              <h3>AMMs</h3>
               {ammsDisplay.map((name, index) => {
                 return (
                   <Checkbox
@@ -149,7 +150,8 @@ function Metrics() {
                 );
               })}
             </div>
-            <div className="pool-checkbox-container">
+            <div className="pool-checkbox-container filter">
+              <h3>Pools</h3>
               {poolsDisplay.map((name, index) => {
                 return (
                   <Checkbox
@@ -161,7 +163,8 @@ function Metrics() {
                 );
               })}
             </div>
-            <div className="direction-checkbox-container">
+            <div className="direction-checkbox-container filter">
+              <h3>Direction</h3>
               {directionsDisplay.map((name, index) => {
                 return (
                   <Checkbox
@@ -174,15 +177,11 @@ function Metrics() {
               })}
             </div>
 
-            <div className="apply-button">
-              <button onClick={fetchData}>
-                Apply
-              </button>
-            </div>
-          </div>
-        </div>
+            <Button className="filter-apply-btn" variant="primary" onClick={fetchData}>Apply</Button>
 
-        <PriceHistoryPlot
+          </div>
+
+        <HistoryPlot
           data={
             rateDatas.map((data, index) => {
               if (data) {

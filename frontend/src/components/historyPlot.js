@@ -1,7 +1,7 @@
 import React from "react";
 import Plot from "react-plotly.js";
 
-class PriceHistoryPlot extends React.Component {
+class HistoryPlot extends React.Component {
 	constructor(props) {
 		super(props);
 
@@ -24,10 +24,10 @@ class PriceHistoryPlot extends React.Component {
 					data={this.state.data}
 					layout={ this.props.layout }
 					useResizeHandler={true}
-					style={{width: "100%", height: "100%"}}
+					style={{width: "100%", height: "70vh"}}
 				/>
 		);
 	}
 }
 
-export default PriceHistoryPlot;
+export default HistoryPlot;

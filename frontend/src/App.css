@@ -18,17 +18,19 @@ html body {
 }
 
 .page-container {
-  margin: 0px 100px 100px 100px;
+  min-height: 100vh;
+  height: auto;
+  margin: 0px 0px 0px 100px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  border-radius: 0px 0px 25px 25px;
   background-color: rgb(243, 244, 249);
 }
 
 .page-container h1 {
+  color: #7e7e7e;
   margin: 0;
-  padding: 40px;
+  padding: 40px 40px 10px 40px;
   align-self: flex-start;
 }
 
@@ -39,26 +41,21 @@ html body {
   flex-wrap: wrap;
 }
 
-.bot-stats {
-  display: flex;
-  flex-direction: row;
-  padding: 10px 50px 10px 50px;
-}
-
 .widget-container {
   margin: 5px 0px 5px 0px;
   padding: 5px 0px 5px 0px;
   display: flex;
   flex-wrap: wrap;
   align-content: center;
-  justify-content: space-evenly;
-  align-items: center;
+  justify-content: flex-start;
+  align-items: flex-start;
   width: 95%;
 }
 
 .white-boxed {
   background-color: rgb(255, 255, 255);
   border-radius: 10px;
+  padding: 5px 5px 5px 5px;
   filter: drop-shadow(0px 0px 5px rgb(201, 201, 201));
 }
 
@@ -73,44 +70,17 @@ html body {
 .user-metric {
   padding: 10px;
   border-radius: 5px;
-  margin: 20px;
-  width: 20vw;
-  height: 100px;
-  background-color: rgb(247, 247, 247);
+  margin: 0px 20px 5px 5px;
+  width: 15vw;
+  height: 95px;
+  background-color: rgb(255, 255, 255);
+  filter: drop-shadow(0px 0px 5px rgb(201, 201, 201));
+  border-style: solid;
+  border-width: 0px 0px 0px 10px;
 }
 
 .user-metric h5, .user-metric h3{
   margin: 0px;
-}
-
-.current-balance {
-  border-color: #a66eeb;
-  border-style: solid;
-  border-width: 0px 0px 0px 10px;
-}
-
-.current-balance h5 {
-  color: #a66eeb;
-}
-
-.earnings {
-  border-color: #6e8beb;
-  border-style: solid;
-  border-width: 0px 0px 0px 10px;
-}
-
-.earnings h5 {
-  color: #6e8beb;
-}
-
-.transactions-performed {
-  border-color: #64d3a3;
-  border-style: solid;
-  border-width: 0px 0px 0px 10px;
-}
-
-.transactions-performed h5 {
-  color: #64d3a3;
 }
 
 .bot-metrics {
@@ -119,9 +89,40 @@ html body {
 }
 
 .bot-information {
-  display: flex;
   flex-wrap: wrap;
-  align-items: center
+  display: flex;
+  justify-content: space-around;
+  flex-flow: row wrap;
+  align-items: stretch;
+}
+
+.bot-text {
+  flex-grow: 1;
+}
+
+.graph {
+  flex-grow: 2;
+}
+
+.filter {
+  
+  margin: 20px 20px 0px 20px
+}
+
+.filter-apply-btn {
+  align-self: flex-end;
+}
+
+.checkbox-container {
+  background-color: #eeeeee;
+  border-radius: 4px;
+  margin-bottom: 2px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+.checkbox-container input {
+  margin-right: 4px;
 }
 
 /* Position and sizing of burger button */
