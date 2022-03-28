@@ -10,12 +10,12 @@ import database from "../firestore.config";
 function Metrics() {
   // Display names.
   const ammsDisplay = ["Orca", "Raydium"];
-  const poolsDisplay = ["Sol to USDC"];
+  const poolsDisplay = ["SOL to USDC", "BTC to USDC", "ORCA to SOL", "ORCA to USDC", "ETH to USDC", "RAY to USDC"];
   const directionsDisplay = ["Buy", "Sell"];
 
   // Names as listed in the firestore database.
   const amms = ["ORCA", "RAYDIUM"];
-  const pools = ["SOL_USDC"];
+  const pools = ["SOL_USDC", "BTC_USDC", "ORCA_SOL", "ORCA_USDC", "ETH_USDC", "RAY_USDC"];
   const directions = ["buy", "sell"];
 
   const [ammCheckedState, setAMMCheckedState] = React.useState(new Array(amms.length).fill(false));
@@ -63,13 +63,29 @@ function Metrics() {
                 if ((ammIndex * pools.length * directions.length) 
                   + (poolIndex * directions.length) 
                   + directionIndex === j) {
-                  display = ammsDisplay[ammIndex] + " " + poolsDisplay[poolIndex] + " " + directionsDisplay[directionIndex];
+                  
+                  // Seperate Buy and Sell rates onto different axises
+                  // Buy
+                  if (directionIndex === 0) {
+                    display = {
+                      displayName: ammsDisplay[ammIndex] + " " + poolsDisplay[poolIndex] + " " + directionsDisplay[directionIndex],
+                      yaxis: "y1"
+                    }
+                  }
+                  // Sell
+                  else {
+                    display = {
+                      displayName: ammsDisplay[ammIndex] + " " + poolsDisplay[poolIndex] + " " + directionsDisplay[directionIndex],
+                      yaxis: "y2"
+                    }
+                  }
                 }
                 return display;
               });
             })
           }
           else {
+            // Unchecked, delete data.
             setRateDatas(existingData => {
               return existingData.map((data, i) => {
                 // Mapping a "3d" array to a 1d array
@@ -131,6 +147,26 @@ function Metrics() {
     setDirectionCheckedState(updatedDirectionCheckedState);
   }
 
+  React.useEffect(() => {
+		//console.log(rateDisplays);
+    // if (rateDisplays[0]) {
+    //   console.log(rateDisplays[0].displayName);
+    // }
+    calculateProfitability(rateDatas[0], rateDatas[1], rateDatas[12], rateDatas[13], 0);
+  }, [rateDatas])
+
+  const calculateProfitability = (poolABuy, poolASell, poolBBuy, poolBSell, transasctionFee) => {
+    console.log({poolABuy, poolASell, poolBBuy, poolBSell, transasctionFee});
+    let estimatedProfits = [];
+    
+
+    // let estimatedProfits = {
+    //   "Raydium then Orca": ((1 * local_database.RAYDIUM_SOL_USDC.buy.rate) * local_database.ORCA_SOL_USDC.sell.rate    * (1 - SLIPPAGE)) - 1,
+    //   "Orca then Raydium": ((1 * local_database.ORCA_SOL_USDC.buy.rate) * local_database.RAYDIUM_SOL_USDC.sell.rate * (1 - SLIPPAGE)) - 1
+    // }
+    // console.log("Estimated Profit", estimatedProfits, "Rates", { "Raydium then Orca": [local_database.RAYDIUM_SOL_USDC.buy.rate, local_database.ORCA_SOL_USDC.sell.rate], "Orca then Raydium": [local_database.ORCA_SOL_USDC.buy.rate, local_database.RAYDIUM_SOL_USDC.sell.rate]})
+  }
+
   return (
     <div className="page-container">
       <h1>Metrics</h1>
@@ -184,14 +220,30 @@ function Metrics() {
         <HistoryPlot
           data={
             rateDatas.map((data, index) => {
-              if (data) {
-                const arrayData = {
-                  type: "scatter",
-                  mode: "lines+points",
-                  name: rateDisplays[index],
-                  x: data.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
-                  y: data.map(ph => ph.data.rate)
+              if (data && rateDisplays[index]) {
+                let arrayData = {};
+                if (rateDisplays[index].yaxis === "y2") {
+                  arrayData = {
+                    type: "scatter",
+                    mode: "lines+points",
+                    name: rateDisplays[index].displayName,
+                    secondary_y: rateDisplays[index].secondaryYAxis,
+                    x: data.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
+                    y: data.map(ph => ph.data.rate),
+                    yaxis: "y2"
+                  }
                 }
+                else {
+                  arrayData = {
+                    type: "scatter",
+                    mode: "lines+points",
+                    name: rateDisplays[index].displayName,
+                    secondary_y: rateDisplays[index].secondaryYAxis,
+                    x: data.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
+                    y: data.map(ph => ph.data.rate)
+                  }
+                }
+                
                 return arrayData;
               } else {
                 return {
@@ -203,7 +255,13 @@ function Metrics() {
           layout = {
             {
               autosize: true,
-              title: "Rates over time"
+              title: "Rates over time",
+              yaxis: {title: 'Buy Rates'},
+              yaxis2: {
+                title: 'Sell Rates',
+                overlaying: 'y',
+                side: 'right'
+              }
             }
           }
         />
