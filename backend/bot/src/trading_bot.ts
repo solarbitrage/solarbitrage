@@ -1,6 +1,6 @@
 import { getOrca, OrcaPoolConfig } from "@orca-so/sdk";
 import { jsonInfo2PoolKeys, LiquidityPoolJsonInfo, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
-import { Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { initializeApp } from 'firebase/app';
 import { get, getDatabase, onChildChanged, ref } from "firebase/database";
@@ -8,7 +8,7 @@ import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/fire
 import { readFile } from "mz/fs";
 // ~~~~~~ firebase configs ~~~~~~
 import config from "./common/src/config";
-import { useConnection } from "./common/src/connection";
+import { CONNECTION_COMMITMENT, CONNECTION_ENDPOINT_LIST, useConnection } from "./common/src/connection";
 import { swap as orcaSwap } from "./orca-swap-funcs";
 import { NATIVE_SOL, swap as raydiumSwap } from "./raydium-swap-funcs";
 import { createAssociatedTokenAccountIfNotExist } from "./raydium-utils/web3";
@@ -31,7 +31,7 @@ const firestore = getFirestore(app);
 // ~~~~~~ firebase configs ~~~~~~
 
 const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/Users/noelb/my-solana-wallet/wallet-keypair.json"
-const SLIPPAGE = 0.01;
+const SLIPPAGE = 0.08;
 const THRESHOLD = 0;
 const STARTING_USDC_BET = 4
 
@@ -41,8 +41,7 @@ let ready_to_trade = true;  // flag to look for updates only when a swap intruct
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 const RAYDIUM_POOLS_ENDPOINT = "https://sdk.raydium.io/liquidity/mainnet.json"
 
-const getNextConnection = useConnection();
-let connection = getNextConnection();
+let connection = new Connection(CONNECTION_ENDPOINT_LIST[CONNECTION_ENDPOINT_LIST.length - 1], CONNECTION_COMMITMENT)
 
 const orca = getOrca(connection);
 const poolKeysMap = {};
@@ -140,10 +139,8 @@ async function calculate_trade({route, estimatedProfit}) {
     ], {estimatedProfit});
 
     if (estimatedProfit > THRESHOLD) {
-        await arbitrage(route, usdc, usdc + estimatedProfit)
+        await arbitrage(route, usdc, usdc + (usdc * estimatedProfit))
     }
-
-    connection = getNextConnection();
 }
 
 
@@ -159,6 +156,7 @@ const arbitrage = async (route, fromCoinAmount, _expected_usdc) => {
 
     const tokenAccounts = await getTokenAccounts();
     const transaction = new Transaction();
+    transaction.feePayer = owner.publicKey;
     const signers = [];
 
     let beforeAmt = fromCoinAmount;
@@ -195,9 +193,13 @@ const arbitrage = async (route, fromCoinAmount, _expected_usdc) => {
                 [orcaAmmPool.getTokenB().tag]: orcaAmmPool.getTokenB()
             }
 
+            
             const fromToken = poolTokens[fromTokenStr];
             const toToken = poolTokens[toTokenStr];
-
+            // orcaAmmPool.getQuote(fromToken, new Decimal(beforeAmt), new Decimal(1 / SLIPPAGE)).then(q => {
+            //     const actualNewTokenAmt = q.getExpectedOutputAmount().toNumber();
+            //     console.log({beforeAmt, newTokenAmt, actualNewTokenAmt, actualRate: q.getRate().toNumber(), expectedRate: (i === 0 ? pool.buy.rate : pool.sell.rate)});
+            // })
             const { transactionPayload } = await orcaSwap(
                 orcaAmmPool, 
                 owner, 
@@ -218,7 +220,7 @@ const arbitrage = async (route, fromCoinAmount, _expected_usdc) => {
     const beforeUSDC = parseFloat(beforeParsedInfo.tokenAmount.uiAmount);
 
     try {
-        transactionId = await sendAndConfirmTransaction(connection, transaction, signers, {commitment: "singleGossip", maxRetries:5, skipPreflight: true});
+        transactionId = await sendAndConfirmTransaction(connection, transaction, signers, {commitment: "singleGossip", skipPreflight: true});
         console.log({ transactionId });
 
         // Repoll for token account data
@@ -273,7 +275,7 @@ function getMiddleTokenToRoutesMap(middleTokenToPoolMap: any) {
                 const b = middleTokenToPoolMap[middleTokenName][y];
 
                 let estimatedProfits = {
-                    "a then b": ((1 * a.buy.rate * (1 - SLIPPAGE)) * b.sell.rate   * (1 - SLIPPAGE)) - 1,
+                    "a then b": ((1 * a.buy.rate * (1 - SLIPPAGE)) * b.sell.rate * (1 - SLIPPAGE)) - 1,
                     "b then a": ((1 * b.buy.rate * (1 - SLIPPAGE)) * a.sell.rate * (1 - SLIPPAGE)) - 1
                 }
 
