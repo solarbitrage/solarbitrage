@@ -5,7 +5,7 @@
   "main": "dist/app.js",
   "scripts": {
     "start": "tsc || npm run data-collection",
-    "data-collection": "concurrently -kill-others npm:data-collection-orca npm:data-collection-raydium npm:data-collection-orca-devnet npm:listener",
+    "data-collection": "concurrently -kill-others npm:data-collection-orca npm:data-collection-raydium npm:listener",
     "data-collection-orca": "node dist/orca-poller.js",
     "data-collection-orca-devnet": "node dist/devnet/orca-poller.js",
     "data-collection-raydium": "node dist/raydium-poller.js",
