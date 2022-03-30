@@ -21,8 +21,6 @@ export const useConnection = () => {
             return new Connection(process.env.CONNECTION_ENDPOINT, CONNECTION_COMMITMENT);
         }
 
-        console.log("NEW CONNECTION", CONNECTION_ENDPOINT_LIST[connectionIndex])
-
         const c = new Connection(CONNECTION_ENDPOINT_LIST[connectionIndex], CONNECTION_COMMITMENT);
         connectionIndex = (connectionIndex + 1) % CONNECTION_ENDPOINT_LIST.length;
 
