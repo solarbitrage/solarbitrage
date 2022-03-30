@@ -6,7 +6,7 @@ import Decimal from "decimal.js";
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, update } from "firebase/database";
 
-import config from "../config"
+import config from "../common/src/config"
 
 // Firebase Configuration
 const firebaseConfig = {
