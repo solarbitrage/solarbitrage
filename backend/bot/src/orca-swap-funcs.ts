@@ -17,7 +17,8 @@ export async function swap(
     inputToken: OrcaToken,
     amountIn: Decimal | OrcaU64,
     minimumAmountOut: Decimal | OrcaU64,
-    wSolAddress?: PublicKey,
+    inputPoolTokenUserAddress: PublicKey,
+    outputPoolTokenUserAddress: PublicKey,
     approvalInstruction?: {
         userTransferAuthority: Keypair;
     } & Instruction
@@ -36,33 +37,6 @@ export async function swap(
         outputPoolToken,
         "minimumAmountOut"
     );
-
-    let inputPoolTokenUserAddress: PublicKey;
-
-    // NOTE: our swap functions do not close wSOL account!!!
-    if (inputPoolToken.mint.equals(solToken.mint) && !!wSolAddress) {
-        inputPoolTokenUserAddress = wSolAddress;
-    } else {
-        let { address: _inputPoolTokenUserAddress } =
-            await resolveOrCreateAssociatedTokenAddress(
-                (pool as any).connection,
-                _owner,
-                inputPoolToken.mint,
-                amountInU64
-            );
-        inputPoolTokenUserAddress = _inputPoolTokenUserAddress;
-    }
-
-    let outputPoolTokenUserAddress: PublicKey;
-
-    // NOTE: our swap functions do not close wSOL account!!!
-    if (outputPoolToken.mint.equals(solToken.mint) && !!wSolAddress) {
-        outputPoolTokenUserAddress = wSolAddress;
-    } else {
-        const { address: _outputPoolTokenUserAddress } =
-            await resolveOrCreateAssociatedTokenAddress((pool as any).connection, _owner, outputPoolToken.mint);
-        outputPoolTokenUserAddress = _outputPoolTokenUserAddress;
-    }
 
     if (inputPoolTokenUserAddress === undefined || outputPoolTokenUserAddress === undefined) {
         throw new Error("Unable to derive input / output token associated address.");
