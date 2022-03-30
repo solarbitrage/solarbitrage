@@ -35,10 +35,16 @@ const orcaRequests = async () => {
   try {
     console.log('Gathering ORCA data')
     const pools = [
-      OrcaPoolConfig.ORCA_USDC,
       OrcaPoolConfig.SOL_USDC,
-      OrcaPoolConfig.BTC_USDC,
-      OrcaPoolConfig.ORCA_SOL,
+      OrcaPoolConfig.ETH_USDC,
+      OrcaPoolConfig.ORCA_USDC,
+      OrcaPoolConfig.LIQ_USDC,
+      OrcaPoolConfig.SNY_USDC,
+      OrcaPoolConfig.mSOL_USDC,
+      OrcaPoolConfig.SLRS_USDC,
+      OrcaPoolConfig.PORT_USDC,
+      OrcaPoolConfig.SBR_USDC,
+      OrcaPoolConfig.RAY_USDC,
     ]
 
     // Gather swapping data
