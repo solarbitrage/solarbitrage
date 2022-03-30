@@ -2,6 +2,7 @@ import React from "react";
 import HistoryPlot from "../components/historyPlot";
 import Checkbox from "../components/checkbox";
 import {Button} from "react-bootstrap";
+import Plot from "react-plotly.js";
 
 import { collection, query, where, limit, orderBy, getDocs } from "firebase/firestore";
 import database from "../firestore.config";
@@ -22,8 +23,8 @@ function Metrics() {
   const [poolCheckedState, setPoolCheckedState] = React.useState(new Array(pools.length).fill(false));
   const [directionCheckedState, setDirectionCheckedState] = React.useState(new Array(directions.length).fill(false));
 
-  const [rateDatas, setRateDatas] = React.useState(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length).fill(null));
-  const [rateDisplays, setRateDisplays] = React.useState(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length).fill(null));
+  const [rateDatas, setRateDatas] = React.useState(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length + 1).fill(null));
+  const [rateDisplays, setRateDisplays] = React.useState(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length + 1).fill(null));
 
   const [profitDatas, setProfitDatas] = React.useState(new Array(0).fill(null));
 
@@ -113,7 +114,45 @@ function Metrics() {
         }
       }
     }
+    return;
   }
+
+  React.useEffect(() => {
+    if (rateDatas[0] && rateDatas[1] && rateDatas[12] && rateDatas[13]) {
+      calculateProfitability(rateDatas[0], rateDatas[1], rateDatas[12], rateDatas[13], 0);
+    }
+  }, [rateDatas[0], rateDatas[1], rateDatas[12], rateDatas[13]])
+
+  React.useEffect(() => {
+    //console.log(rateDatas[ammCheckedState.length * poolCheckedState.length * directionCheckedState.length])
+  }, [rateDatas[ammCheckedState.length * poolCheckedState.length * directionCheckedState.length]])
+
+  React.useEffect(() => {
+    setRateDatas(existingData => {
+      return existingData.map((data, i) => {
+        if (ammCheckedState.length * poolCheckedState.length * directionCheckedState.length === i) {
+          data = {
+            profit: profitDatas.profit,
+            time: profitDatas.time
+          };
+        }
+        return data;
+      })
+    })
+
+    setRateDisplays(exisitingDisplays => {
+      return exisitingDisplays.map((display, j) => {
+        if (ammCheckedState.length * poolCheckedState.length * directionCheckedState.length === j) {
+          display = {
+            displayName: "Possible Profit From Transactions (USDC)",
+            yaxis: "y3"
+          }
+        }
+        return display;
+      });
+    })
+
+  }, [profitDatas])
 
   /**
    * Toggles the checkbox state of the AMMs filter.
@@ -148,24 +187,12 @@ function Metrics() {
     setDirectionCheckedState(updatedDirectionCheckedState);
   }
 
-  React.useEffect(() => {
-		//console.log(rateDisplays);
-    // if (rateDisplays[0]) {
-    //   console.log(rateDisplays[0].displayName);
-    // }
-    calculateProfitability(rateDatas[0], rateDatas[1], rateDatas[12], rateDatas[13], 0);
-  }, [rateDatas])
-
-  React.useEffect(() => {
-    console.log(profitDatas);
-  }, [profitDatas])
-
   const calculateProfitability = (poolABuy, poolASell, poolBBuy, poolBSell, transasctionFee) => {
-    
     if (!poolABuy || !poolASell || !poolBBuy || !poolBSell) {
       return null;
     }
     
+    // Grabbing relevant data
     let poolARates = {
       buyTime: poolABuy.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
       buyRate: poolABuy.map(ph => ph.data.rate),
@@ -178,12 +205,9 @@ function Metrics() {
       sellTime: poolBSell.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
       sellRate: poolBSell.map(ph => ph.data.rate)
     }
-
-    console.log(poolARates);
-    console.log(poolBRates);
     
     let estimatedProfits = [];
-    let estimatedTimes = [];
+    let times = [];
 
     while (poolARates.buyTime.length > 0 && poolARates.sellTime.length > 0 && poolBRates.buyTime.length > 0 && poolBRates.sellTime.length > 0) {
       let newestTime = new Date(Math.max.apply(null, [poolARates.buyTime[0], poolARates.sellTime[0], poolBRates.buyTime[0], poolBRates.sellTime[0]]));
@@ -191,13 +215,8 @@ function Metrics() {
         aThenB: (poolARates.buyRate[0] * poolBRates.sellRate[0]) - 1,
         bThenA: (poolBRates.buyRate[0] * poolARates.sellRate[0]) - 1
       }
-      // console.log("Estimated Profit", estimatedProfit, 
-      // "Rates", { 
-      //   "A then B": [poolARates.buyRate[0], poolBRates.sellRate[0]], 
-      //   "B then A": [poolBRates.buyRate[0], poolARates.sellRate[0]]
-      // });
       estimatedProfits.push(Math.max(estimatedProfit.aThenB, estimatedProfit.bThenA));
-      estimatedTimes.push(newestTime);
+      times.push(newestTime);
 
       if (newestTime.getTime() === poolARates.buyTime[0].getTime()) {
         poolARates.buyTime.shift();
@@ -223,7 +242,7 @@ function Metrics() {
 
     setProfitDatas({
       profit: estimatedProfits,
-      time: estimatedTimes
+      time: times
     });
   }
 
@@ -303,6 +322,15 @@ function Metrics() {
                     yaxis: "y2"
                   }
                 }
+                else if (rateDisplays[index].yaxis === "y3"){
+                  arrayData = {
+                    type: "bar",
+                    name: "Profits",
+                    x: data.time,
+                    y: data.profit,
+                    yaxis: "y3"
+                  }
+                }
                 return arrayData;
               } else {
                 return {
@@ -320,10 +348,35 @@ function Metrics() {
                 title: 'Sell Rates',
                 overlaying: 'y',
                 side: 'right'
+              },
+              yaxis3: {
+                title: 'USDC',
+                anchor: "free",
+                overlaying: "y",
+                side:"right",
+                position: 1.15
               }
             }
           }
         />
+
+        <Plot
+					data={[{
+            type: "scatter",
+            mode: "lines+points",
+            name: "USDC",
+            x: profitDatas.time,
+            y: profitDatas.profit
+          }]}
+					layout={ 
+            {
+              autosize: true,
+              title: "Possible Profits From Trades",              
+            }
+           }
+					useResizeHandler={true}
+					style={{width: "100%", height: "70vh"}}
+				/>
 
       </div>
     </div>
