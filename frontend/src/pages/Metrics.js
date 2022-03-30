@@ -3,6 +3,9 @@ import HistoryPlot from "../components/historyPlot";
 import Checkbox from "../components/checkbox";
 import {Button} from "react-bootstrap";
 import Plot from "react-plotly.js";
+import SliderWithValue from "../components/slider";
+import Slider, { Range } from 'rc-slider';
+import 'rc-slider/assets/index.css';
 
 import { collection, query, where, limit, orderBy, getDocs } from "firebase/firestore";
 import database from "../firestore.config";
@@ -27,6 +30,7 @@ function Metrics() {
   const [rateDisplays, setRateDisplays] = React.useState(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length + 1).fill(null));
 
   const [profitDatas, setProfitDatas] = React.useState(new Array(0).fill(null));
+  const [slippageData, setSlippage] = React.useState();
 
   /**
    * Fetches data based on which filters are checked.
@@ -154,6 +158,15 @@ function Metrics() {
 
   }, [profitDatas])
 
+  function setSlippageData(value) {
+    setSlippage(old => value);
+    
+  }
+
+  React.useEffect(() => {
+    console.log(slippageData);
+  }, [slippageData])
+
   /**
    * Toggles the checkbox state of the AMMs filter.
    * @param {number} position the index of the checkbox of the AMMs filter. 
@@ -212,8 +225,8 @@ function Metrics() {
     while (poolARates.buyTime.length > 0 && poolARates.sellTime.length > 0 && poolBRates.buyTime.length > 0 && poolBRates.sellTime.length > 0) {
       let newestTime = new Date(Math.max.apply(null, [poolARates.buyTime[0], poolARates.sellTime[0], poolBRates.buyTime[0], poolBRates.sellTime[0]]));
       let estimatedProfit = {
-        aThenB: (poolARates.buyRate[0] * poolBRates.sellRate[0]) - 1,
-        bThenA: (poolBRates.buyRate[0] * poolARates.sellRate[0]) - 1
+        aThenB: ((1 * poolARates.buyRate[0] * (1 - slippageData)) * poolBRates.sellRate[0] * (1 - slippageData)) - 1,
+        bThenA: ((1 * poolBRates.buyRate[0] * (1 - slippageData)) * poolARates.sellRate[0] * (1 - slippageData)) - 1
       }
       estimatedProfits.push(Math.max(estimatedProfit.aThenB, estimatedProfit.bThenA));
       times.push(newestTime);
@@ -292,9 +305,21 @@ function Metrics() {
               })}
             </div>
 
-            <div className="profitability-attributes">
+            <div className="profitability-attributes filter">
               <h3>Profitability Data Augments</h3>
-              
+              <div>
+                <label>Slippage: </label>
+                <span>{ slippageData * 100 }%</span>
+                <br />
+                <br />
+                <Slider
+                  value={slippageData}
+                  min={0.0}
+                  max={1.0}
+                  step={0.01}
+                  onChange={setSlippageData}
+                />
+              </div>
             </div>
 
             <Button className="filter-apply-btn" variant="primary" onClick={fetchData}>Apply</Button>
