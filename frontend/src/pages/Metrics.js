@@ -292,6 +292,11 @@ function Metrics() {
               })}
             </div>
 
+            <div className="profitability-attributes">
+              <h3>Profitability Data Augments</h3>
+              
+            </div>
+
             <Button className="filter-apply-btn" variant="primary" onClick={fetchData}>Apply</Button>
 
           </div>
