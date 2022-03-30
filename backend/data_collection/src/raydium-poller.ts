@@ -63,18 +63,16 @@ function updateDatabase(poolName, data) {
 (async () => {
   const lpMetadata = await fetch(RAYDIUM_POOLS_ENDPOINT).then(res => res.json())
   const allOfficialLpPools: LiquidityPoolJsonInfo[] = lpMetadata["official"];
-  const lpPools = allOfficialLpPools.filter((val) => listeners.includes(val.id))
-  
+  const lpPools = allOfficialLpPools.filter((val) => listeners.includes(val.id)).map(p => jsonInfo2PoolKeys(p))
+
   for (;;) {
     const connection = getNextConnection();
-    for (const pool of lpPools) {
-      const poolKeys = jsonInfo2PoolKeys(pool);
+    const poolInfos = await Liquidity.fetchMultipleInfo({ connection, pools: lpPools })
+    for (const [i, poolInfo] of poolInfos.entries()) {
       try {
-        const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys })
-        
         const price = Liquidity.getRate(poolInfo);
-        const coinTickers = poolMintAddrToName[pool.id].split("_")
-        const poolName = `RAYDIUM_${poolMintAddrToName[pool.id]}`;
+        const coinTickers = poolMintAddrToName[lpPools[i].id.toBase58()].split("_")
+        const poolName = `RAYDIUM_${coinTickers.join("_")}`;
         
         const results = {
           provider: "RAYDIUM",
