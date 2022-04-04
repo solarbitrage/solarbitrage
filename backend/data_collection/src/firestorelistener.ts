@@ -37,6 +37,9 @@ function main() {
 
             fetch(DISCORD_STATUS_WEBHOOK, {
                 method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify({
                     content: "⚠️ Exchange rates have not been updated in over 2 hours!"
                 })
