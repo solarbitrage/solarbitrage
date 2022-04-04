@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, onChildChanged } from "firebase/database";
 import { collection, getFirestore, addDoc, serverTimestamp} from "firebase/firestore";
-
+import fetch from "node-fetch"
 import config from "./common/src/config"
 
 // Firebase Configuration
@@ -20,10 +20,29 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const firestore = getFirestore(app);
 
+let timeout: NodeJS.Timeout;
+const DISCORD_STATUS_WEBHOOK = process.env.DISCORD_STATUS_WEBHOOK;
+
 function main() {
     const latestPricesRef = ref(database, 'latest_prices/');
     onChildChanged(latestPricesRef, (data) => {
-        console.log(data.key, data.val())
+        console.log(data.key, data.val());
+
+        if (timeout) {
+            clearTimeout(timeout);
+        }
+
+        timeout = setTimeout(() => {
+            if (!DISCORD_STATUS_WEBHOOK) return;
+
+            fetch(DISCORD_STATUS_WEBHOOK, {
+                method: "POST",
+                body: JSON.stringify({
+                    content: "⚠️ Exchange rates have not been updated in over 2 hours!"
+                })
+            }).catch(e => console.error(e));
+        }, 2 * 60 * 60 * 1000); // 2 hours
+
         addDoc(collection(firestore, "pricing_history"), {
             pool_id: data.key,
             direction: "buy",
