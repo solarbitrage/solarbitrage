@@ -40,6 +40,7 @@ function Metrics() {
    * Fetches data based on which filters are checked.
    */
   const fetchData = async() => {
+    setProfitDatas(new Array(0).fill(null));
     const startDate = new Date(startDateTime);
     const endDate = new Date(endDateTime);
 
@@ -54,8 +55,7 @@ function Metrics() {
               where("direction", "==", directions[directionIndex]), 
               where("timestamp", ">=", startDate),
               where("timestamp", "<=", endDate),
-              orderBy("timestamp", "desc"),
-              limit(1000));
+              orderBy("timestamp", "desc"));
             
             const docSnap = await getDocs(q);
 
