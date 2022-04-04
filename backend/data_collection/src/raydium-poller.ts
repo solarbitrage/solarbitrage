@@ -1,5 +1,5 @@
 import fetch from "node-fetch"
-import { Liquidity, LiquidityPoolJsonInfo, jsonInfo2PoolKeys } from "@raydium-io/raydium-sdk";
+import { Liquidity, LiquidityPoolJsonInfo, jsonInfo2PoolKeys, TokenAmount, MAINNET_SPL_TOKENS, Token, Percent, WSOL } from "@raydium-io/raydium-sdk";
 
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set } from "firebase/database";
@@ -16,6 +16,10 @@ const firebaseConfig = {
   messagingSenderId: config.FIREBASE_MESSAGING_SENDER_ID,
   appId: config.FIREBASE_APP_ID,
 };
+
+MAINNET_SPL_TOKENS["SOL"] = {
+  ...WSOL
+}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -69,27 +73,33 @@ function updateDatabase(poolName, data) {
     const poolInfos = await Liquidity.fetchMultipleInfo({ connection, pools: lpPools })
     for (const [i, poolInfo] of poolInfos.entries()) {
       try {
-        const price = Liquidity.getRate(poolInfo);
         const coinTickers = poolMintAddrToName[lpPools[i].id.toBase58()].split("_")
+        
+        const tokenIn = new Token(MAINNET_SPL_TOKENS[coinTickers[1]].mint, MAINNET_SPL_TOKENS[coinTickers[1]].decimals);
+        const tokenOut = new Token(MAINNET_SPL_TOKENS[coinTickers[0]].mint, MAINNET_SPL_TOKENS[coinTickers[0]].decimals);
+        const amountIn = new TokenAmount(tokenIn, 1, false);
+        const amountOut = Liquidity.computeAmountOut({ poolInfo, poolKeys: lpPools[i], amountIn, currencyOut: tokenOut, slippage: new Percent(0,100) });
+        
         const poolName = `RAYDIUM_${coinTickers.join("_")}`;
         
         const results = {
           provider: "RAYDIUM",
           network_fees: 10000,
         }
+
         
         const sellResults = {
           ...results,
-          rate: parseFloat(price.toFixed(15)),
-          rate_raw: price.toFixed(15),
+          rate_raw: amountOut.minAmountOut.invert().toFixed(15),
           from: coinTickers[0],
+          rate: parseFloat(amountOut.minAmountOut.invert().toFixed(15)),
           to: coinTickers[1],
         }
         
         const buyResults = {
           ...results,
-          rate: parseFloat(price.invert().toFixed(15)),
-          rate_raw: price.invert().toFixed(15),
+          rate_raw: amountOut.minAmountOut.toExact(),
+          rate: parseFloat(amountOut.minAmountOut.toExact()),
           from: coinTickers[1],
           to: coinTickers[0],
         }
