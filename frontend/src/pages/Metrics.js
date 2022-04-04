@@ -7,6 +7,7 @@ import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import Datetime from "react-datetime";
 import "react-datetime/css/react-datetime.css";
+import NumericInput from "react-numeric-input";
 
 import { collection, query, where, limit, orderBy, getDocs } from "firebase/firestore";
 import database from "../firestore.config";
@@ -165,11 +166,14 @@ function Metrics() {
         return display;
       });
     })
-
   }, [profitDatas])
 
   function slippageOnChangeHandler(value) {
     setSlippage(old => value); 
+  }
+
+  function slippageNumInputOnChangeHandler(value) {
+    setSlippage(old => value / 100.0);
   }
 
   function startDateTimeOnChangeHandler(value) {
@@ -312,7 +316,7 @@ function Metrics() {
               <h3>Profitability Data Augments</h3>
               <div>
                 <label>Slippage: </label>
-                <span> {slippageData * 100}%</span>
+                <NumericInput min={0} max={100} value={slippageData * 100} onChange={slippageNumInputOnChangeHandler}/> %
                 <br />
                 <br />
                 <Slider value={slippageData} min={0.0} max={1.0} step={0.01}
