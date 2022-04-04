@@ -1,4 +1,3 @@
-import { Connection } from "@solana/web3.js";
 import fetch from "node-fetch"
 import { Liquidity, LiquidityPoolJsonInfo, jsonInfo2PoolKeys } from "@raydium-io/raydium-sdk";
 
@@ -62,7 +61,7 @@ function updateDatabase(poolName, data) {
 
 (async () => {
   const lpMetadata = await fetch(RAYDIUM_POOLS_ENDPOINT).then(res => res.json())
-  const allOfficialLpPools: LiquidityPoolJsonInfo[] = lpMetadata["official"];
+  const allOfficialLpPools: LiquidityPoolJsonInfo[] = [...lpMetadata["official"], ...lpMetadata["unOfficial"]];
   const lpPools = allOfficialLpPools.filter((val) => listeners.includes(val.id)).map(p => jsonInfo2PoolKeys(p))
 
   for (;;) {

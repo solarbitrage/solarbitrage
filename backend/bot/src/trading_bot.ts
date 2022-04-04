@@ -66,9 +66,11 @@ async function main() {
     });
 
     const lpMetadata = await fetch(RAYDIUM_POOLS_ENDPOINT).then(res => res.json())
-    const allOfficialLpPools: LiquidityPoolJsonInfo[] = lpMetadata["official"];
+    const allOfficialLpPools: LiquidityPoolJsonInfo[] = [...lpMetadata["official"], ...lpMetadata["unOfficial"]];
     for (const pool of allOfficialLpPools) {
-        poolKeysMap[`${pool.baseMint}-${pool.quoteMint}`] = jsonInfo2PoolKeys(pool);
+        const baseMint = pool.baseMint === WSOL.mint ? NATIVE_SOL.mint : pool.baseMint;
+        const quoteMint = pool.quoteMint === WSOL.mint ? NATIVE_SOL.mint : pool.quoteMint;
+        poolKeysMap[`${baseMint}-${quoteMint}`] = jsonInfo2PoolKeys(pool);
     }
 
     // local_database setup
@@ -193,7 +195,7 @@ const arbitrage = async (route, fromCoinAmount, _expected_usdc) => {
                 [orcaAmmPool.getTokenB().tag]: orcaAmmPool.getTokenB()
             }
 
-            
+
             const fromToken = poolTokens[fromTokenStr];
             const toToken = poolTokens[toTokenStr];
             // orcaAmmPool.getQuote(fromToken, new Decimal(beforeAmt), new Decimal(1 / SLIPPAGE)).then(q => {
@@ -234,6 +236,7 @@ const arbitrage = async (route, fromCoinAmount, _expected_usdc) => {
         write_to_database(beforeUSDC, afterUSDC, _expected_usdc, transactionId);
     } catch (err) {
         console.error(err);
+
     }
 }
 
