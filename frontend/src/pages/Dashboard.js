@@ -1,8 +1,7 @@
 import React from "react";
-import PriceHistoryPlot from "../components/dashboard/pricingHistoryPlot";
-import BotInformation from "../components/dashboard/botInformation";
+import HistoryPlot from "../components/historyPlot";
+import Label from "../components/dashboard/label";
 
-import { Accordion } from "react-bootstrap";
 import { collection, query, where, onSnapshot, limit, orderBy } from "firebase/firestore";
 import database from "../firestore.config";
 
@@ -24,100 +23,107 @@ function Dashboard() {
 	<div className="dashboard">
 		<div className="page-container">
 		<h1>Dashboard</h1>
-			<div className="user-stats">
-				<div className="widget-container">
-					<div className="user-metric">
-						<h2>Current</h2>
-						<h2>Insert Money Here</h2>
-					</div>
-					<div className="user-metric">
-						<h2>Earnings / Day</h2>
-						<h2>0.0323 USDC</h2>
-					</div>
-					<div className="user-metric">
-						<h2>Bots running</h2>
-						<h2>2/4</h2>
-					</div>
-				</div>
-				
-				<div className="widget-container">
-					<div className="earnings-over-time-plot">
-						<PriceHistoryPlot
-							data={[
-								{
-									type: "scatter",
-									mode: "lines+points",
-									x: pricingHistory.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
-									y: pricingHistory.map(ph => ph.data.rate)
-								}
-							]}
-							layout = {
-								{
-									width: 950, 
-									height: 460, 
-									title: "ORCA_SOL_USDC_BUY"
-								}
-							}
-						/>
-					</div>
-				</div>
+			<div className="widget-container row-centric">
+				<Label
+					name="Current Balance"
+					detail="40,000 USDC"
+					color="#64d3a3"
+				/>
+				<Label
+					name="Earnings / Day"
+					detail="0.0323 USDC"
+					color="#6e8beb"
+				/>
+				<Label
+					name="Transactions Performed"
+					detail="555555"
+					color="#a66eeb"
+				/>
 			</div>
 			
-			<div className="bot-stats">
-				<div className="widget-container">
-					<div className="bot-metrics">
-						<h2>Bots</h2>
-						<Accordion defaultActiveKey={['0']} alwaysOpen>
-							<Accordion.Item eventKey="0">
-								<Accordion.Header>Bot 1</Accordion.Header>
-								<Accordion.Body>
-									<BotInformation 
-										name="George"
-										strategyUsing="Sub Par"
-										averageEarnings="-0.05%"
-										amms={["Orca", "Raydium"]}
-										currencies={["Solana", "USDC"]}
-									/>
-								</Accordion.Body>
-							</Accordion.Item>
-							<Accordion.Item eventKey="1">
-								<Accordion.Header>Bot 2</Accordion.Header>
-								<Accordion.Body>
-									<BotInformation
-										name="Daniel"
-										strategyUsing="The Best"
-										averageEarnings="1000%"
-										amms = {["Dan"]}
-										currencies = {["Me"]}
-									/>
-								</Accordion.Body>
-							</Accordion.Item>
-							<Accordion.Item eventKey="2">
-								<Accordion.Header>Bot 3</Accordion.Header>
-								<Accordion.Body>
-									<BotInformation
-										name="Daniel"
-										strategyUsing="The Best"
-										averageEarnings="1000%"
-										amms = {["Dan"]}
-										currencies = {["Me"]}
-									/>
-								</Accordion.Body>
-							</Accordion.Item>
-							<Accordion.Item eventKey="3">
-								<Accordion.Header>Bot 4</Accordion.Header>
-								<Accordion.Body>
-									<BotInformation
-										name="Daniel"
-										strategyUsing="The Best"
-										averageEarnings="1000%"
-										amms = {["Dan"]}
-										currencies = {["Me"]}
-									/>
-								</Accordion.Body>
-							</Accordion.Item>
-						</Accordion>
-					</div>
+			<div className="widget-container white-boxed graph">
+				<HistoryPlot
+					data={[
+						{
+							type: "scatter",
+							mode: "lines+points",
+							x: pricingHistory.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
+							y: pricingHistory.map(ph => ph.data.rate)
+						}
+					]}
+					layout = {
+						{
+							autosize: true,
+							title: "Balance Over Time"
+						}
+					}
+				/>
+			</div>
+		
+		<h1>Bot Information</h1>
+			<div className="widget-container col-centric bot-information">
+				<div className="white-boxed graph fill">
+					<HistoryPlot
+						data={[
+							{
+								type: "scatter",
+								mode: "lines+points",
+								name: "Profit (USDC)",
+								x: [0, 1, 2, 3, 4, 5],
+								y: [0, 1, 2, 3, 4, 5]
+							},
+							{
+								type: "bar",
+								mode: "lines+points",
+								name: "Transactions",
+								x: [0, 1, 2, 3, 4, 5],
+								y: [4, 2, 0, 5, 10, 2]
+							}
+						]}
+						layout = {
+							{
+								//autosize: true,
+								title: "Bot Information"
+							}
+						}
+					/>
+				</div>
+				<div className="bot-text">
+					<Label
+						name="Current Strategy"
+						detail="Simplest"
+						color="#a66eeb"
+					/>
+					<Label
+						name="Average Earnings"
+						detail="0.001 USDC"
+						color="#a66eeb"
+					/>
+					<Label
+						name="AMMs"
+						detail="Orca, Raydium"
+						color="#a66eeb"
+					/>
+					<Label
+						name="Currencies"
+						detail="USDC, SOL, RAY, ORCA"
+						color="#a66eeb"
+					/>
+					<Label
+						name="Total transactions"
+						detail="5"
+						color="#a66eeb"
+					/>
+					<Label
+						name="Profitable trades"
+						detail="2"
+						color="#a66eeb"
+					/>
+					<Label
+						name="Total profit"
+						detail="1.2 USDC"
+						color="#a66eeb"
+					/>
 				</div>
 			</div>
 		</div>

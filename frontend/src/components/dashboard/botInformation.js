@@ -30,7 +30,9 @@ class BotInformation extends React.Component {
 										marker: {color: 'red'},
 									}
 							]}
-							layout={ {width: 1280/2, height: 720/2, title: 'Earnings overtime'} }
+							layout={ {title: 'Earnings overtime'} }
+							useResizeHandler={true}
+							style={{width: "100%", height: "100%"}}
 						/>
 					</div>
 
