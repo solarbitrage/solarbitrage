@@ -3,9 +3,10 @@ import HistoryPlot from "../components/historyPlot";
 import Checkbox from "../components/checkbox";
 import {Button} from "react-bootstrap";
 import Plot from "react-plotly.js";
-import SliderWithValue from "../components/slider";
-import Slider, { Range } from 'rc-slider';
+import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
+import Datetime from "react-datetime";
+import "react-datetime/css/react-datetime.css";
 
 import { collection, query, where, limit, orderBy, getDocs } from "firebase/firestore";
 import database from "../firestore.config";
@@ -29,13 +30,20 @@ function Metrics() {
   const [rateDatas, setRateDatas] = React.useState(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length + 1).fill(null));
   const [rateDisplays, setRateDisplays] = React.useState(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length + 1).fill(null));
 
+  const [endDateTime, setEndDateTime] = React.useState(new Date());
+  const [startDateTime, setStartDateTime] = React.useState(new Date().getTime() - (1000 * 60 * 60));
+
   const [profitDatas, setProfitDatas] = React.useState(new Array(0).fill(null));
-  const [slippageData, setSlippage] = React.useState();
+  const [slippageData, setSlippage] = React.useState(0.0);
 
   /**
    * Fetches data based on which filters are checked.
    */
   const fetchData = async() => {
+    const startDate = new Date(startDateTime);
+    const endDate = new Date(endDateTime);
+
+
     for (let ammIndex = 0; ammIndex < amms.length; ammIndex++) {
       for (let poolIndex = 0; poolIndex < pools.length; poolIndex++) {
         for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
@@ -44,8 +52,10 @@ function Metrics() {
             const q = query(collection(database, "pricing_history"), 
               where("pool_id", "==", poolID), 
               where("direction", "==", directions[directionIndex]), 
+              where("timestamp", ">=", startDate),
+              where("timestamp", "<=", endDate),
               orderBy("timestamp", "desc"),
-              limit(100));
+              limit(1000));
             
             const docSnap = await getDocs(q);
 
@@ -158,9 +168,16 @@ function Metrics() {
 
   }, [profitDatas])
 
-  function setSlippageData(value) {
-    setSlippage(old => value);
-    
+  function slippageOnChangeHandler(value) {
+    setSlippage(old => value); 
+  }
+
+  function startDateTimeOnChangeHandler(value) {
+    setStartDateTime(old => value);
+  }
+
+  function endDateTimeOnChangeHandler(value) {
+    setEndDateTime(old => value);
   }
 
   React.useEffect(() => {
@@ -259,6 +276,7 @@ function Metrics() {
     });
   }
 
+
   return (
     <div className="page-container">
       <h1>Metrics</h1>
@@ -269,12 +287,7 @@ function Metrics() {
               <h3>AMMs</h3>
               {ammsDisplay.map((name, index) => {
                 return (
-                  <Checkbox
-                    key={index}
-                    label={name}
-                    value={ammCheckedState[index]}
-                    onChange={() => handleAMMCheckboxOnChange(index)}
-                  />
+                  <Checkbox key={index} label={name} value={ammCheckedState[index]} onChange={() => handleAMMCheckboxOnChange(index)} />
                 );
               })}
             </div>
@@ -282,12 +295,7 @@ function Metrics() {
               <h3>Pools</h3>
               {poolsDisplay.map((name, index) => {
                 return (
-                  <Checkbox
-                    key={index}
-                    label={name}
-                    value={poolCheckedState[index]}
-                    onChange={() => handlePoolCheckboxOnChange(index)}
-                  />
+                  <Checkbox key={index} label={name} value={poolCheckedState[index]} onChange={() => handlePoolCheckboxOnChange(index)} />
                 );
               })}
             </div>
@@ -295,12 +303,7 @@ function Metrics() {
               <h3>Direction</h3>
               {directionsDisplay.map((name, index) => {
                 return (
-                  <Checkbox
-                    key={index}
-                    label={name}
-                    value={directionCheckedState[index]}
-                    onChange={() => handleDirectionCheckboxOnChange(index)}
-                  />
+                  <Checkbox key={index} label={name} value={directionCheckedState[index]} onChange={() => handleDirectionCheckboxOnChange(index)}/>
                 );
               })}
             </div>
@@ -309,16 +312,23 @@ function Metrics() {
               <h3>Profitability Data Augments</h3>
               <div>
                 <label>Slippage: </label>
-                <span>{ slippageData * 100 }%</span>
+                <span> {slippageData * 100}%</span>
                 <br />
                 <br />
-                <Slider
-                  value={slippageData}
-                  min={0.0}
-                  max={1.0}
-                  step={0.01}
-                  onChange={setSlippageData}
+                <Slider value={slippageData} min={0.0} max={1.0} step={0.01}
+                  onChange={slippageOnChangeHandler}
                 />
+                <br />
+                <div className="widget-container date-time">
+                  <p>Start Time:</p>
+                  <Datetime value={startDateTime} onChange={startDateTimeOnChangeHandler}/>
+                </div>
+                
+                <div className="widget-container date-time">
+                  <p>End Time:</p>
+                  <Datetime value={endDateTime} onChange={endDateTimeOnChangeHandler}/>
+                </div>
+                
               </div>
             </div>
 

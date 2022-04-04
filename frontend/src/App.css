@@ -125,8 +125,15 @@ html body {
   margin-right: 4px;
 }
 
-.profitability-attributes {
-  
+.date-time {
+  margin: 0px 0px 0px 0px;
+  align-items: center;
+  text-align: center;
+  justify-content: space-between;
+}
+
+.date-time p{
+  margin: 0px 0px 0px 0px;
 }
 
 /* Position and sizing of burger button */
