@@ -37,6 +37,51 @@ function Metrics() {
   const [profitDatas, setProfitDatas] = React.useState(new Array(0).fill(null));
   const [slippageData, setSlippage] = React.useState(0.0);
 
+  const queryPoolRate = async(q, ammIndex, poolIndex, directionIndex) => {
+    const docSnap = await getDocs(q);
+
+    setRateDatas(existingData => {
+      return existingData.map((data, i) => {
+        // Mapping a "3d" array to a 1d array
+        if ((ammIndex * pools.length * directions.length) 
+          + (poolIndex * directions.length) 
+          + directionIndex === i) {
+          data = docSnap.docs.map(doc => ({
+            id: doc.id,
+            data: doc.data()
+          }));
+        }
+        return data;
+      })
+    })
+
+    setRateDisplays(exisitingDisplays => {
+      return exisitingDisplays.map((display, j) => {
+        if ((ammIndex * pools.length * directions.length) 
+          + (poolIndex * directions.length) 
+          + directionIndex === j) {
+          
+          // Seperate Buy and Sell rates onto different axises
+          // Buy
+          if (directionIndex === 0) {
+            display = {
+              displayName: ammsDisplay[ammIndex] + " " + poolsDisplay[poolIndex] + " " + directionsDisplay[directionIndex],
+              yaxis: "y1"
+            }
+          }
+          // Sell
+          else {
+            display = {
+              displayName: ammsDisplay[ammIndex] + " " + poolsDisplay[poolIndex] + " " + directionsDisplay[directionIndex],
+              yaxis: "y2"
+            }
+          }
+        }
+        return display;
+      });
+    })
+  }
+
   /**
    * Fetches data based on which filters are checked.
    */
@@ -44,7 +89,6 @@ function Metrics() {
     setProfitDatas(new Array(0).fill(null));
     const startDate = new Date(startDateTime);
     const endDate = new Date(endDateTime);
-
 
     for (let ammIndex = 0; ammIndex < amms.length; ammIndex++) {
       for (let poolIndex = 0; poolIndex < pools.length; poolIndex++) {
@@ -58,48 +102,7 @@ function Metrics() {
               where("timestamp", "<=", endDate),
               orderBy("timestamp", "desc"));
             
-            const docSnap = await getDocs(q);
-
-            setRateDatas(existingData => {
-              return existingData.map((data, i) => {
-                // Mapping a "3d" array to a 1d array
-                if ((ammIndex * pools.length * directions.length) 
-                  + (poolIndex * directions.length) 
-                  + directionIndex === i) {
-                  data = docSnap.docs.map(doc => ({
-                    id: doc.id,
-                    data: doc.data()
-                  }));
-                }
-                return data;
-              })
-            })
-
-            setRateDisplays(exisitingDisplays => {
-              return exisitingDisplays.map((display, j) => {
-                if ((ammIndex * pools.length * directions.length) 
-                  + (poolIndex * directions.length) 
-                  + directionIndex === j) {
-                  
-                  // Seperate Buy and Sell rates onto different axises
-                  // Buy
-                  if (directionIndex === 0) {
-                    display = {
-                      displayName: ammsDisplay[ammIndex] + " " + poolsDisplay[poolIndex] + " " + directionsDisplay[directionIndex],
-                      yaxis: "y1"
-                    }
-                  }
-                  // Sell
-                  else {
-                    display = {
-                      displayName: ammsDisplay[ammIndex] + " " + poolsDisplay[poolIndex] + " " + directionsDisplay[directionIndex],
-                      yaxis: "y2"
-                    }
-                  }
-                }
-                return display;
-              });
-            })
+              queryPoolRate(q, ammIndex, poolIndex, directionIndex);
           }
           else {
             // Unchecked, delete data.
@@ -132,15 +135,16 @@ function Metrics() {
     return;
   }
 
+
   React.useEffect(() => {
     if (rateDatas[0] && rateDatas[1] && rateDatas[12] && rateDatas[13]) {
       calculateProfitability(rateDatas[0], rateDatas[1], rateDatas[12], rateDatas[13], 0);
     }
   }, [rateDatas[0], rateDatas[1], rateDatas[12], rateDatas[13]])
 
-  React.useEffect(() => {
-    //console.log(rateDatas[ammCheckedState.length * poolCheckedState.length * directionCheckedState.length])
-  }, [rateDatas[ammCheckedState.length * poolCheckedState.length * directionCheckedState.length]])
+  // React.useEffect(() => {
+  //   //console.log(rateDatas[ammCheckedState.length * poolCheckedState.length * directionCheckedState.length])
+  // }, [rateDatas[ammCheckedState.length * poolCheckedState.length * directionCheckedState.length]])
 
   React.useEffect(() => {
     setRateDatas(existingData => {
@@ -168,25 +172,11 @@ function Metrics() {
     })
   }, [profitDatas])
 
-  function slippageOnChangeHandler(value) {
-    setSlippage(old => value); 
-  }
-
-  function slippageNumInputOnChangeHandler(value) {
-    setSlippage(old => value / 100.0);
-  }
-
-  function startDateTimeOnChangeHandler(value) {
-    setStartDateTime(old => value);
-  }
-
-  function endDateTimeOnChangeHandler(value) {
-    setEndDateTime(old => value);
-  }
-
-  React.useEffect(() => {
-    console.log(slippageData);
-  }, [slippageData])
+  // On change handlers
+  function slippageOnChangeHandler(value) { setSlippage(old => value); }
+  function slippageNumInputOnChangeHandler(value) { setSlippage(old => value / 100.0); }
+  function startDateTimeOnChangeHandler(value) { setStartDateTime(old => value); }
+  function endDateTimeOnChangeHandler(value) { setEndDateTime(old => value); }
 
   /**
    * Toggles the checkbox state of the AMMs filter.
@@ -312,6 +302,19 @@ function Metrics() {
               })}
             </div>
 
+            <div className="datetime-container filter">
+              <h3>Time range</h3>
+              <div className="date-time">
+                <p>Start Time:</p>
+                <Datetime value={startDateTime} onChange={startDateTimeOnChangeHandler}/>
+              </div>
+              
+              <div className="date-time">
+                <p>End Time:</p>
+                <Datetime value={endDateTime} onChange={endDateTimeOnChangeHandler}/>
+              </div>
+            </div>
+
             <div className="profitability-attributes filter">
               <h3>Profitability Data Augments</h3>
               <div>
@@ -319,20 +322,7 @@ function Metrics() {
                 <NumericInput min={0} max={100} value={slippageData * 100} onChange={slippageNumInputOnChangeHandler}/> %
                 <br />
                 <br />
-                <Slider value={slippageData} min={0.0} max={1.0} step={0.01}
-                  onChange={slippageOnChangeHandler}
-                />
-                <br />
-                <div className="widget-container date-time">
-                  <p>Start Time:</p>
-                  <Datetime value={startDateTime} onChange={startDateTimeOnChangeHandler}/>
-                </div>
-                
-                <div className="widget-container date-time">
-                  <p>End Time:</p>
-                  <Datetime value={endDateTime} onChange={endDateTimeOnChangeHandler}/>
-                </div>
-                
+                <Slider value={slippageData} min={0.0} max={1.0} step={0.01} onChange={slippageOnChangeHandler} />
               </div>
             </div>
 
@@ -372,7 +362,8 @@ function Metrics() {
                     name: "Profits",
                     x: data.time,
                     y: data.profit,
-                    yaxis: "y3"
+                    yaxis: "y3",
+                    opacity: 0.5
                   }
                 }
                 return arrayData;
