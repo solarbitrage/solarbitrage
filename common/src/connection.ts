@@ -12,7 +12,7 @@ export const CONNECTION_ENDPOINT_LIST = [
     "https://api.mainnet-beta.solana.com/",
 ]
 
-export const useConnection = () => {
+export const useConnection = (logChange?: boolean) => {
     let connectionIndex = 0;
 
     /**
@@ -23,6 +23,9 @@ export const useConnection = () => {
             return new Connection(process.env.CONNECTION_ENDPOINT, CONNECTION_COMMITMENT);
         }
 
+        if (logChange) {
+            console.log("[connection] NEW CONNECTION:", CONNECTION_ENDPOINT_LIST[connectionIndex])
+        }
         const c = new Connection(CONNECTION_ENDPOINT_LIST[connectionIndex], CONNECTION_COMMITMENT);
         connectionIndex = (connectionIndex + 1) % CONNECTION_ENDPOINT_LIST.length;
 
