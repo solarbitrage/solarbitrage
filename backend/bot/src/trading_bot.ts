@@ -268,7 +268,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
         
         write_to_database(beforeUSDC, afterUSDC, _expected_usdc, transactionId);
     } catch (err) {
-        console.error(err);
+        console.error(`CONTEXT: ${route[0].pool_id} -> ${route[1].pool_id}\n`, err);
     }
 }
 
