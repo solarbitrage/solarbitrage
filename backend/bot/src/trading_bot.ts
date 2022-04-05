@@ -32,7 +32,7 @@ const firestore = getFirestore(app);
 // ~~~~~~ firebase configs ~~~~~~
 
 const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/Users/noelb/my-solana-wallet/wallet-keypair.json"
-const SLIPPAGE = 0.02;
+const SLIPPAGE = 0.04;
 const THRESHOLD = 0;
 const STARTING_USDC_BET = 4
 
@@ -190,7 +190,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
                     (i != 0 || 
                     parsedAmountOut * route[i+1].sell.rate < newTokenAmt * route[i+1].sell.rate)
                 ) {
-                    throw new Error(`SLIPPAGE_ERROR: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on RAYDIUM)`)
+                    throw new Error(`SLIPPAGE_ERROR: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on RAYDIUM, slippage should maybe be ${SLIPPAGE + (1 - parsedAmountOut / newTokenAmt)})`)
                 }
 
                 const res = await raydiumSwap(
@@ -268,7 +268,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
         
         write_to_database(beforeUSDC, afterUSDC, _expected_usdc, transactionId);
     } catch (err) {
-        console.error(err);
+        console.error(`CONTEXT: ${route[0].pool_id} -> ${route[1].pool_id}\n`, err);
     }
 }
 

@@ -27,9 +27,15 @@ const firebaseConfig = {
   appId: config.FIREBASE_APP_ID,
 };
 
+// Hot patches to token info
 MAINNET_SPL_TOKENS["SOL"] = {
   ...WSOL,
 };
+
+MAINNET_SPL_TOKENS["ETH"] = {
+  ...MAINNET_SPL_TOKENS["ETH"],
+  decimals: 8
+}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -58,14 +64,14 @@ const listeners = [
 
 const poolMintAddrToName = {
   "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2": "SOL_USDC",
-  EoNrn8iUhwgJySD1pHu8Qxm5gSQqLK3za4m8xzD2RuEb: "ETH_USDC",
-  C5yXRTp39qv5WZrfiqoqeyK6wvbqS97oBqbsDUqfZyu: "ORCA_USDC",
+  "EoNrn8iUhwgJySD1pHu8Qxm5gSQqLK3za4m8xzD2RuEb": "ETH_USDC",
+  "C5yXRTp39qv5WZrfiqoqeyK6wvbqS97oBqbsDUqfZyu": "ORCA_USDC",
   "33dWwj33J3NUzoTmkMAUq1VdXZL89qezxkdaHdN88vK2": "LIQ_USDC",
   "5TgJXpv6H3KJhHCuP7KoDLSCmi8sM8nABizP7CmYAKm1": "SNY_USDC",
-  ZfvDXXUhZDzDVsapffUyXHj9ByCoPjP4thL6YXcZ9ix: "mSOL_USDC",
+  "ZfvDXXUhZDzDVsapffUyXHj9ByCoPjP4thL6YXcZ9ix": "mSOL_USDC",
   "7XXKU8oGDbeGrkPyK5yHKzdsrMJtB7J2TMugjbrXEhB5": "SLRS_USDC",
   "6nJes56KF999Q8VtQTrgWEHJGAfGMuJktGb8x2uWff2u": "PORT_USDC",
-  DudevotmDLN3KDHA1uTV1AyTYdwGnKUDFEXS9AXLjQ1z: "SBR_USDC",
+  "DudevotmDLN3KDHA1uTV1AyTYdwGnKUDFEXS9AXLjQ1z": "SBR_USDC",
   "6UmmUiYoBjSrhakAobJw8BvkmJtDVxaeBtbt7rxWo1mg": "RAY_USDC",
 };
 
@@ -137,7 +143,7 @@ function updateDatabase(poolName, data) {
           },
         };
 
-        console.log(`${poolName}`);
+        console.log(`${poolName}`, amountOut.minAmountOut.currency.decimals);
         console.table([
           {
             route: `${coinTickers[0]} -> ${coinTickers[1]}`,
