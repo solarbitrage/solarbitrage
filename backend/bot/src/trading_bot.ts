@@ -44,6 +44,7 @@ const firestore = getFirestore(app);
 
 const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/Users/noelb/my-solana-wallet/wallet-keypair.json"
 const STARTING_SLIPPAGE = 0;
+const ADDITIONAL_SLIPPAGE = 0.01;
 const THRESHOLD = 0;
 const STARTING_USDC_BET = 4
 
@@ -243,7 +244,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
                 const _pool_id = pool.pool_id;         
                 afterSwapPromises.push((async () => {
                     const amountOut = RaydiumRateFuncs.getRate(poolKeys, await Liquidity.fetchInfo({ connection, poolKeys }), fromToken, toToken, _beforeAmt)
-                    const parsedAmountOut = amountOut.amountOut.raw.toNumber() / Math.pow(10, toToken.decimals);
+                    const parsedAmountOut = (amountOut.amountOut.raw.toNumber() / Math.pow(10, toToken.decimals)) * (1 - ADDITIONAL_SLIPPAGE);
 
                     if (
                         parsedAmountOut < newTokenAmt &&
@@ -287,7 +288,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
                 const _pool_id = pool.pool_id;   
                 afterSwapPromises.push((async () => {   
                     const quote = await orcaAmmPool.getQuote(fromToken, new Decimal(_beforeAmt))
-                    const parsedAmountOut = quote.getExpectedOutputAmount().toNumber();
+                    const parsedAmountOut = quote.getExpectedOutputAmount().toNumber() * (1 - ADDITIONAL_SLIPPAGE);
                                         
                     if (
                         parsedAmountOut < newTokenAmt &&
@@ -333,10 +334,10 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
         
         write_to_database(beforeUSDC, afterUSDC, _expected_usdc, transactionId);
 
-        await Promise.allSettled(afterSwapPromises);
     } catch (err) {
         console.error(`CONTEXT: ${route[0].pool_id} -> ${route[1].pool_id}\n`, err);
     }
+    await Promise.allSettled(afterSwapPromises);
 }
 
 
