@@ -116,13 +116,6 @@ function Metrics() {
     let offset = rateDatas.length / 4;
     for (let i = 0; i < rateDatas.length; i++) {
       if (rateDatas[i] && rateDatas[(offset * 1) + i] && rateDatas[(offset * 2) + i] && rateDatas[(offset * 3) + i]) {
-        // console.log(offset);
-        // console.log("----------");
-        // console.log(i);
-        // console.log((offset * 1) + i);
-        // console.log((offset * 2) + i);
-        // console.log((offset * 3) + i);
-        // console.log("Working!");
         calculateProfitability(rateDatas[i], rateDatas[(offset * 2) + i], rateDatas[(offset * 1) + i], rateDatas[(offset * 3) + i], 0);
       }
     }
@@ -228,11 +221,13 @@ function Metrics() {
     // console.log({poolARates, poolBRates, estimatedProfits});
     // console.log("Best possible trade:", Math.max.apply(null, estimatedProfits));
     // console.log("Worst possible trade:", Math.min.apply(null, estimatedProfits));
+    const poolName = poolABuy[0].data.pool_id.split("_");
+    console.log(poolName);
 
     setProfitDatas(profitDatas => [...profitDatas, {
       profit: estimatedProfits,
       time: times,
-      name: poolABuy[0].data.pool_id
+      name: poolName[1] + " and " + poolName[2]
     }]);
   }
 
@@ -299,6 +294,7 @@ function Metrics() {
         <HistoryPlot
           data={
             rateDatas.map((data, index) => {
+              //console.log(index);
               if (data && rateDisplays[index]) {
                 let arrayData = {};
                 if (rateDisplays[index].yaxis === "y1") {
