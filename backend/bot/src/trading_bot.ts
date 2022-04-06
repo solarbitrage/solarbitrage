@@ -1,18 +1,19 @@
 import { getOrca, OrcaPoolConfig } from "@orca-so/sdk";
-import { jsonInfo2PoolKeys, LiquidityPoolJsonInfo, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
-import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
+import { jsonInfo2PoolKeys, Liquidity, LiquidityPoolJsonInfo, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
+import { Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { initializeApp } from 'firebase/app';
 import { get, getDatabase, onChildChanged, ref } from "firebase/database";
 import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/firestore";
 import { readFile } from "mz/fs";
+import fetch from "node-fetch";
 // ~~~~~~ firebase configs ~~~~~~
 import config from "./common/src/config";
-import { CONNECTION_COMMITMENT, CONNECTION_ENDPOINT_LIST, useConnection } from "./common/src/connection";
-import { swap as orcaSwap } from "./orca-swap-funcs";
-import { NATIVE_SOL, swap as raydiumSwap } from "./raydium-swap-funcs";
-import { createAssociatedTokenAccountIfNotExist } from "./raydium-utils/web3";
-import fetch from "node-fetch"
+import { useConnection } from "./common/src/connection";
+import { swap as orcaSwap } from "./common/src/orca-utils/orca-swap-funcs";
+import * as RaydiumRateFuncs from "./common/src/raydium-utils/raydium-rate-funcs";
+import { NATIVE_SOL, swap as raydiumSwap } from "./common/src/raydium-utils/raydium-swap-funcs";
+import { createAssociatedTokenAccountIfNotExist } from "./common/src/raydium-utils/web3";
 
 const firebaseConfig = {
     apiKey: config.FIREBASE_API_KEY,
@@ -31,7 +32,7 @@ const firestore = getFirestore(app);
 // ~~~~~~ firebase configs ~~~~~~
 
 const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/Users/noelb/my-solana-wallet/wallet-keypair.json"
-const SLIPPAGE = 0.08;
+const SLIPPAGE = 0.04;
 const THRESHOLD = 0;
 const STARTING_USDC_BET = 4
 
@@ -41,7 +42,8 @@ let ready_to_trade = true;  // flag to look for updates only when a swap intruct
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 const RAYDIUM_POOLS_ENDPOINT = "https://sdk.raydium.io/liquidity/mainnet.json"
 
-let connection = new Connection(CONNECTION_ENDPOINT_LIST[CONNECTION_ENDPOINT_LIST.length - 1], CONNECTION_COMMITMENT)
+const getNewConnection = useConnection(false);
+let connection = getNewConnection();
 
 const orca = getOrca(connection);
 const poolKeysMap = {};
@@ -92,14 +94,26 @@ async function main() {
     const loop = () => {
         middleTokenToPoolMap = getMiddleTokenToPoolMap("USDC");
         const middleTokenToRouteMap = getMiddleTokenToRoutesMap(middleTokenToPoolMap);
-        const promises = [];
+        const profitableRoutes = []
         ready_to_trade = false;
+
         for (const middleTokenName of Object.keys(middleTokenToRouteMap)) {
             if (middleTokenToRouteMap[middleTokenName].length > 0) {
-                promises.push(calculate_trade(middleTokenToRouteMap[middleTokenName][0]));
+                profitableRoutes.push(middleTokenToRouteMap[middleTokenName][0])
             }
         }
-        Promise.all(promises)
+
+
+        console.table(profitableRoutes
+            .sort((a, b) => b.estimatedProfit - a.estimatedProfit)
+            .map(r => ({
+                "Estimated Profit per $1": r.estimatedProfit,
+                "First Pool": r.route[0].pool_id,
+                "Second Pool": r.route[1].pool_id
+            })));
+
+
+        Promise.all(profitableRoutes.map(r => calculate_trade(r)))
             .then(() => {
                 ready_to_trade = true;
             })
@@ -123,7 +137,7 @@ async function main() {
         // }            
         if (ready_to_trade) {
             loop();
-            console.log("going to check new change")
+            console.log("going to check new change", new Date().toLocaleString())
         }
 
     });
@@ -132,13 +146,9 @@ async function main() {
 main().then(() => {}).catch(e => console.error(e))
 
 async function calculate_trade({route, estimatedProfit}) {
-    // console.log(local_database, update)
-    let usdc = STARTING_USDC_BET;
+    connection = getNewConnection();
 
-    console.log([
-        {pool_id: route[0].pool_id, from: route[0].buy.from, to: route[0].buy.to},
-        {pool_id: route[1].pool_id, from: route[1].sell.from, to: route[1].sell.to}
-    ], {estimatedProfit});
+    let usdc = STARTING_USDC_BET;
 
     if (estimatedProfit > THRESHOLD) {
         await arbitrage(route, usdc, usdc + (usdc * estimatedProfit))
@@ -151,7 +161,7 @@ async function calculate_trade({route, estimatedProfit}) {
 // if profitable trade exists, conduct a swap.
 // only after a swap is done, look for another database update?
 
-const arbitrage = async (route, fromCoinAmount, _expected_usdc) => {
+const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
     console.log( { fromCoinAmount, _expected_usdc })    
 
     let transactionId = "";
@@ -162,66 +172,93 @@ const arbitrage = async (route, fromCoinAmount, _expected_usdc) => {
     const signers = [];
 
     let beforeAmt = fromCoinAmount;
+    try {
+        for (const [i, pool] of route.entries()) {
+            const newTokenAmt = beforeAmt * 
+                (i === 0 ? pool.buy.rate : pool.sell.rate) * (1 - SLIPPAGE);
 
-    for (const [i, pool] of route.entries()) {
-        const newTokenAmt = beforeAmt * 
-            (i === 0 ? pool.buy.rate : pool.sell.rate) * (1 - SLIPPAGE);
+            const fromTokenStr = (i === 0 ? pool.buy.from : pool.sell.from);
+            const toTokenStr = (i === 0 ? pool.buy.to : pool.sell.to);
 
-        const fromTokenStr = (i === 0 ? pool.buy.from : pool.sell.from);
-        const toTokenStr = (i === 0 ? pool.buy.to : pool.sell.to);
+            if (pool.pool_id.split("_")[0] === "RAYDIUM") {
+                const fromToken = fromTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[fromTokenStr];
+                const toToken = toTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[toTokenStr];
 
-        if (pool.pool_id.split("_")[0] === "RAYDIUM") {
-            const fromToken = fromTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[fromTokenStr];
-            const toToken = toTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[toTokenStr];
+                const poolKeys = poolKeysMap[`${fromToken.mint}-${toToken.mint}`] ?? poolKeysMap[`${toToken.mint}-${fromToken.mint}`];
 
-            const res = await raydiumSwap(
-                connection,
-                owner,
-                poolKeysMap[`${fromToken.mint}-${toToken.mint}`] ?? poolKeysMap[`${toToken.mint}-${fromToken.mint}`],
-                fromToken,
-                toToken,
-                tokenAccounts[fromToken.mint]?.tokenAccountAddress,
-                tokenAccounts[toToken.mint]?.tokenAccountAddress,
-                beforeAmt.toString(),
-                newTokenAmt.toString(),
-                tokenAccounts[WSOL.mint]?.tokenAccountAddress
-            );
-            transaction.add(res.transaction);
-            signers.push(...res.signers);
-        } else if (pool.pool_id.split("_")[0] === "ORCA") {
-            const orcaAmmPool = orca.getPool(OrcaPoolConfig[pool.pool_id.split("_").slice(1).join("_")]);
-            const poolTokens = {
-                [orcaAmmPool.getTokenA().tag]: orcaAmmPool.getTokenA(),
-                [orcaAmmPool.getTokenB().tag]: orcaAmmPool.getTokenB()
+                // check if rates are accurately (without affecting swap call)
+                (async () => {                    
+                    const amountOut = RaydiumRateFuncs.getRate(poolKeys, await Liquidity.fetchInfo({ connection, poolKeys }), fromToken, toToken, beforeAmt)
+                    const parsedAmountOut = parseFloat(amountOut.amountOut.toExact());
+
+                    if (
+                        parsedAmountOut < newTokenAmt &&
+                        (i != 0 || 
+                        parsedAmountOut * route[i+1].sell.rate < newTokenAmt * route[i+1].sell.rate)
+                    ) {
+                        throw new Error(`SLIPPAGE_ERROR: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on RAYDIUM, slippage should maybe be ${SLIPPAGE + (1 - parsedAmountOut / newTokenAmt)})`)
+                    }
+                })().catch((e: Error) => {console.error(`POOL_ID{${pool.pool_id}}[${i}]:`,e.message)})
+
+                const res = await raydiumSwap(
+                    connection,
+                    owner,
+                    poolKeys,
+                    fromToken,
+                    toToken,
+                    tokenAccounts[fromToken.mint]?.tokenAccountAddress,
+                    tokenAccounts[toToken.mint]?.tokenAccountAddress,
+                    beforeAmt.toString(),
+                    newTokenAmt.toString(),
+                    tokenAccounts[WSOL.mint]?.tokenAccountAddress
+                );
+                transaction.add(res.transaction);
+                signers.push(...res.signers);
+            } else if (pool.pool_id.split("_")[0] === "ORCA") {
+                const orcaAmmPool = orca.getPool(OrcaPoolConfig[pool.pool_id.split("_").slice(1).join("_")]);
+                const poolTokens = {
+                    [orcaAmmPool.getTokenA().tag]: orcaAmmPool.getTokenA(),
+                    [orcaAmmPool.getTokenB().tag]: orcaAmmPool.getTokenB()
+                }
+
+
+                const fromToken = poolTokens[fromTokenStr];
+                const toToken = poolTokens[toTokenStr];
+
+                // check if rates are accurately (without affecting swap call)
+                (async () => {   
+                    const quote = await orcaAmmPool.getQuote(fromToken, new Decimal(beforeAmt))
+                    const parsedAmountOut = quote.getExpectedOutputAmount().toNumber();
+                                        
+                    if (
+                        parsedAmountOut < newTokenAmt &&
+                        (i != 0 || 
+                        parsedAmountOut * route[i+1].sell.rate < newTokenAmt * route[i+1].sell.rate)
+                    ) {
+                        throw new Error(`SLIPPAGE_ERROR: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on ORCA, slippage should maybe be ${SLIPPAGE + (1 - parsedAmountOut / newTokenAmt)})`)
+                    }
+                })().catch((e: Error) => {console.error(`POOL_ID{${pool.pool_id}}[${i}]:`,e.message)})
+
+                const { transactionPayload } = await orcaSwap(
+                    orcaAmmPool, 
+                    owner, 
+                    fromToken, 
+                    new Decimal(beforeAmt), 
+                    new Decimal(newTokenAmt), 
+                    new PublicKey(tokenAccounts[fromToken.mint.toBase58()]?.tokenAccountAddress),
+                    new PublicKey(tokenAccounts[toToken.mint.toBase58()]?.tokenAccountAddress),
+                );
+                transaction.add(transactionPayload.transaction);
+                signers.push(...transactionPayload.signers); 
             }
 
-
-            const fromToken = poolTokens[fromTokenStr];
-            const toToken = poolTokens[toTokenStr];
-            // orcaAmmPool.getQuote(fromToken, new Decimal(beforeAmt), new Decimal(1 / SLIPPAGE)).then(q => {
-            //     const actualNewTokenAmt = q.getExpectedOutputAmount().toNumber();
-            //     console.log({beforeAmt, newTokenAmt, actualNewTokenAmt, actualRate: q.getRate().toNumber(), expectedRate: (i === 0 ? pool.buy.rate : pool.sell.rate)});
-            // })
-            const { transactionPayload } = await orcaSwap(
-                orcaAmmPool, 
-                owner, 
-                fromToken, 
-                new Decimal(beforeAmt), 
-                new Decimal(newTokenAmt), 
-                new PublicKey(tokenAccounts[fromToken.mint.toBase58()]?.tokenAccountAddress),
-                new PublicKey(tokenAccounts[toToken.mint.toBase58()]?.tokenAccountAddress),
-            );
-            transaction.add(transactionPayload.transaction);
-            signers.push(...transactionPayload.signers); 
+            beforeAmt = newTokenAmt;
         }
 
-        beforeAmt = newTokenAmt;
-    }
+        const beforeParsedInfo = tokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
+        const beforeUSDC = parseFloat(beforeParsedInfo.tokenAmount.uiAmount);
 
-    const beforeParsedInfo = tokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
-    const beforeUSDC = parseFloat(beforeParsedInfo.tokenAmount.uiAmount);
 
-    try {
         transactionId = await sendAndConfirmTransaction(connection, transaction, signers, {commitment: "singleGossip", skipPreflight: true});
         console.log({ transactionId });
 
@@ -235,8 +272,7 @@ const arbitrage = async (route, fromCoinAmount, _expected_usdc) => {
         
         write_to_database(beforeUSDC, afterUSDC, _expected_usdc, transactionId);
     } catch (err) {
-        console.error(err);
-
+        console.error(`CONTEXT: ${route[0].pool_id} -> ${route[1].pool_id}\n`, err.message);
     }
 }
 
