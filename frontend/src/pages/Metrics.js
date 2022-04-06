@@ -87,6 +87,8 @@ function Metrics() {
    */
   const fetchData = async() => {
     setProfitDatas(new Array(0).fill(null));
+    setRateDatas(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length + 1).fill(null));
+    setRateDisplays(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length + 1).fill(null));
     const startDate = new Date(startDateTime);
     const endDate = new Date(endDateTime);
 
@@ -141,10 +143,6 @@ function Metrics() {
       calculateProfitability(rateDatas[0], rateDatas[1], rateDatas[12], rateDatas[13], 0);
     }
   }, [rateDatas[0], rateDatas[1], rateDatas[12], rateDatas[13]])
-
-  // React.useEffect(() => {
-  //   //console.log(rateDatas[ammCheckedState.length * poolCheckedState.length * directionCheckedState.length])
-  // }, [rateDatas[ammCheckedState.length * poolCheckedState.length * directionCheckedState.length]])
 
   React.useEffect(() => {
     setRateDatas(existingData => {
@@ -215,6 +213,8 @@ function Metrics() {
     if (!poolABuy || !poolASell || !poolBBuy || !poolBSell) {
       return null;
     }
+    
+    console.log({poolABuy, poolBBuy});
     
     // Grabbing relevant data
     let poolARates = {
@@ -358,12 +358,14 @@ function Metrics() {
                 }
                 else if (rateDisplays[index].yaxis === "y3"){
                   arrayData = {
-                    type: "bar",
+                    type: "scatter",
+                    mode: "lines",
                     name: "Profits",
                     x: data.time,
                     y: data.profit,
                     yaxis: "y3",
-                    opacity: 0.5
+                    opacity: 0.5,
+                    fill: "tozeroy"
                   }
                 }
                 return arrayData;
