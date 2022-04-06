@@ -68,10 +68,13 @@
         const $console = $('#console');
         $console.empty();
         socket.removeAllListeners();
+
+        let log = ""
   
         socket.on(`${process}:out_log`, (procLog) => {
-          $console.append(`<p id="console-text">${procLog.data}</p>`);
-          $('#console-background').animate({ scrollTop: $console[0].scrollHeight + 1000 }, 500);
+          log += procLog.data + "\n";
+          $console.text(log); 
+          $console.scrollTop($console[0].scrollHeight - $console[0].clientHeight)
         });
       }
   
