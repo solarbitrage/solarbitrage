@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"
+    integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="css/stype.css">
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+    integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/main.js"></script>
+  <title>Solarbitrage Monitoring</title>
+</head>
+
+<body>
+  <div class="container">
+    <div class="card panel-success">
+      <div class="card-body">
+        <div class="card-title">Processes</div>
+        <table id="tbl-processes" class="table">
+          <thead>
+            <tr>
+              <th scope="col">Id</th>
+              <th scope="col">Status</th>
+              <th scope="col">Monitor</th>
+              <th scope="col">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <br>
+    <div id="console-background">
+      <div id="console">
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
