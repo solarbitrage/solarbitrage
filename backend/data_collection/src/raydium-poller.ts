@@ -76,19 +76,12 @@ function updateDatabase(poolName, data) {
       for (const [i, poolInfo] of poolInfos.entries()) {
         const coinTickers =
           poolMintAddrToName[lpPools[i].id.toBase58()].split("_");
+          
         const amountOut = getRate(
           lpPools[i],
           poolInfo,
           MAINNET_SPL_TOKENS[coinTickers[1]],
           MAINNET_SPL_TOKENS[coinTickers[0]],
-          1
-        );
-
-        const amountOutInvert = getRate(
-          lpPools[i],
-          poolInfo,
-          MAINNET_SPL_TOKENS[coinTickers[0]],
-          MAINNET_SPL_TOKENS[coinTickers[1]],
           1
         );
 
@@ -104,7 +97,6 @@ function updateDatabase(poolName, data) {
           rate_raw: amountOut.minAmountOut.invert().toFixed(15),
           from: coinTickers[0],
           rate: parseFloat(amountOut.minAmountOut.invert().toFixed(15)),
-          rate_2: parseFloat(amountOutInvert.minAmountOut.toExact()),
           to: coinTickers[1],
         };
 
@@ -112,7 +104,6 @@ function updateDatabase(poolName, data) {
           ...results,
           rate_raw: amountOut.minAmountOut.toExact(),
           rate: parseFloat(amountOut.minAmountOut.toExact()),
-          rate_2: parseFloat(amountOut.minAmountOut.toExact()),
           from: coinTickers[1],
           to: coinTickers[0],
         };
@@ -131,16 +122,14 @@ function updateDatabase(poolName, data) {
           {
             route: `${coinTickers[0]} -> ${coinTickers[1]}`,
             rate: sellResults.rate,
-            rate_2: sellResults.rate_2,
           },
           {
             route: `${coinTickers[1]} -> ${coinTickers[0]}`,
             rate: buyResults.rate,
-            rate_2: buyResults.rate_2
           }
         ])
 
-        // updateDatabase(`${poolName}`, poolResults);
+        updateDatabase(`${poolName}`, poolResults);
       }
     } catch (e) {
       console.error(e);
