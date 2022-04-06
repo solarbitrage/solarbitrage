@@ -14,6 +14,7 @@ import { swap as orcaSwap } from "./common/src/orca-utils/orca-swap-funcs";
 import * as RaydiumRateFuncs from "./common/src/raydium-utils/raydium-rate-funcs";
 import { NATIVE_SOL, swap as raydiumSwap } from "./common/src/raydium-utils/raydium-swap-funcs";
 import { createAssociatedTokenAccountIfNotExist } from "./common/src/raydium-utils/web3";
+import { RAYDIUM_POOLS_ENDPOINT, listeners } from "./common/src/raydium-utils/constants";
 
 const firebaseConfig = {
     apiKey: config.FIREBASE_API_KEY,
@@ -24,6 +25,16 @@ const firebaseConfig = {
     messagingSenderId: config.FIREBASE_MESSAGING_SENDER_ID,
     appId: config.FIREBASE_APP_ID
 };
+
+// Hot patches to token info
+MAINNET_SPL_TOKENS["SOL"] = {
+    ...WSOL,
+};
+
+MAINNET_SPL_TOKENS["ETH"] = {
+    ...MAINNET_SPL_TOKENS["ETH"],
+    decimals: 8
+}
 
 const app = initializeApp(firebaseConfig);
 // Get a reference to the database service
@@ -38,9 +49,7 @@ const STARTING_USDC_BET = 4
 
 let ready_to_trade = true;  // flag to look for updates only when a swap intruction is done
 
-// SOL_USDC Raydium token
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
-const RAYDIUM_POOLS_ENDPOINT = "https://sdk.raydium.io/liquidity/mainnet.json"
 
 const getNewConnection = useConnection(false);
 let connection = getNewConnection();
@@ -68,8 +77,12 @@ async function main() {
     });
 
     const lpMetadata = await fetch(RAYDIUM_POOLS_ENDPOINT).then(res => res.json())
-    const allOfficialLpPools: LiquidityPoolJsonInfo[] = [...lpMetadata["official"], ...lpMetadata["unOfficial"]];
-    for (const pool of allOfficialLpPools) {
+    const lpPools: LiquidityPoolJsonInfo[] = [
+        ...lpMetadata["official"],
+        ...lpMetadata["unOfficial"],
+    ].filter((val) => listeners.includes(val.id));
+    
+    for (const pool of lpPools) {
         const baseMint = pool.baseMint === WSOL.mint ? NATIVE_SOL.mint : pool.baseMint;
         const quoteMint = pool.quoteMint === WSOL.mint ? NATIVE_SOL.mint : pool.quoteMint;
         poolKeysMap[`${baseMint}-${quoteMint}`] = jsonInfo2PoolKeys(pool);
@@ -187,9 +200,10 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
                 const poolKeys = poolKeysMap[`${fromToken.mint}-${toToken.mint}`] ?? poolKeysMap[`${toToken.mint}-${fromToken.mint}`];
 
                 // check if rates are accurately (without affecting swap call)
-                (async () => {                    
-                    const amountOut = RaydiumRateFuncs.getRate(poolKeys, await Liquidity.fetchInfo({ connection, poolKeys }), fromToken, toToken, beforeAmt)
-                    const parsedAmountOut = parseFloat(amountOut.amountOut.toExact());
+                let _beforeAmt = beforeAmt;                    
+                (async () => {
+                    const amountOut = RaydiumRateFuncs.getRate(poolKeys, await Liquidity.fetchInfo({ connection, poolKeys }), fromToken, toToken, _beforeAmt)
+                    const parsedAmountOut = amountOut.amountOut.raw.toNumber() / Math.pow(10, toToken.decimals);
 
                     if (
                         parsedAmountOut < newTokenAmt &&
