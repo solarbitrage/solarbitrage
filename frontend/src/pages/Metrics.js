@@ -16,20 +16,19 @@ import database from "../firestore.config";
 function Metrics() {
   // Display names.
   const ammsDisplay = ["Orca", "Raydium"];
-  const poolsDisplay = ["SOL to USDC", "BTC to USDC", "ORCA to SOL", "ORCA to USDC", "ETH to USDC", "RAY to USDC"];
   const directionsDisplay = ["Buy", "Sell"];
 
   // Names as listed in the firestore database.
   const amms = ["ORCA", "RAYDIUM"];
-  const pools = ["SOL_USDC", "BTC_USDC", "ORCA_SOL", "ORCA_USDC", "ETH_USDC", "RAY_USDC"];
+  const currencies = ["USDC", "BTC", "ETH", "LIQ", "ORCA", "SOL", "PORT", "RAY", "SBR", "SLRS", "SNY", "mSOL"];
   const directions = ["buy", "sell"];
 
   const [ammCheckedState, setAMMCheckedState] = React.useState(new Array(amms.length).fill(false));
-  const [poolCheckedState, setPoolCheckedState] = React.useState(new Array(pools.length).fill(false));
+  const [currencyCheckedState, setCurrencyCheckedState] = React.useState(new Array(currencies.length).fill(false));
   const [directionCheckedState, setDirectionCheckedState] = React.useState(new Array(directions.length).fill(false));
 
-  const [rateDatas, setRateDatas] = React.useState(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length + 1).fill(null));
-  const [rateDisplays, setRateDisplays] = React.useState(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length + 1).fill(null));
+  const [rateDatas, setRateDatas] = React.useState(new Array(0).fill(null));
+  const [rateDisplays, setRateDisplays] = React.useState(new Array(0).fill(null));
 
   const [endDateTime, setEndDateTime] = React.useState(new Date());
   const [startDateTime, setStartDateTime] = React.useState(new Date().getTime() - (1000 * 60 * 60));
@@ -37,49 +36,26 @@ function Metrics() {
   const [profitDatas, setProfitDatas] = React.useState(new Array(0).fill(null));
   const [slippageData, setSlippage] = React.useState(0.0);
 
-  const queryPoolRate = async(q, ammIndex, poolIndex, directionIndex) => {
+  const queryPoolRate = async(q, rateDisplay, directionIndex) => {
     const docSnap = await getDocs(q);
 
-    setRateDatas(existingData => {
-      return existingData.map((data, i) => {
-        // Mapping a "3d" array to a 1d array
-        if ((ammIndex * pools.length * directions.length) 
-          + (poolIndex * directions.length) 
-          + directionIndex === i) {
-          data = docSnap.docs.map(doc => ({
-            id: doc.id,
-            data: doc.data()
-          }));
-        }
-        return data;
-      })
-    })
+    setRateDatas(rateDatas => [...rateDatas, docSnap.docs.map(doc => ({
+      id: doc.id,
+      data: doc.data()
+    }))]);
 
-    setRateDisplays(exisitingDisplays => {
-      return exisitingDisplays.map((display, j) => {
-        if ((ammIndex * pools.length * directions.length) 
-          + (poolIndex * directions.length) 
-          + directionIndex === j) {
-          
-          // Seperate Buy and Sell rates onto different axises
-          // Buy
-          if (directionIndex === 0) {
-            display = {
-              displayName: ammsDisplay[ammIndex] + " " + poolsDisplay[poolIndex] + " " + directionsDisplay[directionIndex],
-              yaxis: "y1"
-            }
-          }
-          // Sell
-          else {
-            display = {
-              displayName: ammsDisplay[ammIndex] + " " + poolsDisplay[poolIndex] + " " + directionsDisplay[directionIndex],
-              yaxis: "y2"
-            }
-          }
-        }
-        return display;
-      });
-    })
+    if (directionIndex === 0) {
+      setRateDisplays(rateDisplays => [...rateDisplays, {
+        displayName: "Buy " + rateDisplay,
+        yaxis: "y1"
+      }])  
+    }
+    else {
+      setRateDisplays(rateDisplays => [...rateDisplays, {
+        displayName: "Sell " + rateDisplay,
+        yaxis: "y2"
+      }])  
+    }
   }
 
   /**
@@ -87,49 +63,45 @@ function Metrics() {
    */
   const fetchData = async() => {
     setProfitDatas(new Array(0).fill(null));
-    setRateDatas(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length + 1).fill(null));
-    setRateDisplays(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length + 1).fill(null));
+    setRateDatas(new Array(0).fill(null));
+    setRateDisplays(new Array(0).fill(null));
     const startDate = new Date(startDateTime);
     const endDate = new Date(endDateTime);
 
-    for (let ammIndex = 0; ammIndex < amms.length; ammIndex++) {
-      for (let poolIndex = 0; poolIndex < pools.length; poolIndex++) {
-        for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
-          if (ammCheckedState[ammIndex] && poolCheckedState[poolIndex] && directionCheckedState[directionIndex]) {
-            let poolID = amms[ammIndex] + "_" + pools[poolIndex];
-            const q = query(collection(database, "pricing_history"), 
-              where("pool_id", "==", poolID), 
-              where("direction", "==", directions[directionIndex]), 
-              where("timestamp", ">=", startDate),
-              where("timestamp", "<=", endDate),
-              orderBy("timestamp", "desc"));
-            
-              queryPoolRate(q, ammIndex, poolIndex, directionIndex);
-          }
-          else {
-            // Unchecked, delete data.
-            setRateDatas(existingData => {
-              return existingData.map((data, i) => {
-                // Mapping a "3d" array to a 1d array
-                if ((ammIndex * pools.length * directions.length) 
-                  + (poolIndex * directions.length) 
-                  + directionIndex === i) {
-                  data = null;
-                }
-                return data;
-              })
-            })
+    let rateIndex = 0;
 
-            setRateDisplays(exisitingDisplays => {
-              return exisitingDisplays.map((display, j) => {
-                if ((ammIndex * pools.length * directions.length) 
-                  + (poolIndex * directions.length) 
-                  + directionIndex === j) {
-                  display = null;
-                }
-                return display;
-              });
-            })
+    for (let ammIndex = 0; ammIndex < amms.length; ammIndex++) {
+      for (let currencyIndex = 0; currencyIndex < currencies.length; currencyIndex++) {
+        for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
+          // Check if the filters are checked
+          if (ammCheckedState[ammIndex] && currencyCheckedState[currencyIndex] && directionCheckedState[directionIndex]) {
+
+            // Create pairs
+            for (let currencyPairIndex = currencyIndex + 1; currencyPairIndex < currencies.length; currencyPairIndex++) {
+              if (currencyCheckedState[currencyPairIndex]) {
+                let poolID = amms[ammIndex] + "_" + currencies[currencyIndex] + "_" + currencies[currencyPairIndex];
+                let poolIDReversed = amms[ammIndex] + "_" + currencies[currencyPairIndex] + "_" + currencies[currencyIndex];
+
+                console.log({poolID, poolIDReversed, rateIndex});
+                const q1 = query(collection(database, "pricing_history"), 
+                  where("pool_id", "==", poolID), 
+                  where("direction", "==", directions[directionIndex]), 
+                  where("timestamp", ">=", startDate),
+                  where("timestamp", "<=", endDate),
+                  orderBy("timestamp", "desc"));
+                const q2 = query(collection(database, "pricing_history"), 
+                  where("pool_id", "==", poolIDReversed), 
+                  where("direction", "==", directions[directionIndex]), 
+                  where("timestamp", ">=", startDate),
+                  where("timestamp", "<=", endDate),
+                  orderBy("timestamp", "desc"));
+                
+                queryPoolRate(q1, poolID, directionIndex);
+                ++rateIndex;
+                queryPoolRate(q2, poolIDReversed, directionIndex);
+                ++rateIndex;
+              }
+            }
           }
         }
       }
@@ -137,38 +109,35 @@ function Metrics() {
     return;
   }
 
-
   React.useEffect(() => {
-    if (rateDatas[0] && rateDatas[1] && rateDatas[12] && rateDatas[13]) {
-      calculateProfitability(rateDatas[0], rateDatas[1], rateDatas[12], rateDatas[13], 0);
-    }
-  }, [rateDatas[0], rateDatas[1], rateDatas[12], rateDatas[13]])
+    console.log(rateDatas);
+  }, [rateDatas])
 
-  React.useEffect(() => {
-    setRateDatas(existingData => {
-      return existingData.map((data, i) => {
-        if (ammCheckedState.length * poolCheckedState.length * directionCheckedState.length === i) {
-          data = {
-            profit: profitDatas.profit,
-            time: profitDatas.time
-          };
-        }
-        return data;
-      })
-    })
+  // React.useEffect(() => {
+  //   setRateDatas(existingData => {
+  //     return existingData.map((data, i) => {
+  //       if (ammCheckedState.length * poolCheckedState.length * directionCheckedState.length === i) {
+  //         data = {
+  //           profit: profitDatas.profit,
+  //           time: profitDatas.time
+  //         };
+  //       }
+  //       return data;
+  //     })
+  //   })
 
-    setRateDisplays(exisitingDisplays => {
-      return exisitingDisplays.map((display, j) => {
-        if (ammCheckedState.length * poolCheckedState.length * directionCheckedState.length === j) {
-          display = {
-            displayName: "Possible Profit From Transactions (USDC)",
-            yaxis: "y3"
-          }
-        }
-        return display;
-      });
-    })
-  }, [profitDatas])
+  //   setRateDisplays(exisitingDisplays => {
+  //     return exisitingDisplays.map((display, j) => {
+  //       if (ammCheckedState.length * poolCheckedState.length * directionCheckedState.length === j) {
+  //         display = {
+  //           displayName: "Possible Profit From Transactions (USDC)",
+  //           yaxis: "y3"
+  //         }
+  //       }
+  //       return display;
+  //     });
+  //   })
+  // }, [profitDatas])
 
   // On change handlers
   function slippageOnChangeHandler(value) { setSlippage(old => value); }
@@ -188,14 +157,14 @@ function Metrics() {
   }
 
   /**
-   * Toggles the checkbox state of the pools filter.
-   * @param {number} position the index of the checkbox of the pool filter. 
+   * Toggles the checkbox state of the currency filter.
+   * @param {number} position the index of the checkbox of the currency filter. 
    */
-  const handlePoolCheckboxOnChange = (position) => {
-    const updatedPoolCheckedState = poolCheckedState.map((item, index) => {
+  const handleCurrenciesCheckboxOnChange = (position) => {
+    const updatedCurrencyCheckedState = currencyCheckedState.map((item, index) => {
       return (index === position ? !item : item);
     })
-    setPoolCheckedState(updatedPoolCheckedState);
+    setCurrencyCheckedState(updatedCurrencyCheckedState);
   }
 
   /**
@@ -285,11 +254,11 @@ function Metrics() {
                 );
               })}
             </div>
-            <div className="pool-checkbox-container filter">
-              <h3>Pools</h3>
-              {poolsDisplay.map((name, index) => {
+            <div className="currency-checkbox-container filter">
+              <h3>Currencies</h3>
+              {currencies.map((name, index) => {
                 return (
-                  <Checkbox key={index} label={name} value={poolCheckedState[index]} onChange={() => handlePoolCheckboxOnChange(index)} />
+                  <Checkbox key={index} label={name} value={currencyCheckedState[index]} onChange={() => handleCurrenciesCheckboxOnChange(index)} />
                 );
               })}
             </div>
