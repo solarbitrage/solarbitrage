@@ -46,13 +46,13 @@ function Metrics() {
 
     if (directionIndex === 0) {
       setRateDisplays(rateDisplays => [...rateDisplays, {
-        displayName: "Buy " + rateDisplay,
+        displayName: rateDisplay,
         yaxis: "y1"
       }])  
     }
     else {
       setRateDisplays(rateDisplays => [...rateDisplays, {
-        displayName: "Sell " + rateDisplay,
+        displayName: rateDisplay,
         yaxis: "y2"
       }])  
     }
@@ -70,9 +70,9 @@ function Metrics() {
 
     let rateIndex = 0;
 
-    for (let ammIndex = 0; ammIndex < amms.length; ammIndex++) {
-      for (let currencyIndex = 0; currencyIndex < currencies.length; currencyIndex++) {
-        for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
+    for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
+      for (let ammIndex = 0; ammIndex < amms.length; ammIndex++) {
+        for (let currencyIndex = 0; currencyIndex < currencies.length; currencyIndex++) {
           // Check if the filters are checked
           if (ammCheckedState[ammIndex] && currencyCheckedState[currencyIndex] && directionCheckedState[directionIndex]) {
 
@@ -82,7 +82,6 @@ function Metrics() {
                 let poolID = amms[ammIndex] + "_" + currencies[currencyIndex] + "_" + currencies[currencyPairIndex];
                 let poolIDReversed = amms[ammIndex] + "_" + currencies[currencyPairIndex] + "_" + currencies[currencyIndex];
 
-                console.log({poolID, poolIDReversed, rateIndex});
                 const q1 = query(collection(database, "pricing_history"), 
                   where("pool_id", "==", poolID), 
                   where("direction", "==", directions[directionIndex]), 
@@ -96,9 +95,12 @@ function Metrics() {
                   where("timestamp", "<=", endDate),
                   orderBy("timestamp", "desc"));
                 
-                queryPoolRate(q1, poolID, directionIndex);
+                let rateDisplay = ammsDisplay[ammIndex] + " | " + directionsDisplay[directionIndex] + " " + currencies[currencyIndex] + " to " + currencies[currencyPairIndex];
+                queryPoolRate(q1, rateDisplay, directionIndex);
                 ++rateIndex;
-                queryPoolRate(q2, poolIDReversed, directionIndex);
+
+                rateDisplay = ammsDisplay[ammIndex] + " | " + directionsDisplay[directionIndex] + " " + currencies[currencyPairIndex] + " to " + currencies[currencyIndex];
+                queryPoolRate(q2, rateDisplay, directionIndex);
                 ++rateIndex;
               }
             }
@@ -110,34 +112,26 @@ function Metrics() {
   }
 
   React.useEffect(() => {
-    console.log(rateDatas);
+    //console.log(rateDatas);
+    let offset = rateDatas.length / 4;
+    for (let i = 0; i < rateDatas.length; i++) {
+      if (rateDatas[i] && rateDatas[(offset * 1) + i] && rateDatas[(offset * 2) + i] && rateDatas[(offset * 3) + i]) {
+        // console.log(offset);
+        // console.log("----------");
+        // console.log(i);
+        // console.log((offset * 1) + i);
+        // console.log((offset * 2) + i);
+        // console.log((offset * 3) + i);
+        // console.log("Working!");
+        calculateProfitability(rateDatas[i], rateDatas[(offset * 2) + i], rateDatas[(offset * 1) + i], rateDatas[(offset * 3) + i], 0);
+      }
+    }
+    
   }, [rateDatas])
 
-  // React.useEffect(() => {
-  //   setRateDatas(existingData => {
-  //     return existingData.map((data, i) => {
-  //       if (ammCheckedState.length * poolCheckedState.length * directionCheckedState.length === i) {
-  //         data = {
-  //           profit: profitDatas.profit,
-  //           time: profitDatas.time
-  //         };
-  //       }
-  //       return data;
-  //     })
-  //   })
-
-  //   setRateDisplays(exisitingDisplays => {
-  //     return exisitingDisplays.map((display, j) => {
-  //       if (ammCheckedState.length * poolCheckedState.length * directionCheckedState.length === j) {
-  //         display = {
-  //           displayName: "Possible Profit From Transactions (USDC)",
-  //           yaxis: "y3"
-  //         }
-  //       }
-  //       return display;
-  //     });
-  //   })
-  // }, [profitDatas])
+  React.useEffect(() => {
+    console.log(profitDatas);
+  }, [profitDatas]);
 
   // On change handlers
   function slippageOnChangeHandler(value) { setSlippage(old => value); }
@@ -179,9 +173,11 @@ function Metrics() {
   }
 
   const calculateProfitability = (poolABuy, poolASell, poolBBuy, poolBSell, transasctionFee) => {
-    if (!poolABuy || !poolASell || !poolBBuy || !poolBSell) {
+    if (poolABuy.length === 0 || poolASell.length === 0 || poolBBuy.length === 0 || poolBSell.length === 0) {
       return null;
     }
+
+    
     
     console.log({poolABuy, poolBBuy});
     
@@ -229,14 +225,15 @@ function Metrics() {
       }
     }
 
-    console.log({poolARates, poolBRates, estimatedProfits});
-    console.log("Best possible trade:", Math.max.apply(null, estimatedProfits));
-    console.log("Worst possible trade:", Math.min.apply(null, estimatedProfits));
+    // console.log({poolARates, poolBRates, estimatedProfits});
+    // console.log("Best possible trade:", Math.max.apply(null, estimatedProfits));
+    // console.log("Worst possible trade:", Math.min.apply(null, estimatedProfits));
 
-    setProfitDatas({
+    setProfitDatas(profitDatas => [...profitDatas, {
       profit: estimatedProfits,
-      time: times
-    });
+      time: times,
+      name: poolABuy[0].data.pool_id
+    }]);
   }
 
 
@@ -344,7 +341,7 @@ function Metrics() {
                   mode: "lines+points"
                 };
               }
-          })}
+            })}
           layout = {
             {
               autosize: true,
@@ -367,13 +364,25 @@ function Metrics() {
         />
 
         <Plot
-					data={[{
-            type: "scatter",
-            mode: "lines+points",
-            name: "USDC",
-            x: profitDatas.time,
-            y: profitDatas.profit
-          }]}
+					data={
+            profitDatas.map((data, index) => {
+              if (data && rateDisplays[index]) {
+                let arrayData = {};
+                  arrayData = {
+                    type: "scatter",
+                    mode: "lines+points",
+                    name: data.name,
+                    x: data.time,
+                    y: data.profit
+                  }
+                return arrayData;
+              } else {
+                return {
+                  type: "scatter",
+                  mode: "lines+points"
+                };
+              }
+            })}
 					layout={ 
             {
               autosize: true,
