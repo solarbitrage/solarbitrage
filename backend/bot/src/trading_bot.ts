@@ -191,8 +191,6 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
                     const amountOut = RaydiumRateFuncs.getRate(poolKeys, await Liquidity.fetchInfo({ connection, poolKeys }), fromToken, toToken, beforeAmt)
                     const parsedAmountOut = parseFloat(amountOut.amountOut.toExact());
 
-                    console.log("RAYDIUM", { parsedAmountOut, newTokenAmt })
-                    
                     if (
                         parsedAmountOut < newTokenAmt &&
                         (i != 0 || 
@@ -200,7 +198,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
                     ) {
                         throw new Error(`SLIPPAGE_ERROR: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on RAYDIUM, slippage should maybe be ${SLIPPAGE + (1 - parsedAmountOut / newTokenAmt)})`)
                     }
-                })().catch((e: Error) => {console.error(`POOL_ID{${pool.pool_id}}:`,e.message)})
+                })().catch((e: Error) => {console.error(`POOL_ID{${pool.pool_id}}[${i}]:`,e.message)})
 
                 const res = await raydiumSwap(
                     connection,
@@ -231,17 +229,15 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
                 (async () => {   
                     const quote = await orcaAmmPool.getQuote(fromToken, new Decimal(beforeAmt))
                     const parsedAmountOut = quote.getExpectedOutputAmount().toNumber();
-                    
-                    console.log("ORCA", { parsedAmountOut, newTokenAmt })
-                    
+                                        
                     if (
                         parsedAmountOut < newTokenAmt &&
                         (i != 0 || 
                         parsedAmountOut * route[i+1].sell.rate < newTokenAmt * route[i+1].sell.rate)
                     ) {
-                        throw new Error(`SLIPPAGE_ERROR: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on ORCA)`)
+                        throw new Error(`SLIPPAGE_ERROR: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on ORCA, slippage should maybe be ${SLIPPAGE + (1 - parsedAmountOut / newTokenAmt)})`)
                     }
-                })().catch((e: Error) => {console.error(`POOL_ID{${pool.pool_id}}:`,e.message)})
+                })().catch((e: Error) => {console.error(`POOL_ID{${pool.pool_id}}[${i}]:`,e.message)})
 
                 const { transactionPayload } = await orcaSwap(
                     orcaAmmPool, 
@@ -276,7 +272,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
         
         write_to_database(beforeUSDC, afterUSDC, _expected_usdc, transactionId);
     } catch (err) {
-        console.error(`CONTEXT: ${route[0].pool_id} -> ${route[1].pool_id}\n`, err);
+        console.error(`CONTEXT: ${route[0].pool_id} -> ${route[1].pool_id}\n`, err.message);
     }
 }
 
