@@ -3,7 +3,7 @@ import { jsonInfo2PoolKeys, Liquidity, LiquidityPoolJsonInfo, MAINNET_SPL_TOKENS
 import { Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { initializeApp } from 'firebase/app';
-import { get, getDatabase, onChildChanged, ref } from "firebase/database";
+import { get, getDatabase, onChildChanged, ref, set } from "firebase/database";
 import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/firestore";
 import { readFile } from "mz/fs";
 import fetch from "node-fetch";
@@ -43,7 +43,7 @@ const firestore = getFirestore(app);
 // ~~~~~~ firebase configs ~~~~~~
 
 const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/Users/noelb/my-solana-wallet/wallet-keypair.json"
-const SLIPPAGE = 0.04;
+const STARTING_SLIPPAGE = 0;
 const THRESHOLD = 0;
 const STARTING_USDC_BET = 4
 
@@ -59,6 +59,7 @@ const poolKeysMap = {};
 let owner: Keypair;
 
 let local_database: any = {};
+let pool_to_slippage_map: {[key:string]: [number, number]} = {};
 
 // function to set up local copy of the database
 async function query_pools() {
@@ -67,6 +68,24 @@ async function query_pools() {
         if (!snapshot.exists()) throw new Error("Snapshot doesn't exist");
         return snapshot.val();
     })
+}
+
+async function get_slippages() {
+    const slip_map = ref(database, 'mainnet_pool_to_slippage_map/');
+    return get(slip_map).then((snapshot) => {
+        if (!snapshot.exists()) return {};
+        const data = snapshot.val();
+        const ret = {}
+        for (const key of Object.keys(data)) {
+            ret[key] = [data[key]["0"], data[key]["1"]]
+        }
+        return ret;
+    })
+}
+
+async function set_slippages(val) {
+    const slip_map = ref(database, 'mainnet_pool_to_slippage_map/');
+    return set(slip_map, val);
 }
 
 async function main() {
@@ -94,6 +113,13 @@ async function main() {
     local_database = queries;
     let middleTokenToPoolMap = getMiddleTokenToPoolMap("USDC");
 
+    // setup slippage's per pool_id
+    pool_to_slippage_map = await get_slippages();
+    for (const poolId of Object.keys(local_database)) {
+        if (!pool_to_slippage_map[poolId]) {
+            pool_to_slippage_map[poolId] = [STARTING_SLIPPAGE, STARTING_SLIPPAGE];
+        }
+    }
 
     // get wallet credentials
     const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
@@ -110,11 +136,18 @@ async function main() {
         const profitableRoutes = []
         ready_to_trade = false;
 
+        set_slippages(pool_to_slippage_map);
+
         for (const middleTokenName of Object.keys(middleTokenToRouteMap)) {
             if (middleTokenToRouteMap[middleTokenName].length > 0) {
                 profitableRoutes.push(middleTokenToRouteMap[middleTokenName][0])
             }
         }
+
+        console.table(
+            Object.keys(pool_to_slippage_map)
+                .map(poolId => ({ "Buy Rate Slippage": pool_to_slippage_map[poolId][0], "Sell Rate Slippage": pool_to_slippage_map[poolId][0], "Pool": poolId }))
+        )
 
 
         console.table(profitableRoutes
@@ -184,35 +217,44 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
     transaction.feePayer = owner.publicKey;
     const signers = [];
 
+    const afterSwapPromises = [];
+
     let beforeAmt = fromCoinAmount;
     try {
+        const current_pool_to_slippage = JSON.parse(JSON.stringify(pool_to_slippage_map))
         for (const [i, pool] of route.entries()) {
+            const pool_id = pool.pool_id;
+            const slippage = current_pool_to_slippage[pool_id][i];
             const newTokenAmt = beforeAmt * 
-                (i === 0 ? pool.buy.rate : pool.sell.rate) * (1 - SLIPPAGE);
+                (i === 0 ? pool.buy.rate : pool.sell.rate) * (1 - slippage);
 
             const fromTokenStr = (i === 0 ? pool.buy.from : pool.sell.from);
             const toTokenStr = (i === 0 ? pool.buy.to : pool.sell.to);
 
-            if (pool.pool_id.split("_")[0] === "RAYDIUM") {
+            if (pool_id.split("_")[0] === "RAYDIUM") {
                 const fromToken = fromTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[fromTokenStr];
                 const toToken = toTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[toTokenStr];
 
                 const poolKeys = poolKeysMap[`${fromToken.mint}-${toToken.mint}`] ?? poolKeysMap[`${toToken.mint}-${fromToken.mint}`];
 
                 // check if rates are accurately (without affecting swap call)
-                let _beforeAmt = beforeAmt;                    
-                (async () => {
+                const _beforeAmt = beforeAmt;     
+                const _i = i;      
+                const _pool_id = pool.pool_id;         
+                afterSwapPromises.push((async () => {
                     const amountOut = RaydiumRateFuncs.getRate(poolKeys, await Liquidity.fetchInfo({ connection, poolKeys }), fromToken, toToken, _beforeAmt)
                     const parsedAmountOut = amountOut.amountOut.raw.toNumber() / Math.pow(10, toToken.decimals);
 
                     if (
                         parsedAmountOut < newTokenAmt &&
-                        (i != 0 || 
-                        parsedAmountOut * route[i+1].sell.rate < newTokenAmt * route[i+1].sell.rate)
+                        (_i != 0 || 
+                        parsedAmountOut * route[_i+1].sell.rate < newTokenAmt * route[_i+1].sell.rate)
                     ) {
-                        throw new Error(`SLIPPAGE_ERROR: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on RAYDIUM, slippage should maybe be ${SLIPPAGE + (1 - parsedAmountOut / newTokenAmt)})`)
+                        const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
+                        console.warn(`POOL_ID{${pool.pool_id}}[${i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on RAYDIUM, slippage should maybe be ${slippageShouldBe})`);
+                        pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
                     }
-                })().catch((e: Error) => {console.error(`POOL_ID{${pool.pool_id}}[${i}]:`,e.message)})
+                })().catch((e: Error) => {console.error(`POOL_ID{${_pool_id}}[${_i}]:`,e.message)}))
 
                 const res = await raydiumSwap(
                     connection,
@@ -228,7 +270,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
                 );
                 transaction.add(res.transaction);
                 signers.push(...res.signers);
-            } else if (pool.pool_id.split("_")[0] === "ORCA") {
+            } else if (pool_id.split("_")[0] === "ORCA") {
                 const orcaAmmPool = orca.getPool(OrcaPoolConfig[pool.pool_id.split("_").slice(1).join("_")]);
                 const poolTokens = {
                     [orcaAmmPool.getTokenA().tag]: orcaAmmPool.getTokenA(),
@@ -240,18 +282,23 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
                 const toToken = poolTokens[toTokenStr];
 
                 // check if rates are accurately (without affecting swap call)
-                (async () => {   
-                    const quote = await orcaAmmPool.getQuote(fromToken, new Decimal(beforeAmt))
+                const _beforeAmt = beforeAmt;     
+                const _i = i;      
+                const _pool_id = pool.pool_id;   
+                afterSwapPromises.push((async () => {   
+                    const quote = await orcaAmmPool.getQuote(fromToken, new Decimal(_beforeAmt))
                     const parsedAmountOut = quote.getExpectedOutputAmount().toNumber();
                                         
                     if (
                         parsedAmountOut < newTokenAmt &&
-                        (i != 0 || 
-                        parsedAmountOut * route[i+1].sell.rate < newTokenAmt * route[i+1].sell.rate)
+                        (_i != 0 || 
+                        parsedAmountOut * route[_i+1].sell.rate < newTokenAmt * route[_i+1].sell.rate)
                     ) {
-                        throw new Error(`SLIPPAGE_ERROR: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on ORCA, slippage should maybe be ${SLIPPAGE + (1 - parsedAmountOut / newTokenAmt)})`)
+                        const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
+                        console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on ORCA, slippage should maybe be ${slippageShouldBe})`);
+                        pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
                     }
-                })().catch((e: Error) => {console.error(`POOL_ID{${pool.pool_id}}[${i}]:`,e.message)})
+                })().catch((e: Error) => {console.error(`POOL_ID{${_pool_id}}[${_i}]:`,e.message)}))
 
                 const { transactionPayload } = await orcaSwap(
                     orcaAmmPool, 
@@ -285,8 +332,10 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
         const afterUSDC = parseFloat(parsedInfo.tokenAmount.uiAmount);
         
         write_to_database(beforeUSDC, afterUSDC, _expected_usdc, transactionId);
+
+        await Promise.allSettled(afterSwapPromises);
     } catch (err) {
-        console.error(`CONTEXT: ${route[0].pool_id} -> ${route[1].pool_id}\n`, err.message);
+        console.error(`CONTEXT: ${route[0].pool_id} -> ${route[1].pool_id}\n`, err);
     }
 }
 
@@ -328,8 +377,8 @@ function getMiddleTokenToRoutesMap(middleTokenToPoolMap: any) {
                 const b = middleTokenToPoolMap[middleTokenName][y];
 
                 let estimatedProfits = {
-                    "a then b": ((1 * a.buy.rate * (1 - SLIPPAGE)) * b.sell.rate * (1 - SLIPPAGE)) - 1,
-                    "b then a": ((1 * b.buy.rate * (1 - SLIPPAGE)) * a.sell.rate * (1 - SLIPPAGE)) - 1
+                    "a then b": ((1 * a.buy.rate * (1 - pool_to_slippage_map[a.pool_id][0])) * b.sell.rate * (1 - pool_to_slippage_map[b.pool_id][1])) - 1,
+                    "b then a": ((1 * b.buy.rate * (1 - pool_to_slippage_map[b.pool_id][0])) * a.sell.rate * (1 - pool_to_slippage_map[a.pool_id][1])) - 1
                 }
 
                 if (estimatedProfits["a then b"] > estimatedProfits["b then a"]) {
