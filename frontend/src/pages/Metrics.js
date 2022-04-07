@@ -11,6 +11,7 @@ import NumericInput from "react-numeric-input";
 
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import database from "../firestore.config";
+//import { async } from "@firebase/util";
 
 function Metrics() {
   // Display names.
@@ -292,7 +293,7 @@ function Metrics() {
 
         <HistoryPlot
           data={
-            rateDatas.filter(x => x.length > 0).map((data, index) => {
+            rateDatas.map((data, index) => {
               //console.log(index);
               if (data && rateDisplays[index]) {
                 let arrayData = {};
