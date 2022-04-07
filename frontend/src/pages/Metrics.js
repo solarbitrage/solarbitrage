@@ -9,9 +9,8 @@ import Datetime from "react-datetime";
 import "react-datetime/css/react-datetime.css";
 import NumericInput from "react-numeric-input";
 
-import { collection, query, where, limit, orderBy, getDocs } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import database from "../firestore.config";
-//import { async } from "@firebase/util";
 
 function Metrics() {
   // Display names.
@@ -36,9 +35,15 @@ function Metrics() {
   const [profitDatas, setProfitDatas] = React.useState(new Array(0).fill(null));
   const [slippageData, setSlippage] = React.useState(0.0);
 
+  /**
+   * Sends a constructed query to firebase and places them in
+   * the rateDatas array.
+   * @param {Query<DocumentData>} q The constructed query to send
+   * @param {string} rateDisplay The name of the pool to be displayed on the graph
+   * @param {number} directionIndex 0 for buy, 1 for sell
+   */
   const queryPoolRate = async(q, rateDisplay, directionIndex) => {
     const docSnap = await getDocs(q);
-
     setRateDatas(rateDatas => [...rateDatas, docSnap.docs.map(doc => ({
       id: doc.id,
       data: doc.data()
@@ -61,14 +66,12 @@ function Metrics() {
   /**
    * Fetches data based on which filters are checked.
    */
-  const fetchData = async() => {
+  function fetchData() {
     setProfitDatas(new Array(0).fill(null));
     setRateDatas(new Array(0).fill(null));
     setRateDisplays(new Array(0).fill(null));
     const startDate = new Date(startDateTime);
     const endDate = new Date(endDateTime);
-
-    let rateIndex = 0;
 
     for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
       for (let ammIndex = 0; ammIndex < amms.length; ammIndex++) {
@@ -97,11 +100,10 @@ function Metrics() {
                 
                 let rateDisplay = ammsDisplay[ammIndex] + " | " + directionsDisplay[directionIndex] + " " + currencies[currencyIndex] + " to " + currencies[currencyPairIndex];
                 queryPoolRate(q1, rateDisplay, directionIndex);
-                ++rateIndex;
 
                 rateDisplay = ammsDisplay[ammIndex] + " | " + directionsDisplay[directionIndex] + " " + currencies[currencyPairIndex] + " to " + currencies[currencyIndex];
                 queryPoolRate(q2, rateDisplay, directionIndex);
-                ++rateIndex;
+                console.log("whoop");
               }
             }
           }
@@ -110,21 +112,6 @@ function Metrics() {
     }
     return;
   }
-
-  React.useEffect(() => {
-    //console.log(rateDatas);
-    let offset = rateDatas.length / 4;
-    for (let i = 0; i < rateDatas.length; i++) {
-      if (rateDatas[i] && rateDatas[(offset * 1) + i] && rateDatas[(offset * 2) + i] && rateDatas[(offset * 3) + i]) {
-        calculateProfitability(rateDatas[i], rateDatas[(offset * 2) + i], rateDatas[(offset * 1) + i], rateDatas[(offset * 3) + i], 0);
-      }
-    }
-    
-  }, [rateDatas])
-
-  React.useEffect(() => {
-    console.log(profitDatas);
-  }, [profitDatas]);
 
   // On change handlers
   function slippageOnChangeHandler(value) { setSlippage(old => value); }
@@ -165,72 +152,84 @@ function Metrics() {
     setDirectionCheckedState(updatedDirectionCheckedState);
   }
 
-  const calculateProfitability = (poolABuy, poolASell, poolBBuy, poolBSell, transasctionFee) => {
-    if (poolABuy.length === 0 || poolASell.length === 0 || poolBBuy.length === 0 || poolBSell.length === 0) {
-      return null;
+  // Calculate Profits
+  React.useEffect(() => {
+    if (ammCheckedState.filter(x => x === true).length < 2 
+      || currencyCheckedState.filter(x => x === true).length < 2
+      || directionCheckedState.filter(x => x === true).length < 2) {
+      return;
     }
 
-    
-    
-    console.log({poolABuy, poolBBuy});
-    
-    // Grabbing relevant data
-    let poolARates = {
-      buyTime: poolABuy.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
-      buyRate: poolABuy.map(ph => ph.data.rate),
-      sellTime: poolASell.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
-      sellRate: poolASell.map(ph => ph.data.rate)
+    const calculateProfitability = (poolABuy, poolASell, poolBBuy, poolBSell, transasctionFee) => {
+      if (poolABuy.length === 0 || poolASell.length === 0 || poolBBuy.length === 0 || poolBSell.length === 0) {
+        return null;
+      }
+      
+      console.log({poolABuy, poolBBuy});
+      // Grabbing relevant data
+      let poolARates = {
+        buyTime: poolABuy.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
+        buyRate: poolABuy.map(ph => ph.data.rate),
+        sellTime: poolASell.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
+        sellRate: poolASell.map(ph => ph.data.rate)
+      }
+      let poolBRates = {
+        buyTime: poolBBuy.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
+        buyRate: poolBBuy.map(ph => ph.data.rate),
+        sellTime: poolBSell.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
+        sellRate: poolBSell.map(ph => ph.data.rate)
+      }
+      
+      let estimatedProfits = [];
+      let times = [];
+  
+      while (poolARates.buyTime.length > 0 && poolARates.sellTime.length > 0 && poolBRates.buyTime.length > 0 && poolBRates.sellTime.length > 0) {
+        let newestTime = new Date(Math.max.apply(null, [poolARates.buyTime[0], poolARates.sellTime[0], poolBRates.buyTime[0], poolBRates.sellTime[0]]));
+        let estimatedProfit = {
+          aThenB: ((1 * poolARates.buyRate[0] * (1 - slippageData)) * poolBRates.sellRate[0] * (1 - slippageData)) - 1,
+          bThenA: ((1 * poolBRates.buyRate[0] * (1 - slippageData)) * poolARates.sellRate[0] * (1 - slippageData)) - 1
+        }
+        estimatedProfits.push(Math.max(estimatedProfit.aThenB, estimatedProfit.bThenA));
+        times.push(newestTime);
+  
+        if (newestTime.getTime() === poolARates.buyTime[0].getTime()) {
+          poolARates.buyTime.shift();
+          poolARates.buyRate.shift();
+        }
+        if (newestTime.getTime() === poolARates.sellTime[0].getTime()) {
+          poolARates.sellTime.shift();
+          poolARates.sellRate.shift();
+        }
+        if (newestTime.getTime() === poolBRates.buyTime[0].getTime()) {
+          poolBRates.buyTime.shift();
+          poolBRates.buyRate.shift();
+        }
+        if (newestTime.getTime() === poolBRates.sellTime[0].getTime()) {
+          poolBRates.sellTime.shift();
+          poolBRates.sellRate.shift();
+        }
+      }
+  
+      console.log({poolARates, poolBRates, estimatedProfits});
+      console.log("Best possible trade:", Math.max.apply(null, estimatedProfits));
+      console.log("Worst possible trade:", Math.min.apply(null, estimatedProfits));    
+      const poolName = poolABuy[0].data.pool_id.split("_");
+      console.log(poolName);
+  
+      setProfitDatas(profitDatas => [...profitDatas, {
+        profit: estimatedProfits,
+        time: times,
+        name: poolName[1] + " and " + poolName[2]
+      }]);
     }
-    let poolBRates = {
-      buyTime: poolBBuy.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
-      buyRate: poolBBuy.map(ph => ph.data.rate),
-      sellTime: poolBSell.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
-      sellRate: poolBSell.map(ph => ph.data.rate)
-    }
-    
-    let estimatedProfits = [];
-    let times = [];
 
-    while (poolARates.buyTime.length > 0 && poolARates.sellTime.length > 0 && poolBRates.buyTime.length > 0 && poolBRates.sellTime.length > 0) {
-      let newestTime = new Date(Math.max.apply(null, [poolARates.buyTime[0], poolARates.sellTime[0], poolBRates.buyTime[0], poolBRates.sellTime[0]]));
-      let estimatedProfit = {
-        aThenB: ((1 * poolARates.buyRate[0] * (1 - slippageData)) * poolBRates.sellRate[0] * (1 - slippageData)) - 1,
-        bThenA: ((1 * poolBRates.buyRate[0] * (1 - slippageData)) * poolARates.sellRate[0] * (1 - slippageData)) - 1
-      }
-      estimatedProfits.push(Math.max(estimatedProfit.aThenB, estimatedProfit.bThenA));
-      times.push(newestTime);
-
-      if (newestTime.getTime() === poolARates.buyTime[0].getTime()) {
-        poolARates.buyTime.shift();
-        poolARates.buyRate.shift();
-      }
-      if (newestTime.getTime() === poolARates.sellTime[0].getTime()) {
-        poolARates.sellTime.shift();
-        poolARates.sellRate.shift();
-      }
-      if (newestTime.getTime() === poolBRates.buyTime[0].getTime()) {
-        poolBRates.buyTime.shift();
-        poolBRates.buyRate.shift();
-      }
-      if (newestTime.getTime() === poolBRates.sellTime[0].getTime()) {
-        poolBRates.sellTime.shift();
-        poolBRates.sellRate.shift();
+    let offset = rateDatas.length / 4;
+    for (let i = 0; i < rateDatas.length; i++) {
+      if (rateDatas[i] && rateDatas[(offset * 1) + i] && rateDatas[(offset * 2) + i] && rateDatas[(offset * 3) + i]) {
+        calculateProfitability(rateDatas[i], rateDatas[(offset * 2) + i], rateDatas[(offset * 1) + i], rateDatas[(offset * 3) + i], 0);
       }
     }
-
-    // console.log({poolARates, poolBRates, estimatedProfits});
-    // console.log("Best possible trade:", Math.max.apply(null, estimatedProfits));
-    // console.log("Worst possible trade:", Math.min.apply(null, estimatedProfits));
-    const poolName = poolABuy[0].data.pool_id.split("_");
-    console.log(poolName);
-
-    setProfitDatas(profitDatas => [...profitDatas, {
-      profit: estimatedProfits,
-      time: times,
-      name: poolName[1] + " and " + poolName[2]
-    }]);
-  }
-
+  }, [rateDatas, slippageData, ammCheckedState, currencyCheckedState, directionCheckedState]);
 
   return (
     <div className="page-container">
@@ -293,7 +292,7 @@ function Metrics() {
 
         <HistoryPlot
           data={
-            rateDatas.map((data, index) => {
+            rateDatas.filter(x => x.length > 0).map((data, index) => {
               //console.log(index);
               if (data && rateDisplays[index]) {
                 let arrayData = {};
