@@ -33,6 +33,8 @@ MAINNET_SPL_TOKENS["SOL"] = {
 
 MAINNET_SPL_TOKENS["ETH"] = {
     ...MAINNET_SPL_TOKENS["ETH"],
+    mint: "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
+    name: "Ether (Portal)", // TODO: fix ETH-USDC pool
     decimals: 8
 }
 
@@ -55,7 +57,6 @@ const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ
 const getNewConnection = useConnection(false);
 let connection = getNewConnection();
 
-const orca = getOrca(connection);
 const poolKeysMap = {};
 let owner: Keypair;
 
@@ -147,7 +148,7 @@ async function main() {
 
         console.table(
             Object.keys(pool_to_slippage_map)
-                .map(poolId => ({ "Buy Rate Slippage": pool_to_slippage_map[poolId][0], "Sell Rate Slippage": pool_to_slippage_map[poolId][0], "Pool": poolId }))
+                .map(poolId => ({ "Pool": poolId, "Buy Rate Slippage (%)": (pool_to_slippage_map[poolId][0] * 100).toFixed(4), "Sell Rate Slippage (%)": (pool_to_slippage_map[poolId][0] * 100).toFixed(4) }))
         )
 
 
@@ -160,15 +161,13 @@ async function main() {
             })));
 
 
-        Promise.all(profitableRoutes.map(r => calculate_trade(r)))
+        return Promise.all(profitableRoutes.sort((a, b) => b.estimatedProfit - a.estimatedProfit).map((r, i) => calculate_trade(r, i)))
             .then(() => {
                 ready_to_trade = true;
             })
             .catch(e => console.error(e))
     }
     
-    // initial trade calculation
-    loop();
 
     // ==== Start listener
     const updated_pools = ref(database, 'latest_prices/');
@@ -181,25 +180,27 @@ async function main() {
         //function that runs caclculations anytime there's a change
         // while(!ready_to_trade){
 
-        // }            
-        if (ready_to_trade) {
-            loop();
-            console.log("going to check new change", new Date().toLocaleString())
-        }
+        // }
 
     });
+
+    for (;;) {
+        const dateString = new Date().toLocaleString()
+        console.log(dateString, "-".repeat(Math.max(process.stdout.columns - dateString.length - 1, 0)))
+        await loop();
+        await new Promise<void>((res) => setTimeout(() => res(), 300));
+    }
 }
 
-main().then(() => {}).catch(e => console.error(e))
+main().then(() => {}).catch(e => {console.error(e); process.exit(1)})
 
-async function calculate_trade({route, estimatedProfit}) {
-    connection = getNewConnection();
-
+async function calculate_trade({route, estimatedProfit}, index) {
     let usdc = STARTING_USDC_BET;
+    // don't bother if it is not the top 4 routes
+    if (estimatedProfit <= THRESHOLD && index >= 3) return;
 
-    if (estimatedProfit > THRESHOLD) {
-        await arbitrage(route, usdc, usdc + (usdc * estimatedProfit))
-    }
+    // if the route is not profitable then don't make swap functions, just test out slippage
+    await arbitrage(route, usdc, usdc + (usdc * estimatedProfit), estimatedProfit <= THRESHOLD)
 }
 
 
@@ -207,10 +208,8 @@ async function calculate_trade({route, estimatedProfit}) {
 // update database on changes, if change is found, calculate the rate differences to check for profitable trades
 // if profitable trade exists, conduct a swap.
 // only after a swap is done, look for another database update?
-
-const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
-    console.log( { fromCoinAmount, _expected_usdc })    
-
+const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSkipSwap?: boolean) => {
+    const current_pool_to_slippage = JSON.parse(JSON.stringify(pool_to_slippage_map))
     let transactionId = "";
 
     const tokenAccounts = await getTokenAccounts();
@@ -222,7 +221,6 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
 
     let beforeAmt = fromCoinAmount;
     try {
-        const current_pool_to_slippage = JSON.parse(JSON.stringify(pool_to_slippage_map))
         for (const [i, pool] of route.entries()) {
             const pool_id = pool.pool_id;
             const slippage = current_pool_to_slippage[pool_id][i];
@@ -243,7 +241,12 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
                 const _i = i;      
                 const _pool_id = pool.pool_id;         
                 afterSwapPromises.push((async () => {
-                    const amountOut = RaydiumRateFuncs.getRate(poolKeys, await Liquidity.fetchInfo({ connection, poolKeys }), fromToken, toToken, _beforeAmt)
+                    const connection = getNewConnection();
+                    // im sorry
+                    const _fromToken = fromToken.mint === NATIVE_SOL.mint ? WSOL : fromToken;
+                    const _toToken = toToken.mint === NATIVE_SOL.mint ? WSOL : toToken;
+
+                    const amountOut = RaydiumRateFuncs.getRate(poolKeys, await Liquidity.fetchInfo({ connection, poolKeys }), _fromToken, _toToken, _beforeAmt)
                     const parsedAmountOut = (amountOut.amountOut.raw.toNumber() / Math.pow(10, toToken.decimals)) * (1 - ADDITIONAL_SLIPPAGE);
 
                     if (
@@ -252,26 +255,35 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
                         parsedAmountOut * route[_i+1].sell.rate < newTokenAmt * route[_i+1].sell.rate)
                     ) {
                         const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
-                        console.warn(`POOL_ID{${pool.pool_id}}[${i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on RAYDIUM, slippage should maybe be ${slippageShouldBe})`);
+                        // console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on RAYDIUM, slippage should maybe be ${slippageShouldBe})`);
+                        pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
+                    } else if (parsedAmountOut > newTokenAmt) {
+                        const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
+                        // console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} > ${newTokenAmt} which means slippage might be too high (trading on RAYDIUM, slippage should maybe be ${slippageShouldBe})`);
                         pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
                     }
-                })().catch((e: Error) => {console.error(`POOL_ID{${_pool_id}}[${_i}]:`,e.message)}))
+                })().catch((e: Error) => {console.error(`POOL_ID{${_pool_id}}[${_i}]:`,e)}))
 
-                const res = await raydiumSwap(
-                    connection,
-                    owner,
-                    poolKeys,
-                    fromToken,
-                    toToken,
-                    tokenAccounts[fromToken.mint]?.tokenAccountAddress,
-                    tokenAccounts[toToken.mint]?.tokenAccountAddress,
-                    beforeAmt.toString(),
-                    newTokenAmt.toString(),
-                    tokenAccounts[WSOL.mint]?.tokenAccountAddress
-                );
-                transaction.add(res.transaction);
-                signers.push(...res.signers);
+                const connection = getNewConnection();
+                if (!shouldSkipSwap) {
+                    const res = await raydiumSwap(
+                        connection,
+                        owner,
+                        poolKeys,
+                        fromToken,
+                        toToken,
+                        tokenAccounts[fromToken.mint]?.tokenAccountAddress,
+                        tokenAccounts[toToken.mint]?.tokenAccountAddress,
+                        beforeAmt.toString(),
+                        newTokenAmt.toString(),
+                        tokenAccounts[WSOL.mint]?.tokenAccountAddress
+                    );
+                    transaction.add(res.transaction);
+                    signers.push(...res.signers);
+                }
             } else if (pool_id.split("_")[0] === "ORCA") {
+                const connection = getNewConnection();
+                const orca = getOrca(connection);
                 const orcaAmmPool = orca.getPool(OrcaPoolConfig[pool.pool_id.split("_").slice(1).join("_")]);
                 const poolTokens = {
                     [orcaAmmPool.getTokenA().tag]: orcaAmmPool.getTokenA(),
@@ -286,7 +298,13 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
                 const _beforeAmt = beforeAmt;     
                 const _i = i;      
                 const _pool_id = pool.pool_id;   
-                afterSwapPromises.push((async () => {   
+
+                afterSwapPromises.push((async () => { 
+                    // the things we do for pooling connections
+                    const connection = getNewConnection();
+                    const orca = getOrca(connection);
+                    const orcaAmmPool = orca.getPool(OrcaPoolConfig[_pool_id.split("_").slice(1).join("_")]);
+
                     const quote = await orcaAmmPool.getQuote(fromToken, new Decimal(_beforeAmt))
                     const parsedAmountOut = quote.getExpectedOutputAmount().toNumber() * (1 - ADDITIONAL_SLIPPAGE);
                                         
@@ -296,43 +314,52 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc) => {
                         parsedAmountOut * route[_i+1].sell.rate < newTokenAmt * route[_i+1].sell.rate)
                     ) {
                         const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
-                        console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on ORCA, slippage should maybe be ${slippageShouldBe})`);
+                        // console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on ORCA, slippage should maybe be ${slippageShouldBe})`);
+                        pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
+                    } else if (parsedAmountOut > newTokenAmt) {
+                        const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
+                        // console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} > ${newTokenAmt} which means slippage might be too high (trading on ORCA, slippage should maybe be ${slippageShouldBe})`);
                         pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
                     }
                 })().catch((e: Error) => {console.error(`POOL_ID{${_pool_id}}[${_i}]:`,e.message)}))
 
-                const { transactionPayload } = await orcaSwap(
-                    orcaAmmPool, 
-                    owner, 
-                    fromToken, 
-                    new Decimal(beforeAmt), 
-                    new Decimal(newTokenAmt), 
-                    new PublicKey(tokenAccounts[fromToken.mint.toBase58()]?.tokenAccountAddress),
-                    new PublicKey(tokenAccounts[toToken.mint.toBase58()]?.tokenAccountAddress),
-                );
-                transaction.add(transactionPayload.transaction);
-                signers.push(...transactionPayload.signers); 
+                if (!shouldSkipSwap) {
+                    const { transactionPayload } = await orcaSwap(
+                        orcaAmmPool, 
+                        owner, 
+                        fromToken, 
+                        new Decimal(beforeAmt), 
+                        new Decimal(newTokenAmt), 
+                        new PublicKey(tokenAccounts[fromToken.mint.toBase58()]?.tokenAccountAddress),
+                        new PublicKey(tokenAccounts[toToken.mint.toBase58()]?.tokenAccountAddress),
+                    );
+                    transaction.add(transactionPayload.transaction);
+                    signers.push(...transactionPayload.signers); 
+                }
+
             }
 
             beforeAmt = newTokenAmt;
         }
 
-        const beforeParsedInfo = tokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
-        const beforeUSDC = parseFloat(beforeParsedInfo.tokenAmount.uiAmount);
+        if (!shouldSkipSwap) {
+            const beforeParsedInfo = tokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
+            const beforeUSDC = parseFloat(beforeParsedInfo.tokenAmount.uiAmount);
 
+            const connection = getNewConnection();
+            transactionId = await sendAndConfirmTransaction(connection, transaction, signers, {commitment: "singleGossip", skipPreflight: true});
+            console.log({ transactionId });
 
-        transactionId = await sendAndConfirmTransaction(connection, transaction, signers, {commitment: "singleGossip", skipPreflight: true});
-        console.log({ transactionId });
+            // Repoll for token account data
+            const afterTokenAccounts = await getTokenAccounts();
+            if (!afterTokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint])
+                throw new Error("No USDC token account!");
 
-        // Repoll for token account data
-        const afterTokenAccounts = await getTokenAccounts();
-        if (!afterTokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint])
-            throw new Error("No USDC token account!");
-
-        const parsedInfo = afterTokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
-        const afterUSDC = parseFloat(parsedInfo.tokenAmount.uiAmount);
-        
-        write_to_database(beforeUSDC, afterUSDC, _expected_usdc, transactionId);
+            const parsedInfo = afterTokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
+            const afterUSDC = parseFloat(parsedInfo.tokenAmount.uiAmount);
+            
+            write_to_database(beforeUSDC, afterUSDC, _expected_usdc, transactionId);
+        }
 
     } catch (err) {
         console.error(`CONTEXT: ${route[0].pool_id} -> ${route[1].pool_id}\n`, err);
