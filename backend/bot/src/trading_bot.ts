@@ -359,7 +359,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
             const parsedInfo = afterTokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
             const afterUSDC = parseFloat(parsedInfo.tokenAmount.uiAmount);
             
-            write_to_database(beforeUSDC, afterUSDC, _expected_usdc, transactionId);
+            write_to_database(beforeUSDC, afterUSDC, fromCoinAmount - _expected_usdc, transactionId);
         }
 
     } catch (err) {
