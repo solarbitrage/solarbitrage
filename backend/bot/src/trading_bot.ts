@@ -26,7 +26,7 @@ const firebaseConfig = {
     appId: config.FIREBASE_APP_ID
 };
 
-const DISCORD_STATUS_WEBHOOK = process.env.DISCORD_STATUS_WEBHOOK;
+const DISCORD_STATUS_WEBHOOK = process.env.DISCORD_STATUS_WEBHOOK; // change this for general channel
 // Hot patches to token info
 MAINNET_SPL_TOKENS["SOL"] = {
     ...WSOL,
@@ -212,6 +212,9 @@ async function calculate_trade({route, estimatedProfit}, index) {
 const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSkipSwap?: boolean) => {
     const current_pool_to_slippage = JSON.parse(JSON.stringify(pool_to_slippage_map))
     let transactionId = "";
+    const profitMsg = {
+        "content": "MADE PROFIT OF $"
+    }   
 
     const tokenAccounts = await getTokenAccounts();
     const transaction = new Transaction();
@@ -360,15 +363,18 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
             const afterUSDC = parseFloat(parsedInfo.tokenAmount.uiAmount);
             // start here
             // how much transaction, what coin, what profit -> using tokenaccounts
-            // const whurl ="https://discord.com/api/webhooks/960950744511545345/lIQ2yoPMCb8ZQUHuqcbfjv1t2SixB9rX2uHrNDbbq9oHjbR9rerDXuicU7w4MJ94jCFE"            
             // !!! add another webhook to the general channel !!!
-            fetch(DISCORD_STATUS_WEBHOOK, {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({
-                    "content": "MADE A PROFIT!"
-                })
-            }).catch(err => console.error(err))
+                     
+            const profit = afterUSDC - beforeUSDC;
+            if(profit > 0){
+                profitMsg.content += profit;
+                fetch(DISCORD_STATUS_WEBHOOK, {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify(profitMsg)
+                }).catch(err => console.error(err))
+                profitMsg.content = "MADE PROFIT OF $"
+            }
 
             write_to_database(beforeUSDC, afterUSDC, _expected_usdc, transactionId);
         }
