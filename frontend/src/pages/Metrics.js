@@ -7,28 +7,28 @@ import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import Datetime from "react-datetime";
 import "react-datetime/css/react-datetime.css";
+import NumericInput from "react-numeric-input";
 
-import { collection, query, where, limit, orderBy, getDocs } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import database from "../firestore.config";
 //import { async } from "@firebase/util";
 
 function Metrics() {
   // Display names.
   const ammsDisplay = ["Orca", "Raydium"];
-  const poolsDisplay = ["SOL to USDC", "BTC to USDC", "ORCA to SOL", "ORCA to USDC", "ETH to USDC", "RAY to USDC"];
   const directionsDisplay = ["Buy", "Sell"];
 
   // Names as listed in the firestore database.
   const amms = ["ORCA", "RAYDIUM"];
-  const pools = ["SOL_USDC", "BTC_USDC", "ORCA_SOL", "ORCA_USDC", "ETH_USDC", "RAY_USDC"];
+  const currencies = ["USDC", "BTC", "ETH", "LIQ", "ORCA", "SOL", "PORT", "RAY", "SBR", "SLRS", "SNY", "mSOL"];
   const directions = ["buy", "sell"];
 
   const [ammCheckedState, setAMMCheckedState] = React.useState(new Array(amms.length).fill(false));
-  const [poolCheckedState, setPoolCheckedState] = React.useState(new Array(pools.length).fill(false));
+  const [currencyCheckedState, setCurrencyCheckedState] = React.useState(new Array(currencies.length).fill(false));
   const [directionCheckedState, setDirectionCheckedState] = React.useState(new Array(directions.length).fill(false));
 
-  const [rateDatas, setRateDatas] = React.useState(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length + 1).fill(null));
-  const [rateDisplays, setRateDisplays] = React.useState(new Array(ammCheckedState.length * poolCheckedState.length * directionCheckedState.length + 1).fill(null));
+  const [rateDatas, setRateDatas] = React.useState(new Array(0).fill(null));
+  const [rateDisplays, setRateDisplays] = React.useState(new Array(0).fill(null));
 
   const [endDateTime, setEndDateTime] = React.useState(new Date());
   const [startDateTime, setStartDateTime] = React.useState(new Date().getTime() - (1000 * 60 * 60));
@@ -37,93 +37,75 @@ function Metrics() {
   const [slippageData, setSlippage] = React.useState(0.0);
 
   /**
+   * Sends a constructed query to firebase and places them in
+   * the rateDatas array.
+   * @param {Query<DocumentData>} q The constructed query to send
+   * @param {string} rateDisplay The name of the pool to be displayed on the graph
+   * @param {number} directionIndex 0 for buy, 1 for sell
+   */
+  const queryPoolRate = async(q, rateDisplay, directionIndex) => {
+    const docSnap = await getDocs(q);
+    setRateDatas(rateDatas => [...rateDatas, docSnap.docs.map(doc => ({
+      id: doc.id,
+      data: doc.data()
+    }))]);
+
+    if (directionIndex === 0) {
+      setRateDisplays(rateDisplays => [...rateDisplays, {
+        displayName: rateDisplay,
+        yaxis: "y1"
+      }])  
+    }
+    else {
+      setRateDisplays(rateDisplays => [...rateDisplays, {
+        displayName: rateDisplay,
+        yaxis: "y2"
+      }])  
+    }
+  }
+
+  /**
    * Fetches data based on which filters are checked.
    */
-  const fetchData = async() => {
+  function fetchData() {
+    setProfitDatas(new Array(0).fill(null));
+    setRateDatas(new Array(0).fill(null));
+    setRateDisplays(new Array(0).fill(null));
     const startDate = new Date(startDateTime);
     const endDate = new Date(endDateTime);
 
+    for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
+      for (let ammIndex = 0; ammIndex < amms.length; ammIndex++) {
+        for (let currencyIndex = 0; currencyIndex < currencies.length; currencyIndex++) {
+          // Check if the filters are checked
+          if (ammCheckedState[ammIndex] && currencyCheckedState[currencyIndex] && directionCheckedState[directionIndex]) {
 
-    for (let ammIndex = 0; ammIndex < amms.length; ammIndex++) {
-      for (let poolIndex = 0; poolIndex < pools.length; poolIndex++) {
-        for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
-          if (ammCheckedState[ammIndex] && poolCheckedState[poolIndex] && directionCheckedState[directionIndex]) {
-            let poolID = amms[ammIndex] + "_" + pools[poolIndex];
-            const q = query(collection(database, "pricing_history"), 
-              where("pool_id", "==", poolID), 
-              where("direction", "==", directions[directionIndex]), 
-              where("timestamp", ">=", startDate),
-              where("timestamp", "<=", endDate),
-              orderBy("timestamp", "desc"),
-              limit(1000));
-            
-            const docSnap = await getDocs(q);
+            // Create pairs
+            for (let currencyPairIndex = currencyIndex + 1; currencyPairIndex < currencies.length; currencyPairIndex++) {
+              if (currencyCheckedState[currencyPairIndex]) {
+                let poolID = amms[ammIndex] + "_" + currencies[currencyIndex] + "_" + currencies[currencyPairIndex];
+                let poolIDReversed = amms[ammIndex] + "_" + currencies[currencyPairIndex] + "_" + currencies[currencyIndex];
 
-            setRateDatas(existingData => {
-              return existingData.map((data, i) => {
-                // Mapping a "3d" array to a 1d array
-                if ((ammIndex * pools.length * directions.length) 
-                  + (poolIndex * directions.length) 
-                  + directionIndex === i) {
-                  data = docSnap.docs.map(doc => ({
-                    id: doc.id,
-                    data: doc.data()
-                  }));
-                }
-                return data;
-              })
-            })
+                const q1 = query(collection(database, "pricing_history"), 
+                  where("pool_id", "==", poolID), 
+                  where("direction", "==", directions[directionIndex]), 
+                  where("timestamp", ">=", startDate),
+                  where("timestamp", "<=", endDate),
+                  orderBy("timestamp", "desc"));
+                const q2 = query(collection(database, "pricing_history"), 
+                  where("pool_id", "==", poolIDReversed), 
+                  where("direction", "==", directions[directionIndex]), 
+                  where("timestamp", ">=", startDate),
+                  where("timestamp", "<=", endDate),
+                  orderBy("timestamp", "desc"));
+                
+                let rateDisplay = ammsDisplay[ammIndex] + " | " + directionsDisplay[directionIndex] + " " + currencies[currencyIndex] + " to " + currencies[currencyPairIndex];
+                queryPoolRate(q1, rateDisplay, directionIndex);
 
-            setRateDisplays(exisitingDisplays => {
-              return exisitingDisplays.map((display, j) => {
-                if ((ammIndex * pools.length * directions.length) 
-                  + (poolIndex * directions.length) 
-                  + directionIndex === j) {
-                  
-                  // Seperate Buy and Sell rates onto different axises
-                  // Buy
-                  if (directionIndex === 0) {
-                    display = {
-                      displayName: ammsDisplay[ammIndex] + " " + poolsDisplay[poolIndex] + " " + directionsDisplay[directionIndex],
-                      yaxis: "y1"
-                    }
-                  }
-                  // Sell
-                  else {
-                    display = {
-                      displayName: ammsDisplay[ammIndex] + " " + poolsDisplay[poolIndex] + " " + directionsDisplay[directionIndex],
-                      yaxis: "y2"
-                    }
-                  }
-                }
-                return display;
-              });
-            })
-          }
-          else {
-            // Unchecked, delete data.
-            setRateDatas(existingData => {
-              return existingData.map((data, i) => {
-                // Mapping a "3d" array to a 1d array
-                if ((ammIndex * pools.length * directions.length) 
-                  + (poolIndex * directions.length) 
-                  + directionIndex === i) {
-                  data = null;
-                }
-                return data;
-              })
-            })
-
-            setRateDisplays(exisitingDisplays => {
-              return exisitingDisplays.map((display, j) => {
-                if ((ammIndex * pools.length * directions.length) 
-                  + (poolIndex * directions.length) 
-                  + directionIndex === j) {
-                  display = null;
-                }
-                return display;
-              });
-            })
+                rateDisplay = ammsDisplay[ammIndex] + " | " + directionsDisplay[directionIndex] + " " + currencies[currencyPairIndex] + " to " + currencies[currencyIndex];
+                queryPoolRate(q2, rateDisplay, directionIndex);
+              }
+            }
           }
         }
       }
@@ -131,58 +113,11 @@ function Metrics() {
     return;
   }
 
-  React.useEffect(() => {
-    if (rateDatas[0] && rateDatas[1] && rateDatas[12] && rateDatas[13]) {
-      calculateProfitability(rateDatas[0], rateDatas[1], rateDatas[12], rateDatas[13], 0);
-    }
-  }, [rateDatas[0], rateDatas[1], rateDatas[12], rateDatas[13]])
-
-  React.useEffect(() => {
-    //console.log(rateDatas[ammCheckedState.length * poolCheckedState.length * directionCheckedState.length])
-  }, [rateDatas[ammCheckedState.length * poolCheckedState.length * directionCheckedState.length]])
-
-  React.useEffect(() => {
-    setRateDatas(existingData => {
-      return existingData.map((data, i) => {
-        if (ammCheckedState.length * poolCheckedState.length * directionCheckedState.length === i) {
-          data = {
-            profit: profitDatas.profit,
-            time: profitDatas.time
-          };
-        }
-        return data;
-      })
-    })
-
-    setRateDisplays(exisitingDisplays => {
-      return exisitingDisplays.map((display, j) => {
-        if (ammCheckedState.length * poolCheckedState.length * directionCheckedState.length === j) {
-          display = {
-            displayName: "Possible Profit From Transactions (USDC)",
-            yaxis: "y3"
-          }
-        }
-        return display;
-      });
-    })
-
-  }, [profitDatas])
-
-  function slippageOnChangeHandler(value) {
-    setSlippage(old => value); 
-  }
-
-  function startDateTimeOnChangeHandler(value) {
-    setStartDateTime(old => value);
-  }
-
-  function endDateTimeOnChangeHandler(value) {
-    setEndDateTime(old => value);
-  }
-
-  React.useEffect(() => {
-    console.log(slippageData);
-  }, [slippageData])
+  // On change handlers
+  function slippageOnChangeHandler(value) { setSlippage(old => value); }
+  function slippageNumInputOnChangeHandler(value) { setSlippage(old => value / 100.0); }
+  function startDateTimeOnChangeHandler(value) { setStartDateTime(old => value); }
+  function endDateTimeOnChangeHandler(value) { setEndDateTime(old => value); }
 
   /**
    * Toggles the checkbox state of the AMMs filter.
@@ -196,14 +131,14 @@ function Metrics() {
   }
 
   /**
-   * Toggles the checkbox state of the pools filter.
-   * @param {number} position the index of the checkbox of the pool filter. 
+   * Toggles the checkbox state of the currency filter.
+   * @param {number} position the index of the checkbox of the currency filter. 
    */
-  const handlePoolCheckboxOnChange = (position) => {
-    const updatedPoolCheckedState = poolCheckedState.map((item, index) => {
+  const handleCurrenciesCheckboxOnChange = (position) => {
+    const updatedCurrencyCheckedState = currencyCheckedState.map((item, index) => {
       return (index === position ? !item : item);
     })
-    setPoolCheckedState(updatedPoolCheckedState);
+    setCurrencyCheckedState(updatedCurrencyCheckedState);
   }
 
   /**
@@ -217,65 +152,84 @@ function Metrics() {
     setDirectionCheckedState(updatedDirectionCheckedState);
   }
 
-  const calculateProfitability = (poolABuy, poolASell, poolBBuy, poolBSell, transasctionFee) => {
-    if (!poolABuy || !poolASell || !poolBBuy || !poolBSell) {
-      return null;
-    }
-    
-    // Grabbing relevant data
-    let poolARates = {
-      buyTime: poolABuy.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
-      buyRate: poolABuy.map(ph => ph.data.rate),
-      sellTime: poolASell.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
-      sellRate: poolASell.map(ph => ph.data.rate)
-    }
-    let poolBRates = {
-      buyTime: poolBBuy.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
-      buyRate: poolBBuy.map(ph => ph.data.rate),
-      sellTime: poolBSell.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
-      sellRate: poolBSell.map(ph => ph.data.rate)
-    }
-    
-    let estimatedProfits = [];
-    let times = [];
-
-    while (poolARates.buyTime.length > 0 && poolARates.sellTime.length > 0 && poolBRates.buyTime.length > 0 && poolBRates.sellTime.length > 0) {
-      let newestTime = new Date(Math.max.apply(null, [poolARates.buyTime[0], poolARates.sellTime[0], poolBRates.buyTime[0], poolBRates.sellTime[0]]));
-      let estimatedProfit = {
-        aThenB: ((1 * poolARates.buyRate[0] * (1 - slippageData)) * poolBRates.sellRate[0] * (1 - slippageData)) - 1,
-        bThenA: ((1 * poolBRates.buyRate[0] * (1 - slippageData)) * poolARates.sellRate[0] * (1 - slippageData)) - 1
-      }
-      estimatedProfits.push(Math.max(estimatedProfit.aThenB, estimatedProfit.bThenA));
-      times.push(newestTime);
-
-      if (newestTime.getTime() === poolARates.buyTime[0].getTime()) {
-        poolARates.buyTime.shift();
-        poolARates.buyRate.shift();
-      }
-      if (newestTime.getTime() === poolARates.sellTime[0].getTime()) {
-        poolARates.sellTime.shift();
-        poolARates.sellRate.shift();
-      }
-      if (newestTime.getTime() === poolBRates.buyTime[0].getTime()) {
-        poolBRates.buyTime.shift();
-        poolBRates.buyRate.shift();
-      }
-      if (newestTime.getTime() === poolBRates.sellTime[0].getTime()) {
-        poolBRates.sellTime.shift();
-        poolBRates.sellRate.shift();
-      }
+  // Calculate Profits
+  React.useEffect(() => {
+    if (ammCheckedState.filter(x => x === true).length < 2 
+      || currencyCheckedState.filter(x => x === true).length < 2
+      || directionCheckedState.filter(x => x === true).length < 2) {
+      return;
     }
 
-    console.log({poolARates, poolBRates, estimatedProfits});
-    console.log("Best possible trade:", Math.max.apply(null, estimatedProfits));
-    console.log("Worst possible trade:", Math.min.apply(null, estimatedProfits));
+    const calculateProfitability = (poolABuy, poolASell, poolBBuy, poolBSell, transasctionFee) => {
+      if (poolABuy.length === 0 || poolASell.length === 0 || poolBBuy.length === 0 || poolBSell.length === 0) {
+        return null;
+      }
+      
+      //console.log({poolABuy, poolBBuy});
+      // Grabbing relevant data
+      let poolARates = {
+        buyTime: poolABuy.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
+        buyRate: poolABuy.map(ph => ph.data.rate),
+        sellTime: poolASell.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
+        sellRate: poolASell.map(ph => ph.data.rate)
+      }
+      let poolBRates = {
+        buyTime: poolBBuy.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
+        buyRate: poolBBuy.map(ph => ph.data.rate),
+        sellTime: poolBSell.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
+        sellRate: poolBSell.map(ph => ph.data.rate)
+      }
+      
+      let estimatedProfits = [];
+      let times = [];
+  
+      while (poolARates.buyTime.length > 0 && poolARates.sellTime.length > 0 && poolBRates.buyTime.length > 0 && poolBRates.sellTime.length > 0) {
+        let newestTime = new Date(Math.max.apply(null, [poolARates.buyTime[0], poolARates.sellTime[0], poolBRates.buyTime[0], poolBRates.sellTime[0]]));
+        let estimatedProfit = {
+          aThenB: ((1 * poolARates.buyRate[0] * (1 - slippageData)) * poolBRates.sellRate[0] * (1 - slippageData)) - 1,
+          bThenA: ((1 * poolBRates.buyRate[0] * (1 - slippageData)) * poolARates.sellRate[0] * (1 - slippageData)) - 1
+        }
+        estimatedProfits.push(Math.max(estimatedProfit.aThenB, estimatedProfit.bThenA));
+        times.push(newestTime);
+  
+        if (newestTime.getTime() === poolARates.buyTime[0].getTime()) {
+          poolARates.buyTime.shift();
+          poolARates.buyRate.shift();
+        }
+        if (newestTime.getTime() === poolARates.sellTime[0].getTime()) {
+          poolARates.sellTime.shift();
+          poolARates.sellRate.shift();
+        }
+        if (newestTime.getTime() === poolBRates.buyTime[0].getTime()) {
+          poolBRates.buyTime.shift();
+          poolBRates.buyRate.shift();
+        }
+        if (newestTime.getTime() === poolBRates.sellTime[0].getTime()) {
+          poolBRates.sellTime.shift();
+          poolBRates.sellRate.shift();
+        }
+      }
+  
+      console.log({poolARates, poolBRates, estimatedProfits});
+      console.log("Best possible trade:", Math.max.apply(null, estimatedProfits));
+      console.log("Worst possible trade:", Math.min.apply(null, estimatedProfits));    
+      const poolName = poolABuy[0].data.pool_id.split("_");
+      console.log(poolName);
+  
+      setProfitDatas(profitDatas => [...profitDatas, {
+        profit: estimatedProfits,
+        time: times,
+        name: poolName[1] + " and " + poolName[2]
+      }]);
+    }
 
-    setProfitDatas({
-      profit: estimatedProfits,
-      time: times
-    });
-  }
-
+    let offset = rateDatas.length / 4;
+    for (let i = 0; i < rateDatas.length; i++) {
+      if (rateDatas[i] && rateDatas[(offset * 1) + i] && rateDatas[(offset * 2) + i] && rateDatas[(offset * 3) + i]) {
+        calculateProfitability(rateDatas[i], rateDatas[(offset * 2) + i], rateDatas[(offset * 1) + i], rateDatas[(offset * 3) + i], 0);
+      }
+    }
+  }, [rateDatas, slippageData, ammCheckedState, currencyCheckedState, directionCheckedState]);
 
   return (
     <div className="page-container">
@@ -291,11 +245,11 @@ function Metrics() {
                 );
               })}
             </div>
-            <div className="pool-checkbox-container filter">
-              <h3>Pools</h3>
-              {poolsDisplay.map((name, index) => {
+            <div className="currency-checkbox-container filter">
+              <h3>Currencies</h3>
+              {currencies.map((name, index) => {
                 return (
-                  <Checkbox key={index} label={name} value={poolCheckedState[index]} onChange={() => handlePoolCheckboxOnChange(index)} />
+                  <Checkbox key={index} label={name} value={currencyCheckedState[index]} onChange={() => handleCurrenciesCheckboxOnChange(index)} />
                 );
               })}
             </div>
@@ -308,27 +262,27 @@ function Metrics() {
               })}
             </div>
 
+            <div className="datetime-container filter">
+              <h3>Time range</h3>
+              <div className="date-time">
+                <p>Start Time:</p>
+                <Datetime value={startDateTime} onChange={startDateTimeOnChangeHandler}/>
+              </div>
+              
+              <div className="date-time">
+                <p>End Time:</p>
+                <Datetime value={endDateTime} onChange={endDateTimeOnChangeHandler}/>
+              </div>
+            </div>
+
             <div className="profitability-attributes filter">
               <h3>Profitability Data Augments</h3>
               <div>
                 <label>Slippage: </label>
-                <span> {slippageData * 100}%</span>
+                <NumericInput min={0} max={100} value={slippageData * 100} onChange={slippageNumInputOnChangeHandler}/> %
                 <br />
                 <br />
-                <Slider value={slippageData} min={0.0} max={1.0} step={0.01}
-                  onChange={slippageOnChangeHandler}
-                />
-                <br />
-                <div className="widget-container date-time">
-                  <p>Start Time:</p>
-                  <Datetime value={startDateTime} onChange={startDateTimeOnChangeHandler}/>
-                </div>
-                
-                <div className="widget-container date-time">
-                  <p>End Time:</p>
-                  <Datetime value={endDateTime} onChange={endDateTimeOnChangeHandler}/>
-                </div>
-                
+                <Slider value={slippageData} min={0.0} max={1.0} step={0.01} onChange={slippageOnChangeHandler} />
               </div>
             </div>
 
@@ -339,6 +293,7 @@ function Metrics() {
         <HistoryPlot
           data={
             rateDatas.map((data, index) => {
+              //console.log(index);
               if (data && rateDisplays[index]) {
                 let arrayData = {};
                 if (rateDisplays[index].yaxis === "y1") {
@@ -364,11 +319,14 @@ function Metrics() {
                 }
                 else if (rateDisplays[index].yaxis === "y3"){
                   arrayData = {
-                    type: "bar",
+                    type: "scatter",
+                    mode: "lines",
                     name: "Profits",
                     x: data.time,
                     y: data.profit,
-                    yaxis: "y3"
+                    yaxis: "y3",
+                    opacity: 0.5,
+                    fill: "tozeroy"
                   }
                 }
                 return arrayData;
@@ -378,7 +336,7 @@ function Metrics() {
                   mode: "lines+points"
                 };
               }
-          })}
+            })}
           layout = {
             {
               autosize: true,
@@ -401,13 +359,25 @@ function Metrics() {
         />
 
         <Plot
-					data={[{
-            type: "scatter",
-            mode: "lines+points",
-            name: "USDC",
-            x: profitDatas.time,
-            y: profitDatas.profit
-          }]}
+					data={
+            profitDatas.map((data, index) => {
+              if (data && rateDisplays[index]) {
+                let arrayData = {};
+                  arrayData = {
+                    type: "scatter",
+                    mode: "lines+points",
+                    name: data.name,
+                    x: data.time,
+                    y: data.profit
+                  }
+                return arrayData;
+              } else {
+                return {
+                  type: "scatter",
+                  mode: "lines+points"
+                };
+              }
+            })}
 					layout={ 
             {
               autosize: true,
