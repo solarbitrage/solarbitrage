@@ -47,7 +47,7 @@ const firestore = getFirestore(app);
 
 const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/Users/noelb/my-solana-wallet/wallet-keypair.json"
 const STARTING_SLIPPAGE = 0;
-const ADDITIONAL_SLIPPAGE = 0.01;
+const ADDITIONAL_SLIPPAGE = 0.005;
 const THRESHOLD = 0;
 const STARTING_USDC_BET = 4
 
@@ -149,7 +149,7 @@ async function main() {
 
         console.table(
             Object.keys(pool_to_slippage_map)
-                .map(poolId => ({ "Pool": poolId, "Buy Rate Slippage (%)": (pool_to_slippage_map[poolId][0] * 100).toFixed(4), "Sell Rate Slippage (%)": (pool_to_slippage_map[poolId][0] * 100).toFixed(4) }))
+                .map(poolId => ({ "Pool": poolId, "Buy Rate Slippage (%)": (pool_to_slippage_map[poolId][0] * 100).toFixed(4), "Sell Rate Slippage (%)": (pool_to_slippage_map[poolId][1] * 100).toFixed(4) }))
         )
 
 
@@ -199,6 +199,9 @@ async function calculate_trade({route, estimatedProfit}, index) {
     let usdc = STARTING_USDC_BET;
     // don't bother if it is not the top 4 routes
     if (estimatedProfit <= THRESHOLD && index >= 3) return;
+
+    // don't bother if it is not the top 4 routes or if RNG gods say so
+    if (estimatedProfit <= THRESHOLD && index >= 4 && Math.random() > 0.5) return;
 
     // if the route is not profitable then don't make swap functions, just test out slippage
     await arbitrage(route, usdc, usdc + (usdc * estimatedProfit), estimatedProfit <= THRESHOLD)
@@ -258,12 +261,12 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                         (_i != 0 || 
                         parsedAmountOut * route[_i+1].sell.rate < newTokenAmt * route[_i+1].sell.rate)
                     ) {
-                        const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
-                        // console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on RAYDIUM, slippage should maybe be ${slippageShouldBe})`);
+                        const slippageShouldBe = Math.max(0, slippage + (1 - parsedAmountOut / newTokenAmt))
+                        console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on RAYDIUM, slippage should maybe be ${slippageShouldBe})`);
                         pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
                     } else if (parsedAmountOut > newTokenAmt) {
-                        const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
-                        // console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} > ${newTokenAmt} which means slippage might be too high (trading on RAYDIUM, slippage should maybe be ${slippageShouldBe})`);
+                        const slippageShouldBe =  Math.max(0, slippage + (1 - parsedAmountOut / newTokenAmt))
+                        console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} > ${newTokenAmt} which means slippage might be too high (trading on RAYDIUM, slippage should maybe be ${slippageShouldBe})`);
                         pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
                     }
                 })().catch((e: Error) => {console.error(`POOL_ID{${_pool_id}}[${_i}]:`,e)}))
@@ -318,11 +321,11 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                         parsedAmountOut * route[_i+1].sell.rate < newTokenAmt * route[_i+1].sell.rate)
                     ) {
                         const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
-                        // console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on ORCA, slippage should maybe be ${slippageShouldBe})`);
+                        console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on ORCA, slippage should maybe be ${slippageShouldBe})`);
                         pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
                     } else if (parsedAmountOut > newTokenAmt) {
                         const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
-                        // console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} > ${newTokenAmt} which means slippage might be too high (trading on ORCA, slippage should maybe be ${slippageShouldBe})`);
+                        console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} > ${newTokenAmt} which means slippage might be too high (trading on ORCA, slippage should maybe be ${slippageShouldBe})`);
                         pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
                     }
                 })().catch((e: Error) => {console.error(`POOL_ID{${_pool_id}}[${_i}]:`,e.message)}))
@@ -376,7 +379,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                 profitMsg.content = "MADE PROFIT OF $"
             }
 
-            write_to_database(beforeUSDC, afterUSDC, _expected_usdc, transactionId);
+            write_to_database(beforeUSDC, afterUSDC, fromCoinAmount - _expected_usdc, transactionId);
         }
 
     } catch (err) {
