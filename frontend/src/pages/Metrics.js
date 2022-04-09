@@ -104,7 +104,6 @@ function Metrics() {
 
                 rateDisplay = ammsDisplay[ammIndex] + " | " + directionsDisplay[directionIndex] + " " + currencies[currencyPairIndex] + " to " + currencies[currencyIndex];
                 queryPoolRate(q2, rateDisplay, directionIndex);
-                console.log("whoop");
               }
             }
           }
@@ -166,7 +165,7 @@ function Metrics() {
         return null;
       }
       
-      console.log({poolABuy, poolBBuy});
+      //console.log({poolABuy, poolBBuy});
       // Grabbing relevant data
       let poolARates = {
         buyTime: poolABuy.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
