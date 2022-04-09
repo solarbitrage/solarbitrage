@@ -24,7 +24,18 @@ let timeout: NodeJS.Timeout;
 const DISCORD_STATUS_WEBHOOK = process.env.DISCORD_STATUS_WEBHOOK;
 
 function main() {
+    const slippageRef = ref(database, 'mainnet_pool_to_slippage_map/');
     const latestPricesRef = ref(database, 'latest_prices/');
+
+    const currentSlippage = {};
+
+    onChildChanged(slippageRef, (snapshot) => {
+        const data = snapshot.val();
+        for (const key of Object.keys(data)) {
+            currentSlippage[key] = [data[key]["0"], data[key]["1"]]
+        }
+    })
+
     onChildChanged(latestPricesRef, (data) => {
         console.log(data.key, data.val());
 
@@ -48,6 +59,7 @@ function main() {
 
         addDoc(collection(firestore, "pricing_history"), {
             pool_id: data.key,
+            currentSlippage: currentSlippage[data.key],
             direction: "buy",
             timestamp: serverTimestamp(),
             expected_output_amount: data.val().buy.expected_output_amount || null,
@@ -60,6 +72,7 @@ function main() {
 
         addDoc(collection(firestore, "pricing_history"), {
             pool_id: data.key,
+            currentSlippage: currentSlippage[data.key],
             direction: "sell",
             timestamp: serverTimestamp(),
             expected_output_amount: data.val().sell.expected_output_amount || null,
