@@ -32,14 +32,16 @@ app.put('/processes/:filename/:action(start|restart|stop)', async (req, res) => 
         return res.status(400).json({ message: `${action} is not supported!` });
     }
   } catch (error) {
-    res.status(500).json({ message: (error[0] || error).message });
+    if (error instanceof Error) {
+      res.status(500).json({ message: error.message });
+    }
   }
 });
 
 
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
-const httpServer = app.listen(PORT, () => {
+const httpServer = app.listen(PORT, "0.0.0.0", () => {
   console.log(`[Server] Listening on :${PORT}`);
 });
 
