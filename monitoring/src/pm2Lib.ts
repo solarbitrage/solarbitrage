@@ -54,6 +54,10 @@ class Pm2Lib {
     return promisify(pm2.restart).call(pm2, filename);
   }
 
+  async restartAllProcesses(): Promise<Proc> {
+    return promisify(pm2.restart).call(pm2, "all");
+  }
+
   async stopProcess(filename: string): Promise<Proc> {
     return promisify(pm2.stop).call(pm2, filename);
   }
