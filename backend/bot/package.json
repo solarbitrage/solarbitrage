@@ -5,6 +5,7 @@
   "main": "dist/trading_bot.js",
   "scripts": {
     "start": "tsc || node dist/trading_bot.js",
+    "trading-bot": "tsc || node dist/trading_bot.js",
     "lint": "eslint . --ext .ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon bot.ts"
