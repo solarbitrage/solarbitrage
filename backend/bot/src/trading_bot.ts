@@ -1,4 +1,4 @@
-import { getOrca, OrcaPoolConfig } from "@orca-so/sdk";
+import { getOrca, Network, OrcaPoolConfig } from "@orca-so/sdk";
 import { jsonInfo2PoolKeys, Liquidity, LiquidityPoolJsonInfo, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
 import { Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import Decimal from "decimal.js";
@@ -14,7 +14,10 @@ import { swap as orcaSwap } from "./common/src/orca-utils/orca-swap-funcs";
 import * as RaydiumRateFuncs from "./common/src/raydium-utils/raydium-rate-funcs";
 import { NATIVE_SOL, swap as raydiumSwap } from "./common/src/raydium-utils/raydium-swap-funcs";
 import { createAssociatedTokenAccountIfNotExist } from "./common/src/raydium-utils/web3";
-import { RAYDIUM_POOLS_ENDPOINT, listeners } from "./common/src/raydium-utils/constants";
+import { RAYDIUM_POOLS_ENDPOINT, listeners as raydiumListeners } from "./common/src/raydium-utils/constants";
+import { listeners as orcaListeners } from "./common/src/orca-utils/constants";
+import { OrcaPoolImpl } from "@orca-so/sdk/dist/model/orca/pool/orca-pool";
+
 
 const firebaseConfig = {
     apiKey: config.FIREBASE_API_KEY,
@@ -58,6 +61,10 @@ const getNewConnection = useConnection(false);
 let connection = getNewConnection();
 
 const poolKeysMap = {};
+const poolAddrToOrcaPool = {};
+
+orcaListeners.map(([pool, _]) => poolAddrToOrcaPool[pool.address.toBase58()] = pool);
+
 let owner: Keypair;
 
 let local_database: any = {};
@@ -101,12 +108,10 @@ async function main() {
     const lpPools: LiquidityPoolJsonInfo[] = [
         ...lpMetadata["official"],
         ...lpMetadata["unOfficial"],
-    ].filter((val) => listeners.includes(val.id));
+    ].filter((val) => raydiumListeners.includes(val.id));
     
     for (const pool of lpPools) {
-        const baseMint = pool.baseMint === WSOL.mint ? NATIVE_SOL.mint : pool.baseMint;
-        const quoteMint = pool.quoteMint === WSOL.mint ? NATIVE_SOL.mint : pool.quoteMint;
-        poolKeysMap[`${baseMint}-${quoteMint}`] = jsonInfo2PoolKeys(pool);
+        poolKeysMap[pool.id] = jsonInfo2PoolKeys(pool);
     }
 
     // local_database setup
@@ -222,6 +227,9 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
     try {
         for (const [i, pool] of route.entries()) {
             const pool_id = pool.pool_id;
+            const provider = pool.provider || pool_id.split("_")[0].split("|")[0]; // lol
+            const pool_addr = pool.pool_addr;
+
             const slippage = current_pool_to_slippage[pool_id][i];
             const newTokenAmt = beforeAmt * 
                 (i === 0 ? pool.buy.rate : pool.sell.rate) * (1 - slippage);
@@ -229,11 +237,11 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
             const fromTokenStr = (i === 0 ? pool.buy.from : pool.sell.from);
             const toTokenStr = (i === 0 ? pool.buy.to : pool.sell.to);
 
-            if (pool_id.split("_")[0] === "RAYDIUM") {
+            if (provider === "RAYDIUM") {
                 const fromToken = fromTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[fromTokenStr];
                 const toToken = toTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[toTokenStr];
 
-                const poolKeys = poolKeysMap[`${fromToken.mint}-${toToken.mint}`] ?? poolKeysMap[`${toToken.mint}-${fromToken.mint}`];
+                const poolKeys = poolKeysMap[pool_addr];
 
                 // check if rates are accurately (without affecting swap call)
                 const _beforeAmt = beforeAmt;     
@@ -280,15 +288,19 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                     transaction.add(res.transaction);
                     signers.push(...res.signers);
                 }
-            } else if (pool_id.split("_")[0] === "ORCA") {
+            } else if (provider === "ORCA") {
                 const connection = getNewConnection();
-                const orca = getOrca(connection);
-                const orcaAmmPool = orca.getPool(OrcaPoolConfig[pool.pool_id.split("_").slice(1).join("_")]);
-                const poolTokens = {
-                    [orcaAmmPool.getTokenA().tag]: orcaAmmPool.getTokenA(),
-                    [orcaAmmPool.getTokenB().tag]: orcaAmmPool.getTokenB()
-                }
 
+                const poolParam = poolAddrToOrcaPool[pool_addr];
+                const currentPool = new OrcaPoolImpl(connection, Network.MAINNET, poolParam)
+      
+                const coinA = currentPool.getTokenA();
+                const coinB = currentPool.getTokenB();
+          
+                const poolTokens = {
+                    [coinA.tag]: coinA,
+                    [coinB.tag]: coinB
+                }
 
                 const fromToken = poolTokens[fromTokenStr];
                 const toToken = poolTokens[toTokenStr];
@@ -301,10 +313,9 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                 afterSwapPromises.push((async () => { 
                     // the things we do for pooling connections
                     const connection = getNewConnection();
-                    const orca = getOrca(connection);
-                    const orcaAmmPool = orca.getPool(OrcaPoolConfig[_pool_id.split("_").slice(1).join("_")]);
+                    const currentPool = new OrcaPoolImpl(connection, Network.MAINNET, poolParam)
 
-                    const quote = await orcaAmmPool.getQuote(fromToken, new Decimal(_beforeAmt))
+                    const quote = await currentPool.getQuote(fromToken, new Decimal(_beforeAmt))
                     const parsedAmountOut = quote.getExpectedOutputAmount().toNumber() * (1 - ADDITIONAL_SLIPPAGE);
                                         
                     if (
@@ -324,7 +335,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
 
                 if (!shouldSkipSwap) {
                     const { transactionPayload } = await orcaSwap(
-                        orcaAmmPool, 
+                        currentPool, 
                         owner, 
                         fromToken, 
                         new Decimal(beforeAmt), 
