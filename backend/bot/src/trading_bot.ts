@@ -3,7 +3,7 @@ import { jsonInfo2PoolKeys, Liquidity, LiquidityPoolJsonInfo, MAINNET_SPL_TOKENS
 import { Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { initializeApp } from 'firebase/app';
-import { get, getDatabase, onChildChanged, ref, set } from "firebase/database";
+import { get, getDatabase, onChildChanged, onValue, ref, set } from "firebase/database";
 import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/firestore";
 import { readFile } from "mz/fs";
 import fetch from "node-fetch";
@@ -46,9 +46,9 @@ const firestore = getFirestore(app);
 
 const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/Users/noelb/my-solana-wallet/wallet-keypair.json"
 const STARTING_SLIPPAGE = 0;
-const ADDITIONAL_SLIPPAGE = 0.005;
 const THRESHOLD = 0;
 const STARTING_USDC_BET = 4
+let ADDITIONAL_SLIPPAGE = 0.005; // modifiable by firebase
 
 let ready_to_trade = true;  // flag to look for updates only when a swap intruction is done
 
@@ -172,16 +172,14 @@ async function main() {
     // ==== Start listener
     const updated_pools = ref(database, 'latest_prices/');
     onChildChanged(updated_pools, (snapshot) => {
-        // console.log("snapshot", snapshot)
-        //  console.log("key", snapshot.key)
         const data = snapshot.val();
         local_database[snapshot.key] = data;
+    });
 
-        //function that runs caclculations anytime there's a change
-        // while(!ready_to_trade){
-
-        // }
-
+    // ==== Start listener
+    const config_slippage = ref(database, 'configuration/acceptable_slippage');
+    onValue( config_slippage, (snapshot) => {
+        ADDITIONAL_SLIPPAGE = snapshot.val();
     });
 
     for (;;) {
