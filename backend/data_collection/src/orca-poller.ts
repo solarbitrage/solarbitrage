@@ -1,9 +1,11 @@
-import { getOrca, OrcaPoolConfig, OrcaPoolToken, Quote } from "@orca-so/sdk";
+import { Network, OrcaPoolToken, Quote } from "@orca-so/sdk";
+import { OrcaPoolImpl } from "@orca-so/sdk/dist/model/orca/pool/orca-pool";
 import Decimal from "decimal.js";
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, update } from "firebase/database";
 import config from "./common/src/config";
 import { useConnection } from "./common/src/connection";
+import { listeners } from "./common/src/orca-utils/constants";
 
 
 
@@ -28,36 +30,23 @@ const orcaRequests = async () => {
   
   // Initialzie Orca object with appropriate network connection
   const connection = getNextConnection();
-  const orca = getOrca(connection)
 
   try {
     console.log('Gathering ORCA data')
-    const pools = [
-      OrcaPoolConfig.SOL_USDC,
-      OrcaPoolConfig.ETH_USDC,
-      OrcaPoolConfig.ORCA_USDC,
-      OrcaPoolConfig.LIQ_USDC,
-      OrcaPoolConfig.SNY_USDC,
-      OrcaPoolConfig.mSOL_USDC,
-      OrcaPoolConfig.SLRS_USDC,
-      OrcaPoolConfig.PORT_USDC,
-      OrcaPoolConfig.SBR_USDC,
-      OrcaPoolConfig.RAY_USDC,
-    ]
 
     // Gather swapping data
-    for (const pool of pools) {
-      const currentPool = orca.getPool(pool);
-
+    for (const [pool, poolId] of listeners) {
+      const currentPool = new OrcaPoolImpl(connection, Network.MAINNET, pool)
+      
       const coinA = currentPool.getTokenA();
       const coinB = currentPool.getTokenB();
+
 
       const tradingAmount = new Decimal(1);
       const [buyQuote, sellQuote] = await Promise.all([currentPool.getQuote(coinB, tradingAmount), currentPool.getQuote(coinA, tradingAmount)]);
 
       // Update Firebase Real-time Database
-      const poolName = Object.keys(OrcaPoolConfig).find(key => OrcaPoolConfig[key] === pool)
-      updateDatabase('ORCA_' + poolName, buyQuote, sellQuote, coinA, coinB)
+      updateDatabase(poolId, pool.address.toBase58(), buyQuote, sellQuote, coinA, coinB)
     }
   } catch (err) {
     console.warn(err);
@@ -65,9 +54,11 @@ const orcaRequests = async () => {
   setTimeout(orcaRequests, 250)
 };
 
-function updateDatabase(poolName: string, buyQuote: Quote, sellQuote: Quote, coinA: OrcaPoolToken, coinB: OrcaPoolToken) {
+function updateDatabase(poolName: string, poolAddr: string, buyQuote: Quote, sellQuote: Quote, coinA: OrcaPoolToken, coinB: OrcaPoolToken) {
   const results = {
-    "buy": {
+    provider: "ORCA",
+    pool_addr: poolAddr,
+    buy: {
       expected_output_amount: buyQuote.getExpectedOutputAmount().toNumber(),
       lp_fees: buyQuote.getLPFees().toNumber(),
       min_output_amount: buyQuote.getMinOutputAmount().toNumber(),
@@ -78,7 +69,7 @@ function updateDatabase(poolName: string, buyQuote: Quote, sellQuote: Quote, coi
       from: coinB.tag,
       to: coinA.tag
     }, 
-    "sell": {
+    sell: {
       expected_output_amount: sellQuote.getExpectedOutputAmount().toNumber(),
       lp_fees: sellQuote.getLPFees().toNumber(),
       min_output_amount: sellQuote.getMinOutputAmount().toNumber(),
@@ -94,7 +85,7 @@ function updateDatabase(poolName: string, buyQuote: Quote, sellQuote: Quote, coi
   console.log(poolName, results)
 
   update(ref(database, 'latest_prices/' + poolName), results);
-};
+}
 
 orcaRequests()
   .then(() => {

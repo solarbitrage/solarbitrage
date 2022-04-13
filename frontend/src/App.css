@@ -128,7 +128,7 @@ html body {
 .date-time {
   margin: 0px 0px 0px 0px;
   align-items: center;
-  text-align: center;
+  text-align: left;
   justify-content: space-between;
 }
 

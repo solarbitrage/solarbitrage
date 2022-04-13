@@ -15,7 +15,7 @@ import { getDatabase, ref, set } from "firebase/database";
 
 import config from "./common/src/config";
 import { getRate } from "./common/src/raydium-utils/raydium-rate-funcs";
-import { RAYDIUM_POOLS_ENDPOINT, listeners, poolMintAddrToName } from "./common/src/raydium-utils/constants";
+import { RAYDIUM_POOLS_ENDPOINT, listeners, poolMintAddrToName, moreUnofficialLpPools } from "./common/src/raydium-utils/constants";
 import { useConnection } from "./common/src/connection";
 // Firebase Configuration
 const firebaseConfig = {
@@ -56,11 +56,12 @@ function updateDatabase(poolName, data) {
   const lpMetadata = await fetch(RAYDIUM_POOLS_ENDPOINT).then((res) =>
     res.json()
   );
-  const allOfficialLpPools: LiquidityPoolJsonInfo[] = [
+  const allLpPools: LiquidityPoolJsonInfo[] = [
     ...lpMetadata["official"],
     ...lpMetadata["unOfficial"],
+    ...moreUnofficialLpPools,
   ];
-  const lpPools = allOfficialLpPools
+  const lpPools = allLpPools
     .filter((val) => listeners.includes(val.id))
     .map((p) => jsonInfo2PoolKeys(p));
 
@@ -74,8 +75,8 @@ function updateDatabase(poolName, data) {
         pools: lpPools,
       });
       for (const [i, poolInfo] of poolInfos.entries()) {
-        const coinTickers =
-          poolMintAddrToName[lpPools[i].id.toBase58()].split("_");
+        const poolName = poolMintAddrToName[lpPools[i].id.toBase58()];
+        const coinTickers = poolName.split("_").slice(1);
           
         const amountOut = getRate(
           lpPools[i],
@@ -84,8 +85,6 @@ function updateDatabase(poolName, data) {
           MAINNET_SPL_TOKENS[coinTickers[0]],
           1
         );
-
-        const poolName = `RAYDIUM_${coinTickers.join("_")}`;
 
         const results = {
           provider: "RAYDIUM",
@@ -109,6 +108,8 @@ function updateDatabase(poolName, data) {
         };
 
         const poolResults = {
+          provider: "RAYDIUM",
+          pool_addr: lpPools[i].id.toBase58(),
           buy: {
             ...buyResults,
           },

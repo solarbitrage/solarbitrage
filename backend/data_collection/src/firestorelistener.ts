@@ -59,7 +59,7 @@ function main() {
 
         addDoc(collection(firestore, "pricing_history"), {
             pool_id: data.key,
-            currentSlippage: currentSlippage[data.key],
+            currentSlippage: currentSlippage[data.key] || null,
             direction: "buy",
             timestamp: serverTimestamp(),
             expected_output_amount: data.val().buy.expected_output_amount || null,
@@ -72,7 +72,7 @@ function main() {
 
         addDoc(collection(firestore, "pricing_history"), {
             pool_id: data.key,
-            currentSlippage: currentSlippage[data.key],
+            currentSlippage: currentSlippage[data.key] || null,
             direction: "sell",
             timestamp: serverTimestamp(),
             expected_output_amount: data.val().sell.expected_output_amount || null,

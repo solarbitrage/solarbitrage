@@ -15,8 +15,12 @@ export interface IProcessOutLog {
 
 class Pm2Lib {
   //private readonly SCRIPT_PATH = process.env.SCRIPT_PATH;
-  private readonly SCRIPT_PATH = 'npm run --prefix ../backend/data_collection/'
-  private readonly PROCESSES = ['data-collection-orca', 'data-collection-raydium', 'listener'];
+  private readonly DATA_COLLECTION_SCRIPT_PATH = 'npm run --prefix ../backend/data_collection/'
+  private readonly TRADING_BOT_SCRIPT_PATH = 'npm run --prefix ../backend/bot/'
+  private readonly DATA_COLLECTION_PROCESSES = ['data-collection-orca', 'data-collection-raydium', 'listener'];
+  private readonly TRADING_BOT_PROCESSES = ['trading-bot']
+
+  private readonly PROCESSES = this.TRADING_BOT_PROCESSES.concat(this.DATA_COLLECTION_PROCESSES)
 
   private bus: EventEmitter | undefined;
 
@@ -50,6 +54,10 @@ class Pm2Lib {
     return promisify(pm2.restart).call(pm2, filename);
   }
 
+  async restartAllProcesses(): Promise<Proc> {
+    return promisify(pm2.restart).call(pm2, "all");
+  }
+
   async stopProcess(filename: string): Promise<Proc> {
     return promisify(pm2.stop).call(pm2, filename);
   }
@@ -65,12 +73,13 @@ class Pm2Lib {
 
   private getStartOptions(filename: string): StartOptions {
     const alias = filename.replace('.js', '');
+    const SCRIPT_PATH = this.DATA_COLLECTION_PROCESSES.includes(filename) ? this.DATA_COLLECTION_SCRIPT_PATH : this.TRADING_BOT_SCRIPT_PATH 
     return {
-      script: `${this.SCRIPT_PATH} ${filename}`,
+      script: `${SCRIPT_PATH} ${filename}`,
       name: filename,
       log_date_format: 'YYYY-MM-DD HH:mm Z',
-      output: `${this.SCRIPT_PATH}/${alias}.stdout.log`,
-      error: `${this.SCRIPT_PATH}/${alias}.stderr.log`,
+      output: `${SCRIPT_PATH}/${alias}.stdout.log`,
+      error: `${SCRIPT_PATH}/${alias}.stderr.log`,
       exec_mode: 'fork',
     };
   }
