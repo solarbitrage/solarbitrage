@@ -200,8 +200,6 @@ main().then(() => {}).catch(e => {console.error(e); process.exit(1)})
 
 async function calculate_trade({route, estimatedProfit}, index) {
     let usdc = STARTING_USDC_BET;
-    // don't bother if it is not the top 4 routes
-    if (estimatedProfit <= THRESHOLD && index >= 3) return;
 
     // don't bother if it is not the top 4 routes or if RNG gods say so
     if (estimatedProfit <= THRESHOLD && index >= 4 && Math.random() > 0.5) return;
