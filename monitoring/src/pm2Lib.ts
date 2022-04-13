@@ -69,6 +69,11 @@ class Pm2Lib {
     this.bus.on('log:out', (procLog: IProcessOutLog) => {
       onLog(procLog);
     });
+
+    this.bus.on('log:err', (procLog: IProcessOutLog) => {
+      onLog(procLog);
+    });
+
   }
 
   private getStartOptions(filename: string): StartOptions {
@@ -80,6 +85,7 @@ class Pm2Lib {
       log_date_format: 'YYYY-MM-DD HH:mm Z',
       output: `${SCRIPT_PATH}/${alias}.stdout.log`,
       error: `${SCRIPT_PATH}/${alias}.stderr.log`,
+      merge_logs: true,
       exec_mode: 'fork',
     };
   }
