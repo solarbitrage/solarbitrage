@@ -217,7 +217,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
     const current_pool_to_slippage = JSON.parse(JSON.stringify(pool_to_slippage_map))
     let transactionId = "";
     const profitMsg = {
-        "content": "MADE A PROFIT !"
+        "content": "MADE A PROFIT! 🎉"
     }   
 
     const tokenAccounts = await getTokenAccounts();
@@ -371,16 +371,18 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
 
             const parsedInfo = afterTokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
             const afterUSDC = parseFloat(parsedInfo.tokenAmount.uiAmount);
+            
             // how much transaction, what coin, what profit -> using tokenaccounts
-                                 
-            // const profit = afterUSDC - beforeUSDC;   // not reliable to use as profit measure
-            // profitMsg.content += profit;
+            // add the transaction id to be more informative
+            let transaction_link = "\nhttps://solscan.io/tx/"+transactionId;
+            profitMsg.content += transaction_link;
+
             fetch(DISCORD_STATUS_WEBHOOK, {
                 method: "POST",
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify(profitMsg)
             }).catch(err => console.error(err))
-            // profitMsg.content = "MADE PROFIT OF $"
+            profitMsg.content = "MADE A PROFIT! 🎉"     // reset to default message
 
             write_to_database(beforeUSDC, afterUSDC, fromCoinAmount - _expected_usdc, transactionId);
         }
