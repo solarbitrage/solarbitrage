@@ -1,6 +1,6 @@
 import { readFile } from "mz/fs";
 import { jsonInfo2PoolKeys, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
-import { NATIVE_SOL, swap } from "./raydium-swap-funcs";
+import { NATIVE_SOL, swap } from "./common/src/raydium-utils/raydium-swap-funcs";
 
 import { initializeApp } from 'firebase/app';
 import { Connection, Keypair } from "@solana/web3.js";

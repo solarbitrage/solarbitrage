@@ -8,11 +8,15 @@ export const CONNECTION_ENDPOINT_LIST = [
     "https://solana--mainnet.datahub.figment.io/apikey/5346b90a5de1697d94d6eb94e0cb4858/",
     "https://solana--mainnet.datahub.figment.io/apikey/5778a58d381b2846cf87381a35b071ea/",
     "https://solana--mainnet.datahub.figment.io/apikey/274401e69faa03c939ff45906e3b532e/",
-    "https://solana-api.projectserum.com/",
-    "https://api.mainnet-beta.solana.com/",
+    "https://solana--mainnet.datahub.figment.io/apikey/448fd27a06158b3b5a120a6800bceb11/",
+    "https://solana--mainnet.datahub.figment.io/apikey/f84e82b9718330d588c3a45985214219/",
+    "https://solana--mainnet.datahub.figment.io/apikey/6bbbf6472f457715754e2dd12f4a6b2b/",
+    "https://solana--mainnet.datahub.figment.io/apikey/7420af7f219764968c91b3b4e256324a/",
+    "https://api.mainnet-beta.solana.com",
+    "https://solana-api.projectserum.com"
 ]
 
-export const useConnection = () => {
+export const useConnection = (logChange?: boolean) => {
     let connectionIndex = 0;
 
     /**
@@ -23,6 +27,9 @@ export const useConnection = () => {
             return new Connection(process.env.CONNECTION_ENDPOINT, CONNECTION_COMMITMENT);
         }
 
+        if (logChange) {
+            console.log("[connection] NEW CONNECTION:", CONNECTION_ENDPOINT_LIST[connectionIndex])
+        }
         const c = new Connection(CONNECTION_ENDPOINT_LIST[connectionIndex], CONNECTION_COMMITMENT);
         connectionIndex = (connectionIndex + 1) % CONNECTION_ENDPOINT_LIST.length;
 
