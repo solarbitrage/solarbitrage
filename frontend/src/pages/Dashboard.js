@@ -5,9 +5,41 @@ import Label from "../components/dashboard/label";
 import { collection, query, where, onSnapshot, limit, orderBy } from "firebase/firestore";
 import database from "../firestore.config";
 
+import { Connection, PublicKey } from "@solana/web3.js";
+
 function Dashboard() {
-	// Hooks for the pricing history plot
+	const [solanaBalance, setSolanaBalance] = React.useState(0);
+	const [transactions, setTransactions] = React.useState([]);
   const [pricingHistory, setPricingHistory] = React.useState([]);
+
+	async function getSolanaAccountInformation() {
+		const publicKey = new PublicKey("DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z");
+		const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+
+		setSolanaBalance((await connection.getBalance(publicKey)) * 0.000000001);
+
+		// Get past transactions
+		let signatureParams = {
+			limit: 1000,
+			before: null
+		}
+		let query = await connection.getSignaturesForAddress(publicKey, signatureParams);
+		let transactionSignatures = []
+
+		while (query.length > 0) {
+			Array.prototype.push.apply(transactionSignatures, query);
+			signatureParams.before = query.at(query.length - 1).signature;
+			query = await connection.getSignaturesForAddress(publicKey, signatureParams);
+		}
+
+		setTransactions(transactionSignatures);
+	}
+
+	React.useEffect(() => {
+		getSolanaAccountInformation();
+	}, [])
+
+	// Hooks for the pricing history plot
   React.useEffect(() => {
 		const pricingRef = collection(database, "pricing_history");
     const q = query(pricingRef, where("pool_id", "==", "ORCA_SOL_USDC_BUY"), orderBy("timestamp", "desc"), limit(100));
@@ -19,6 +51,14 @@ function Dashboard() {
     })
   }, [setPricingHistory])
 
+	React.useEffect(() => {
+		console.log(solanaBalance);
+	}, [solanaBalance]);
+
+	React.useEffect(() => {
+		console.log(transactions);
+	}, [transactions]);
+
 	return (
 	<div className="dashboard">
 		<div className="page-container">
@@ -26,7 +66,7 @@ function Dashboard() {
 			<div className="widget-container row-centric">
 				<Label
 					name="Current Balance"
-					detail="40,000 USDC"
+					detail={solanaBalance.toFixed(4) + " SOL"}
 					color="#64d3a3"
 				/>
 				<Label
@@ -36,7 +76,7 @@ function Dashboard() {
 				/>
 				<Label
 					name="Transactions Performed"
-					detail="555555"
+					detail={transactions.length}
 					color="#a66eeb"
 				/>
 			</div>
@@ -111,12 +151,12 @@ function Dashboard() {
 					/>
 					<Label
 						name="Total transactions"
-						detail="5"
+						detail={transactions.length}
 						color="#a66eeb"
 					/>
 					<Label
 						name="Profitable trades"
-						detail="2"
+						detail={transactions.filter(x => x.err === null).length - 103}
 						color="#a66eeb"
 					/>
 					<Label
