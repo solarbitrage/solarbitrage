@@ -31,9 +31,8 @@ function main() {
 
     onChildChanged(slippageRef, (snapshot) => {
         const data = snapshot.val();
-        for (const key of Object.keys(data)) {
-            currentSlippage[key] = [data[key]["0"], data[key]["1"]]
-        }
+        const key = snapshot.key;
+        currentSlippage[key] = data;
     })
 
     onChildChanged(latestPricesRef, (data) => {
