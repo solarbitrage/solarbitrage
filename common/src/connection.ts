@@ -2,8 +2,6 @@ import { Connection, Commitment } from "@solana/web3.js";
 
 export const CONNECTION_COMMITMENT = (process.env.CONNECTION_COMMITMENT ?? "singleGossip") as Commitment;
 export const CONNECTION_ENDPOINT_LIST = [
-    "https://old-spring-shape.solana-mainnet.quiknode.pro/9c3788e894cbb3cdeb16e86e7664ba2f558887e7/",
-    "https://bold-autumn-wind.solana-mainnet.quiknode.pro/407833d614aa8ca24bf439fff7d1d7e846d56452/",
     "https://solana--mainnet.datahub.figment.io/apikey/d834b93190a19388cd7c015cfa21b844/",
     "https://solana--mainnet.datahub.figment.io/apikey/5346b90a5de1697d94d6eb94e0cb4858/",
     "https://solana--mainnet.datahub.figment.io/apikey/5778a58d381b2846cf87381a35b071ea/",
@@ -12,8 +10,10 @@ export const CONNECTION_ENDPOINT_LIST = [
     "https://solana--mainnet.datahub.figment.io/apikey/f84e82b9718330d588c3a45985214219/",
     "https://solana--mainnet.datahub.figment.io/apikey/6bbbf6472f457715754e2dd12f4a6b2b/",
     "https://solana--mainnet.datahub.figment.io/apikey/7420af7f219764968c91b3b4e256324a/",
-    "https://api.mainnet-beta.solana.com",
-    "https://solana-api.projectserum.com"
+    "https://solana--mainnet.datahub.figment.io/apikey/a4e126b6c16b142e08f70896357fe1cd/",
+    "https://ssc-dao.genesysgo.net/",
+    "https://solana-api.projectserum.com",
+    "https://solana--mainnet.datahub.figment.io/apikey/7c82f707593b1df3b484f84543e10cd6/",
 ]
 
 export const useConnection = (logChange?: boolean) => {
