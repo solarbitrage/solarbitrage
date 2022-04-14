@@ -6,6 +6,7 @@ import { collection, query, where, onSnapshot, limit, orderBy } from "firebase/f
 import database from "../firestore.config";
 
 import { Connection, PublicKey } from "@solana/web3.js";
+import { async } from "@firebase/util";
 
 function Dashboard() {
 	const solanaWeb3Connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
@@ -108,6 +109,22 @@ function Dashboard() {
 		getWalletMetrics("DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z", "8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 	}, [])
 
+	function calculateEarningsPerWeek(transactions) {
+		let oneWeekAgo = new Date();
+		oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+		const transactionsPastWeek = transactions.filter(x => new Date(x.blockTime * 1000.0) > oneWeekAgo);
+
+		const min = Math.min(...transactionsPastWeek.map(transaction => transaction.change.balance.amount / (10 ** transaction.change.balance.decimals)));
+		const max = Math.max(...transactionsPastWeek.map(transaction => transaction.change.balance.amount / (10 ** transaction.change.balance.decimals)));
+		return max - min;
+		//setEarningsPerWeek(max - min);
+	}
+
+	React.useEffect(() => {
+		
+	}, [successfulTransactions])
+
 	return (
 	<div className="dashboard">
 		<div className="page-container">
@@ -119,8 +136,8 @@ function Dashboard() {
 					color="#64d3a3"
 				/>
 				<Label
-					name="Earnings / Day"
-					detail="0.0323 USDC"
+					name="Earnings / Week"
+					detail={calculateEarningsPerWeek(successfulTransactions).toFixed(4) + " USDC"} 
 					color="#6e8beb"
 				/>
 				<Label
