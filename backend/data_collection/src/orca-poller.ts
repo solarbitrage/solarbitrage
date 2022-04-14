@@ -27,27 +27,30 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
 const orcaRequests = async () => {
-  
   // Initialzie Orca object with appropriate network connection
-  const connection = getNextConnection();
+  const myArgs = process.argv.slice(2).map(item => parseInt(item));
 
   try {
     console.log('Gathering ORCA data')
 
     // Gather swapping data
-    for (const [pool, poolId] of listeners) {
-      const currentPool = new OrcaPoolImpl(connection, Network.MAINNET, pool)
-      
-      const coinA = currentPool.getTokenA();
-      const coinB = currentPool.getTokenB();
+    await Promise.all(
+      listeners.slice(...myArgs)
+        .map(async ([pool, poolId]) => {
+          const connection = getNextConnection();
+          const currentPool = new OrcaPoolImpl(connection, Network.MAINNET, pool)
+          
+          const coinA = currentPool.getTokenA();
+          const coinB = currentPool.getTokenB();
 
 
-      const tradingAmount = new Decimal(1);
-      const [buyQuote, sellQuote] = await Promise.all([currentPool.getQuote(coinB, tradingAmount), currentPool.getQuote(coinA, tradingAmount)]);
+          const tradingAmount = new Decimal(1);
+          const [buyQuote, sellQuote] = await Promise.all([currentPool.getQuote(coinB, tradingAmount), currentPool.getQuote(coinA, tradingAmount)]);
 
-      // Update Firebase Real-time Database
-      updateDatabase(poolId, pool.address.toBase58(), buyQuote, sellQuote, coinA, coinB)
-    }
+          // Update Firebase Real-time Database
+          updateDatabase(poolId, pool.address.toBase58(), buyQuote, sellQuote, coinA, coinB)
+        })
+    );
   } catch (err) {
     console.warn(err);
   }
@@ -82,7 +85,7 @@ function updateDatabase(poolName: string, poolAddr: string, buyQuote: Quote, sel
     }
   };
 
-  console.log(poolName, results)
+  console.log(poolName)
 
   update(ref(database, 'latest_prices/' + poolName), results);
 }
