@@ -11,6 +11,7 @@ import {
 import NavBar from './components/navbar/navbar';
 import Dashboard from "./pages/Dashboard";
 import Metrics from "./pages/Metrics";
+import Landing from './pages/Landing';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
         <NavBar />
         <Routes>
             <Route element={ <App /> } />
+            <Route path="/" element={ <Landing /> } />
             <Route path="/dashboard" element={ <Dashboard /> } />
             <Route path="/metrics" element={ <Metrics /> } />
         </Routes>

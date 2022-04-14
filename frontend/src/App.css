@@ -216,3 +216,42 @@ Note: Beware of modifying this element as it can break the animations - you shou
 .bm-overlay {
   background: rgba(0, 0, 0, 0.3);
 }
+
+/*
+  Landing Page Style Sheet
+*/
+.landing-page-jumbotron {
+  padding: 2rem 1rem;
+  margin-bottom: 2rem;
+  background-color: #e9ecef;
+  border-radius: .3rem;
+  height: 100vh;
+}
+
+.landing-page-text {
+  margin-top: 12.5%;
+}
+
+.landing-page-image {
+  margin-top: 12.5%;
+  margin-left: 12.5%;
+  height: 75%;
+  width: 75%;
+}
+
+/*
+  General Style Sheet
+*/
+
+/* Centers element vertically and horizontally on the screen */ 
+.center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 10px;
+}
+
+.borderGrey {
+  border: 1px solid grey;
+}
