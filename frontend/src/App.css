@@ -223,7 +223,7 @@ Note: Beware of modifying this element as it can break the animations - you shou
 .landing-page-jumbotron {
   padding: 2rem 1rem;
   margin-bottom: 2rem;
-  background-color: #e9ecef;
+  background-color: #d7ecff;
   border-radius: .3rem;
   height: 100vh;
 }
@@ -233,12 +233,19 @@ Note: Beware of modifying this element as it can break the animations - you shou
 }
 
 .landing-page-image {
-  margin-top: 12.5%;
-  margin-left: 12.5%;
-  height: 75%;
-  width: 75%;
+  width: 40vw;
 }
 
+.info-section {
+  margin-left: 10%;
+  margin-right: 10%;
+}
+
+@media (max-width: 992px) {
+  .landing-page-jumbotron {
+    height: 75vh !important;
+  }
+}
 /*
   General Style Sheet
 */
@@ -246,9 +253,9 @@ Note: Beware of modifying this element as it can break the animations - you shou
 /* Centers element vertically and horizontally on the screen */ 
 .center {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  left: 25%;
+  top: 25%;
+  transform: translate(-12.5%, -12.5%);
   padding: 10px;
 }
 
