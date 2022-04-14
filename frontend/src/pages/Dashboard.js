@@ -8,56 +8,87 @@ import database from "../firestore.config";
 import { Connection, PublicKey } from "@solana/web3.js";
 
 function Dashboard() {
-	const [solanaBalance, setSolanaBalance] = React.useState(0);
-	const [transactions, setTransactions] = React.useState([]);
-  const [pricingHistory, setPricingHistory] = React.useState([]);
+	const [balance, setBalance] = React.useState(0);
+	const [successfulTransactions, setSuccessfulTransactions] = React.useState([]);
+	const [allTransactions, setAllTransactions] = React.useState([]);
 
-	async function getSolanaAccountInformation() {
-		const publicKey = new PublicKey("DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z");
-		const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+	async function getPastTokenTransactions(walletPublicKey, tokenKey, newOffset=0) {
+		let apiRequestParams = {
+			address: walletPublicKey,
+			USDCTokenAddress: tokenKey,
+			offset: newOffset,
+			limit: 10
+		}
 
-		setSolanaBalance((await connection.getBalance(publicKey)) * 0.000000001);
+		let apiRequest = "https://api.solscan.io/account/token/txs?address=" + apiRequestParams.address + 
+			"&token_address=" + apiRequestParams.USDCTokenAddress +
+			"&offset=" + apiRequestParams.offset +
+			"&limit=" + apiRequestParams.limit;
+
+		let request = new XMLHttpRequest();
+		request.open("GET", apiRequest);
+		request.send();
+		request.onload = function() {
+			if (request.status === 200) {
+				let response = JSON.parse(request.response)
+				setSuccessfulTransactions(successfulTransactions => [...successfulTransactions, ...response.data.tx.transactions]);
+				if (response.data.tx.hasNext) {
+					getPastTokenTransactions(walletPublicKey, tokenKey, apiRequestParams.offset + 10);						
+				}
+			} else {
+				console.log(`error ${request.status} ${request.statusText}`);
+			}
+		}
+	}
+
+	async function getAccountInformation(walletPublicKey, tokenAccountKey) {
+		// For solana web3
+		const publicKey = new PublicKey(walletPublicKey);
+		const tokenPublicKey = new PublicKey(tokenAccountKey)
+		const solanaWeb3Connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
 
 		// Get past transactions
 		let signatureParams = {
 			limit: 1000,
 			before: null
 		}
-		let query = await connection.getSignaturesForAddress(publicKey, signatureParams);
+		let query = await solanaWeb3Connection.getSignaturesForAddress(publicKey, signatureParams);
 		let transactionSignatures = []
 
 		while (query.length > 0) {
 			Array.prototype.push.apply(transactionSignatures, query);
 			signatureParams.before = query.at(query.length - 1).signature;
-			query = await connection.getSignaturesForAddress(publicKey, signatureParams);
+			query = await solanaWeb3Connection.getSignaturesForAddress(publicKey, signatureParams);
 		}
 
-		setTransactions(transactionSignatures);
+		setAllTransactions(transactionSignatures);
+		console.log(await solanaWeb3Connection.getTokenAccountBalance(tokenPublicKey));
+		setBalance((await solanaWeb3Connection.getTokenAccountBalance(tokenPublicKey)) * 0.000000001);
+	}
+
+	async function getAccountTokenInformation(walletPublicKey, tokenAccountKey, tokenKey) {
+		setBalance(0);
+		setSuccessfulTransactions([]);
+		setAllTransactions([]);
+		getAccountInformation(walletPublicKey, tokenAccountKey);
+		getPastTokenTransactions(walletPublicKey, tokenKey);
 	}
 
 	React.useEffect(() => {
-		getSolanaAccountInformation();
+		getAccountTokenInformation("DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z", "8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 	}, [])
 
-	// Hooks for the pricing history plot
-  React.useEffect(() => {
-		const pricingRef = collection(database, "pricing_history");
-    const q = query(pricingRef, where("pool_id", "==", "ORCA_SOL_USDC_BUY"), orderBy("timestamp", "desc"), limit(100));
-    onSnapshot(q, (querySnapshot) => {
-      setPricingHistory(querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        data: doc.data()
-      })))
-    })
-  }, [setPricingHistory])
+	React.useEffect(() => {
+		console.log(balance);
+	}, [balance]);
 
 	React.useEffect(() => {
-		console.log(solanaBalance);
-	}, [solanaBalance]);
+		console.log(allTransactions);
+	}, [allTransactions]);
 
 	React.useEffect(() => {
-		console.log(transactions);
-	}, [transactions]);
+		console.log(successfulTransactions);
+	}, [successfulTransactions]);
 
 	return (
 	<div className="dashboard">
@@ -66,7 +97,7 @@ function Dashboard() {
 			<div className="widget-container row-centric">
 				<Label
 					name="Current Balance"
-					detail={solanaBalance.toFixed(4) + " SOL"}
+					detail={balance.toFixed(4) + " USDC"}
 					color="#64d3a3"
 				/>
 				<Label
@@ -76,7 +107,7 @@ function Dashboard() {
 				/>
 				<Label
 					name="Transactions Performed"
-					detail={transactions.length}
+					detail={allTransactions.length}
 					color="#a66eeb"
 				/>
 			</div>
@@ -87,8 +118,8 @@ function Dashboard() {
 						{
 							type: "scatter",
 							mode: "lines+points",
-							x: pricingHistory.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
-							y: pricingHistory.map(ph => ph.data.rate)
+							x: successfulTransactions.map(x => new Date(x.blockTime * 1000.0)),
+							y: successfulTransactions.map(x => x.change.balance.amount / (10 ** x.change.balance.decimals))
 						}
 					]}
 					layout = {
@@ -151,12 +182,12 @@ function Dashboard() {
 					/>
 					<Label
 						name="Total transactions"
-						detail={transactions.length}
+						detail={allTransactions.length}
 						color="#a66eeb"
 					/>
 					<Label
 						name="Profitable trades"
-						detail={transactions.filter(x => x.err === null).length - 103}
+						detail={successfulTransactions.length}
 						color="#a66eeb"
 					/>
 					<Label
