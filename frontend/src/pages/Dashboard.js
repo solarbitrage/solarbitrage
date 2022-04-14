@@ -8,10 +8,20 @@ import database from "../firestore.config";
 import { Connection, PublicKey } from "@solana/web3.js";
 
 function Dashboard() {
+	const solanaWeb3Connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+
 	const [balance, setBalance] = React.useState(0);
 	const [successfulTransactions, setSuccessfulTransactions] = React.useState([]);
 	const [allTransactions, setAllTransactions] = React.useState([]);
 
+	/**
+	 * Using Solscan's API, given a wallet's public key and a token key to check,
+	 * find all transactions about the token. Information gets stored
+	 * inside "successfulTransactions".
+	 * @param {string} walletPublicKey Wallet's public key
+	 * @param {string} tokenKey Public key of target currency
+	 * @param {number} newOffset Offset to used to query items in the API
+	 */
 	async function getPastTokenTransactions(walletPublicKey, tokenKey, newOffset=0) {
 		let apiRequestParams = {
 			address: walletPublicKey,
@@ -41,11 +51,13 @@ function Dashboard() {
 		}
 	}
 
-	async function getAccountInformation(walletPublicKey, tokenAccountKey) {
+	/**
+	 * Get all transaction signatures tied to the user's wallet.
+	 * @param {string} walletPublicKey User wallet's public key
+	 */
+	async function getSignaturesForAddressHelper(walletPublicKey) {
 		// For solana web3
 		const publicKey = new PublicKey(walletPublicKey);
-		const tokenPublicKey = new PublicKey(tokenAccountKey)
-		const solanaWeb3Connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
 
 		// Get past transactions
 		let signatureParams = {
@@ -62,33 +74,39 @@ function Dashboard() {
 		}
 
 		setAllTransactions(transactionSignatures);
-		console.log(await solanaWeb3Connection.getTokenAccountBalance(tokenPublicKey));
-		setBalance((await solanaWeb3Connection.getTokenAccountBalance(tokenPublicKey)) * 0.000000001);
 	}
 
-	async function getAccountTokenInformation(walletPublicKey, tokenAccountKey, tokenKey) {
+	/**
+	 * Gets the balance of a token from a token account
+	 * @param {string} tokenAccountPublicKey User's token account public key
+	 */
+	async function getTokenAccountBalanceHelper(tokenAccountKey) {
+		const publicKey = new PublicKey(tokenAccountKey);
+		const response = await solanaWeb3Connection.getTokenAccountBalance(publicKey);
+
+		setBalance(response.value.amount / (10 ** response.value.decimals));
+	}
+
+	/**
+	 * Gets all metrics to display on the dashboard.
+	 * @param {string} walletPublicKey User wallet's public key
+	 * @param {string} tokenAccountPublicKey User's token account public key
+	 * @param {string} tokenKey Public key of target currency
+	 */
+	async function getWalletMetrics(walletPublicKey, tokenAccountPublicKey, tokenKey) {
 		setBalance(0);
 		setSuccessfulTransactions([]);
 		setAllTransactions([]);
-		getAccountInformation(walletPublicKey, tokenAccountKey);
+
 		getPastTokenTransactions(walletPublicKey, tokenKey);
+		getSignaturesForAddressHelper(walletPublicKey);
+		getTokenAccountBalanceHelper(tokenAccountPublicKey);
 	}
 
 	React.useEffect(() => {
-		getAccountTokenInformation("DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z", "8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+		//8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH
+		getWalletMetrics("DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z", "8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 	}, [])
-
-	React.useEffect(() => {
-		console.log(balance);
-	}, [balance]);
-
-	React.useEffect(() => {
-		console.log(allTransactions);
-	}, [allTransactions]);
-
-	React.useEffect(() => {
-		console.log(successfulTransactions);
-	}, [successfulTransactions]);
 
 	return (
 	<div className="dashboard">
