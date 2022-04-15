@@ -1,6 +1,5 @@
 import React from 'react';
 import { Container, Row, Col, Button, Card, CardGroup } from 'react-bootstrap';
-import Footer from '../components/footer'
 import FAQ from '../components/faq'
 import Team from '../components/team'
 import landingphoto from '../assets/landing_photo.png'
@@ -92,7 +91,6 @@ function Dashboard() {
             </div>
             
             <FAQ />
-            <Footer />
         </div>
 
     )

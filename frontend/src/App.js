@@ -12,6 +12,7 @@ import NavBar from './components/navbar/navbar';
 import Dashboard from "./pages/Dashboard";
 import Metrics from "./pages/Metrics";
 import Landing from './pages/Landing';
+import Footer from './components/footer'
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
             <Route path="/dashboard" element={ <Dashboard /> } />
             <Route path="/metrics" element={ <Metrics /> } />
         </Routes>
+        <Footer />
     </Router>
     </div>
   );
