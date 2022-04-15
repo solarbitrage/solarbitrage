@@ -7,9 +7,7 @@ import config from "./common/src/config";
 import { useConnection } from "./common/src/connection";
 import { listeners } from "./common/src/orca-utils/constants";
 
-
-
-const getNextConnection = useConnection();
+const getNextConnection = useConnection(true);
 
 // Firebase Configuration
 const firebaseConfig = {

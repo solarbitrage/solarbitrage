@@ -8,7 +8,6 @@ import * as Tokens from "@orca-so/sdk/dist/constants/tokens";
 
 export const listeners: [OrcaPoolParams, string][] = [
     [orcaPoolConfigs[OrcaPoolConfig.SOL_USDC], "ORCA_SOL_USDC"],
-    [orcaPoolConfigs[OrcaPoolConfig.ETH_USDC], "ORCA_ETH_USDC"],
     [orcaPoolConfigs[OrcaPoolConfig.ORCA_USDC], "ORCA_ORCA_USDC"],
     [orcaPoolConfigs[OrcaPoolConfig.LIQ_USDC], "ORCA_LIQ_USDC"],
     [orcaPoolConfigs[OrcaPoolConfig.SNY_USDC], "ORCA_SNY_USDC"],
