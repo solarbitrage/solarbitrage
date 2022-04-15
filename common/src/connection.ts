@@ -1,4 +1,4 @@
-import { Connection, Commitment } from "@solana/web3.js";
+import { Connection, Commitment, ConnectionConfig } from "@solana/web3.js";
 
 export const CONNECTION_COMMITMENT = (process.env.CONNECTION_COMMITMENT ?? "singleGossip") as Commitment;
 export const CONNECTION_ENDPOINT_LIST = [
@@ -14,13 +14,14 @@ export const CONNECTION_ENDPOINT_LIST = [
     "https://ssc-dao.genesysgo.net/",
     "https://solana-api.projectserum.com",
     "https://public-rpc.blockpi.io/http/solana",
+    "https://solana.public-rpc.com",
     "https://solana--mainnet.datahub.figment.io/apikey/7c82f707593b1df3b484f84543e10cd6/",
 ]
 
-export const useConnection = (logChange?: boolean) => {
+export const useConnection = (logChange?: boolean, config?: ConnectionConfig) => {
     let connectionIndex = 0;
 
-    const connections = CONNECTION_ENDPOINT_LIST.map(endpoint => new Connection(endpoint, CONNECTION_COMMITMENT));
+    const connections = CONNECTION_ENDPOINT_LIST.map(endpoint => new Connection(endpoint, { commitment: CONNECTION_COMMITMENT, ...config }));
 
     /**
      * Cycle through list of solana mainnet endpoints (to distribute load and avoid rate limits)

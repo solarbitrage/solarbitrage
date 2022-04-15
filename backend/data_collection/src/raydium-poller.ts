@@ -23,6 +23,7 @@ import {
   moreUnofficialLpPools,
 } from "./common/src/raydium-utils/constants";
 import { useConnection } from "./common/src/connection";
+import { fetchWithTimeout } from "./common/src/fetch-timeout";
 // Firebase Configuration
 const firebaseConfig = {
   apiKey: config.FIREBASE_API_KEY,
@@ -52,7 +53,11 @@ const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 // Connection info
 
-const getNextConnection = useConnection(true);
+const getNextConnection = useConnection(true, {
+  disableRetryOnRateLimit: true,
+  confirmTransactionInitialTimeout: 2000,
+  fetchMiddleware: (url, options, fetch) => fetchWithTimeout(fetch, url, options),
+});
 
 function updateDatabase(poolName, data) {
   return set(ref(database, "latest_prices/" + poolName), data);
