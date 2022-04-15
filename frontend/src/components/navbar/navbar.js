@@ -4,7 +4,7 @@ import { LinkContainer } from 'react-router-bootstrap'
 
 function NavBar() {
 	return (
-		<Navbar collapseOnSelect expand="lg" sticky="top" bg="light" variant="light">
+		<Navbar collapseOnSelect expand="lg" sticky="top" bg="dark" variant="dark">
 			<Container>
 				<LinkContainer to="/">
 					<Navbar.Brand>Solarbitrage</Navbar.Brand>
@@ -29,7 +29,7 @@ function NavBar() {
 						</LinkContainer>
 					</Nav>
 					<Form inline>
-						<Button variant="primary">Connect Wallet</Button>
+						<Button variant="primary">Connect Wallet <i class="bi bi-wallet2"></i></Button>
 					</Form>
 				</Navbar.Collapse>
 			</Container>
