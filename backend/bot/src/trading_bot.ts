@@ -214,7 +214,12 @@ async function calculate_trade({route, estimatedProfit}, index) {
     if (estimatedProfit <= THRESHOLD && index >= 4 && Math.random() < 0.3) return;
 
     // if the route is not profitable then don't make swap functions, just test out slippage
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+        console.log(`waiting on ${route[0].pool_id} -> ${route[1].pool_id}; time elapsed: ${(Date.now() - startTime) / 1000}s`);
+    }, 5000);
     await arbitrage(route, usdc, usdc + (usdc * estimatedProfit), estimatedProfit <= THRESHOLD)
+    clearInterval(interval);
 }
 
 
@@ -257,7 +262,9 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                 const _beforeAmt = beforeAmt;     
                 const _i = i;      
                 const _pool_id = pool.pool_id;         
+                const _pool_addr = pool.pool_addr;   
                 afterSwapPromises.push((async () => {
+                    const poolKeys = poolKeysMap[_pool_addr];
                     const connection = getNewConnection();
                     // im sorry
                     const _fromToken = fromToken.mint === NATIVE_SOL.mint ? WSOL : fromToken;
@@ -383,6 +390,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
     } catch (err) {
         console.error(`CONTEXT: ${route[0].pool_id} -> ${route[1].pool_id}\n`, err);
     }
+
     await Promise.allSettled(afterSwapPromises);
 }
 

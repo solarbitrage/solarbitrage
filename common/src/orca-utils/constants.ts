@@ -17,7 +17,6 @@ export const listeners: [OrcaPoolParams, string][] = [
     [orcaPoolConfigs[OrcaPoolConfig.SBR_USDC], "ORCA_SBR_USDC"],
     [orcaPoolConfigs[OrcaPoolConfig.RAY_USDC], "ORCA_RAY_USDC"],
     [orcaPoolConfigs[OrcaPoolConfig.ATLAS_USDC], "ORCA_ATLAS_USDC"],
-    [orcaPoolConfigs[OrcaPoolConfig.SLIM_USDC], "ORCA_SLIM_USDC"],
     [orcaPoolConfigs[OrcaPoolConfig.MNGO_USDC], "ORCA_MNGO_USDC"],
     [orcaPoolConfigs[OrcaPoolConfig.UPS_USDC], "ORCA_UPS_USDC"],
     [Object.freeze({

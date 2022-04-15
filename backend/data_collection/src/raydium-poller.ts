@@ -135,7 +135,7 @@ function updateDatabase(poolName, data) {
 
               const poolResults = {
                 provider: "RAYDIUM",
-                pool_addr: lpPools[i].id.toBase58(),
+                pool_addr: chunk[i].id.toBase58(),
                 buy: {
                   ...buyResults,
                 },
