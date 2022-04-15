@@ -3,7 +3,7 @@ import { Container, Row, Col, Button, Card, CardGroup } from 'react-bootstrap';
 import Footer from '../components/footer'
 import FAQ from '../components/faq'
 import Team from '../components/team'
-import stockphoto from '../assets/stock_photo.png'
+import landingphoto from '../assets/landing_photo.png'
 
 function Dashboard() {
     return (
@@ -31,7 +31,7 @@ function Dashboard() {
                                 </Col>
 
                                 <Col lg>
-                                    <img class='landing-page-image d-none d-lg-block' alt='decorative' src={stockphoto}></img>
+                                    <img class='landing-page-image d-none d-lg-block' alt='decorative' src={landingphoto}></img>
                                 </Col>
                             </Row>
                         </Container>
