@@ -20,6 +20,8 @@ export const CONNECTION_ENDPOINT_LIST = [
 export const useConnection = (logChange?: boolean) => {
     let connectionIndex = 0;
 
+    const connections = CONNECTION_ENDPOINT_LIST.map(endpoint => new Connection(endpoint, CONNECTION_COMMITMENT));
+
     /**
      * Cycle through list of solana mainnet endpoints (to distribute load and avoid rate limits)
      */
@@ -31,7 +33,7 @@ export const useConnection = (logChange?: boolean) => {
         if (logChange) {
             console.log("[connection] NEW CONNECTION:", CONNECTION_ENDPOINT_LIST[connectionIndex])
         }
-        const c = new Connection(CONNECTION_ENDPOINT_LIST[connectionIndex], CONNECTION_COMMITMENT);
+        const c = connections[connectionIndex];
         connectionIndex = (connectionIndex + 1) % CONNECTION_ENDPOINT_LIST.length;
 
         return c;
