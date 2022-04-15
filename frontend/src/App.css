@@ -222,9 +222,7 @@ Note: Beware of modifying this element as it can break the animations - you shou
 */
 .landing-page-jumbotron {
   padding: 2rem 1rem;
-  margin-bottom: 2rem;
-  background-color: #d7ecff;
-  border-radius: .3rem;
+  background-color: #255C99;
   height: 100vh;
 }
 
@@ -234,17 +232,49 @@ Note: Beware of modifying this element as it can break the animations - you shou
 
 .landing-page-image {
   width: 40vw;
+  margin-left: 10%;
+  max-width: 800px;
 }
 
 .info-section {
-  margin-left: 10%;
-  margin-right: 10%;
+  padding: 2rem 1rem;
+  background-color: #262626;
+  height: 100%;
 }
 
 @media (max-width: 992px) {
   .landing-page-jumbotron {
     height: 75vh !important;
   }
+}
+
+.faq-section {
+  padding: 2rem 1rem;
+  background-color: #262626;
+  height: 100%;
+}
+
+.team-text{
+  text-align: center;
+}
+
+.team-section {
+  padding: 2rem 1rem;
+  background-color: #262626;
+  height: 100%;
+}
+
+.footer-section {
+  padding: 2rem 1rem;
+  padding-left: 50px;
+  background-color: #255C99;
+  text-align: center;
+  color: white;
+  height: 100%;
+}
+
+.footer-links {
+  color: white;
 }
 /*
   General Style Sheet
