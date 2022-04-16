@@ -1,6 +1,6 @@
 import { getOrca, Network, OrcaPoolConfig } from "@orca-so/sdk";
 import { jsonInfo2PoolKeys, Liquidity, LiquidityPoolJsonInfo, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
-import { Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { initializeApp } from 'firebase/app';
 import { get, getDatabase, onChildChanged, onValue, ref, set } from "firebase/database";
@@ -9,7 +9,7 @@ import { readFile } from "mz/fs";
 import fetch from "node-fetch";
 // ~~~~~~ firebase configs ~~~~~~
 import config from "./common/src/config";
-import { useConnection } from "./common/src/connection";
+import { CONNECTION_COMMITMENT, CONNECTION_ENDPOINT_LIST, useConnection } from "./common/src/connection";
 import { swap as orcaSwap } from "./common/src/orca-utils/orca-swap-funcs";
 import * as RaydiumRateFuncs from "./common/src/raydium-utils/raydium-rate-funcs";
 import { NATIVE_SOL, swap as raydiumSwap } from "./common/src/raydium-utils/raydium-swap-funcs";
@@ -17,6 +17,7 @@ import { createAssociatedTokenAccountIfNotExist } from "./common/src/raydium-uti
 import { RAYDIUM_POOLS_ENDPOINT, listeners as raydiumListeners } from "./common/src/raydium-utils/constants";
 import { listeners as orcaListeners } from "./common/src/orca-utils/constants";
 import { OrcaPoolImpl } from "@orca-so/sdk/dist/model/orca/pool/orca-pool";
+import { fetchWithTimeout } from "./common/src/fetch-timeout";
 
 
 const firebaseConfig = {
@@ -58,8 +59,17 @@ let ready_to_trade = true;  // flag to look for updates only when a swap intruct
 
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 
-const getNewConnection = useConnection(false);
+const getNewConnection = useConnection(false, {
+    disableRetryOnRateLimit: true,
+    confirmTransactionInitialTimeout: 3000,
+    fetchMiddleware: (url, options, fetch) => fetchWithTimeout(fetch, url, {...options, timeout: 3000}),
+});
+
+// use this to get the latest price of a token
 let connection = getNewConnection();
+
+// use this connection to make swaps
+const mainConnection = new Connection(CONNECTION_ENDPOINT_LIST[0], CONNECTION_COMMITMENT);
 
 const poolKeysMap = {};
 const poolAddrToOrcaPool = {};
@@ -202,10 +212,15 @@ async function calculate_trade({route, estimatedProfit}, index) {
     let usdc = STARTING_USDC_BET;
 
     // don't bother if it is not the top 4 routes or if RNG gods say so
-    if (estimatedProfit <= THRESHOLD && index >= 4 && Math.random() > 0.5) return;
+    if (estimatedProfit <= THRESHOLD && index >= 4 && Math.random() < 0.3) return;
 
     // if the route is not profitable then don't make swap functions, just test out slippage
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+        console.log(`waiting on ${route[0].pool_id} -> ${route[1].pool_id}; time elapsed: ${(Date.now() - startTime) / 1000}s`);
+    }, 5000);
     await arbitrage(route, usdc, usdc + (usdc * estimatedProfit), estimatedProfit <= THRESHOLD)
+    clearInterval(interval);
 }
 
 
@@ -251,7 +266,9 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                 const _beforeAmt = beforeAmt;     
                 const _i = i;      
                 const _pool_id = pool.pool_id;         
+                const _pool_addr = pool.pool_addr;   
                 afterSwapPromises.push((async () => {
+                    const poolKeys = poolKeysMap[_pool_addr];
                     const connection = getNewConnection();
                     // im sorry
                     const _fromToken = fromToken.mint === NATIVE_SOL.mint ? WSOL : fromToken;
@@ -273,7 +290,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                         console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} > ${newTokenAmt} which means slippage might be too high (trading on RAYDIUM, slippage should maybe be ${slippageShouldBe})`);
                         pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
                     }
-                })().catch((e: Error) => {console.error(`POOL_ID{${_pool_id}}[${_i}]:`,e)}))
+                })().catch((e: Error) => {console.error(`ERR: POOL_ID{${_pool_id}}[${_i}]:`,e)}))
 
                 const connection = getNewConnection();
                 if (!shouldSkipSwap) {
@@ -335,7 +352,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                         console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} > ${newTokenAmt} which means slippage might be too high (trading on ORCA, slippage should maybe be ${slippageShouldBe})`);
                         pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
                     }
-                })().catch((e: Error) => {console.error(`POOL_ID{${_pool_id}}[${_i}]:`,e.message)}))
+                })().catch((e: Error) => {console.error(`ERR: POOL_ID{${_pool_id}}[${_i}]:`,e.message)}))
 
                 if (!shouldSkipSwap) {
                     const { transactionPayload } = await orcaSwap(
@@ -360,8 +377,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
             const beforeParsedInfo = tokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
             const beforeUSDC = parseFloat(beforeParsedInfo.tokenAmount.uiAmount);
 
-            const connection = getNewConnection();
-            transactionId = await sendAndConfirmTransaction(connection, transaction, signers, {commitment: "singleGossip", skipPreflight: true});
+            transactionId = await sendAndConfirmTransaction(mainConnection, transaction, signers, {commitment: "singleGossip", skipPreflight: true});
             console.log({ transactionId });
 
             // Repoll for token account data
@@ -390,6 +406,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
     } catch (err) {
         console.error(`CONTEXT: ${route[0].pool_id} -> ${route[1].pool_id}\n`, err);
     }
+
     await Promise.allSettled(afterSwapPromises);
 }
 
@@ -467,7 +484,7 @@ async function write_to_database(_start: number, _end: number, _expected_profit:
 }
 
 async function getTokenAccounts() {
-    const accounts = await connection.getParsedTokenAccountsByOwner(owner.publicKey, { programId: TOKEN_PROGRAM_ID })
+    const accounts = await mainConnection.getParsedTokenAccountsByOwner(owner.publicKey, { programId: TOKEN_PROGRAM_ID })
 
     // token account for Raydium
     const tokenAccounts = {};

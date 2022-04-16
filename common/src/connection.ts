@@ -1,4 +1,4 @@
-import { Connection, Commitment } from "@solana/web3.js";
+import { Connection, Commitment, ConnectionConfig } from "@solana/web3.js";
 
 export const CONNECTION_COMMITMENT = (process.env.CONNECTION_COMMITMENT ?? "singleGossip") as Commitment;
 export const CONNECTION_ENDPOINT_LIST = [
@@ -13,11 +13,15 @@ export const CONNECTION_ENDPOINT_LIST = [
     "https://solana--mainnet.datahub.figment.io/apikey/a4e126b6c16b142e08f70896357fe1cd/",
     "https://ssc-dao.genesysgo.net/",
     "https://solana-api.projectserum.com",
+    "https://public-rpc.blockpi.io/http/solana",
+    "https://solana.public-rpc.com",
     "https://solana--mainnet.datahub.figment.io/apikey/7c82f707593b1df3b484f84543e10cd6/",
 ]
 
-export const useConnection = (logChange?: boolean) => {
+export const useConnection = (logChange?: boolean, config?: ConnectionConfig) => {
     let connectionIndex = 0;
+
+    const connections = CONNECTION_ENDPOINT_LIST.map(endpoint => new Connection(endpoint, { commitment: CONNECTION_COMMITMENT, ...config }));
 
     /**
      * Cycle through list of solana mainnet endpoints (to distribute load and avoid rate limits)
@@ -30,7 +34,7 @@ export const useConnection = (logChange?: boolean) => {
         if (logChange) {
             console.log("[connection] NEW CONNECTION:", CONNECTION_ENDPOINT_LIST[connectionIndex])
         }
-        const c = new Connection(CONNECTION_ENDPOINT_LIST[connectionIndex], CONNECTION_COMMITMENT);
+        const c = connections[connectionIndex];
         connectionIndex = (connectionIndex + 1) % CONNECTION_ENDPOINT_LIST.length;
 
         return c;
