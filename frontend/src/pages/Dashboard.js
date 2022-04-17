@@ -2,11 +2,7 @@ import React from "react";
 import HistoryPlot from "../components/historyPlot";
 import Label from "../components/dashboard/label";
 
-import { collection, query, where, onSnapshot, limit, orderBy } from "firebase/firestore";
-import database from "../firestore.config";
-
 import { Connection, PublicKey } from "@solana/web3.js";
-import { async } from "@firebase/util";
 
 function Dashboard() {
 	const solanaWeb3Connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
@@ -57,7 +53,6 @@ function Dashboard() {
 	 * @param {string} walletPublicKey User wallet's public key
 	 */
 	async function getSignaturesForAddressHelper(walletPublicKey) {
-		// For solana web3
 		const publicKey = new PublicKey(walletPublicKey);
 
 		// Get past transactions
@@ -105,9 +100,10 @@ function Dashboard() {
 	}
 
 	React.useEffect(() => {
-		//8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH
-		getWalletMetrics("DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z", "8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
-	}, [])
+		getWalletMetrics("DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z", // Wallet Address
+		"8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH", 	// Token Account Address
+		"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");	// Token Address
+	}, [getWalletMetrics]);
 
 	function calculateEarningsPerWeek(transactions) {
 		let oneWeekAgo = new Date();
@@ -118,12 +114,7 @@ function Dashboard() {
 		const min = Math.min(...transactionsPastWeek.map(transaction => transaction.change.balance.amount / (10 ** transaction.change.balance.decimals)));
 		const max = Math.max(...transactionsPastWeek.map(transaction => transaction.change.balance.amount / (10 ** transaction.change.balance.decimals)));
 		return max - min;
-		//setEarningsPerWeek(max - min);
 	}
-
-	React.useEffect(() => {
-		
-	}, [successfulTransactions])
 
 	return (
 	<div className="dashboard">
