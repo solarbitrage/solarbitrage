@@ -219,8 +219,13 @@ async function calculate_trade({route, estimatedProfit}, index) {
     const interval = setInterval(() => {
         console.log(`waiting on ${route[0].pool_id} -> ${route[1].pool_id}; time elapsed: ${(Date.now() - startTime) / 1000}s`);
     }, 5000);
-    await arbitrage(route, usdc, usdc + (usdc * estimatedProfit), estimatedProfit <= THRESHOLD)
-    clearInterval(interval);
+    try {
+        await arbitrage(route, usdc, usdc + (usdc * estimatedProfit), estimatedProfit <= THRESHOLD)
+    } catch (e) {
+        console.error(e);
+    } finally {
+        clearInterval(interval);
+    }
 }
 
 
