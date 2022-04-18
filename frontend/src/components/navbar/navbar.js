@@ -1,5 +1,5 @@
 import React from "react";
-import { Container, Nav, Navbar, Button, Form} from "react-bootstrap"
+import { Container, Nav, Navbar, Button} from "react-bootstrap"
 import { LinkContainer } from 'react-router-bootstrap'
 
 function NavBar() {
@@ -28,9 +28,9 @@ function NavBar() {
 							</Nav.Link>
 						</LinkContainer>
 					</Nav>
-					<Form inline>
-						<Button variant="primary">Connect Wallet <i class="bi bi-wallet2"></i></Button>
-					</Form>
+					<Button>
+                        View our project on GitHub! <i class="bi bi-github"></i>
+                    </Button>
 				</Navbar.Collapse>
 			</Container>
 		</Navbar>

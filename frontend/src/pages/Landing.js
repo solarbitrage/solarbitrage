@@ -51,36 +51,36 @@ function Dashboard() {
                                 <Card className="mb-3">
                                     <Card.Header as="h5">Step 1.</Card.Header>
                                     <Card.Body>
-                                        <Card.Title>Create an Account</Card.Title>
+                                        <Card.Title>Near realtime data collection</Card.Title>
                                         <Card.Text>
-                                        Start your arbitraging experience by creating an account!
+                                        Our bot collects near realtime data for all of the currencies and AMMs it is monitoring.
                                         </Card.Text>
                                     </Card.Body>
                                 </Card>
                                 <Card className="mb-3">
                                     <Card.Header as="h5">Step 2.</Card.Header>
                                     <Card.Body>
-                                        <Card.Title>Deposit Funds</Card.Title>
+                                        <Card.Title>Determine profitable trades</Card.Title>
                                         <Card.Text>
-                                        By depositing funds into Solarbitrage, your bot will then have starting capital to begin trading with.
+                                        Solarbitrage then decides using it's own algorithms what could possibly be a profitable trade.
                                         </Card.Text>
                                     </Card.Body>
                                 </Card>
                                 <Card className="mb-3">
                                     <Card.Header as="h5">Step 3.</Card.Header>
                                     <Card.Body>
-                                        <Card.Title>Create Your Arbitrage Bot</Card.Title>
+                                        <Card.Title>Execute trades</Card.Title>
                                         <Card.Text>
-                                        Go through a simple set up process to create your arbitrage bot.
+                                        Solarbitrage then executes a single atomic transaction on the blockchain containing the multiple swaps.
                                         </Card.Text>
                                     </Card.Body>
                                 </Card>
                                     <Card className="mb-3" >
                                     <Card.Header as="h5">Step 4.</Card.Header>
                                     <Card.Body>
-                                        <Card.Title>Watch Your Profits Grow</Card.Title>
+                                        <Card.Title>Monitoring performance</Card.Title>
                                         <Card.Text>
-                                        Yes. It's really that simple!
+                                        We then monitor the performance of the bot over time and fine tune our trading strategy.
                                         </Card.Text>
                                     </Card.Body>
                                 </Card>

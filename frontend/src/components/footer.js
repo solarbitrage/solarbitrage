@@ -16,7 +16,7 @@ function Footer() {
                         Solana blockchain.
                     </p>
                     <Button>
-                        View our project! <i class="bi bi-github"></i>
+                        View our project on GitHub <i class="bi bi-github"></i>
                     </Button>
                 </Col>
                 <Col>

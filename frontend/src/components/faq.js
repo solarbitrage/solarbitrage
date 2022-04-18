@@ -47,11 +47,10 @@ function FAQ() {
                         <Accordion.Header>What is the risk of investing using Solarbitrage</Accordion.Header>
                         <Accordion.Body>
                         By using our proprietary transaction system, we only make successful transactions. This 
-                        means for any transaction that is completed, you will make profit. Any transaction that 
-                        will net you a loss will not be processed, but will still be subject to a transaction fee. 
+                        means for any transaction that is completed, Solarbitrage will make profit. Any transaction that 
+                        will net a loss will not be processed, but will still be subject to a transaction fee. 
                         This typically costs around 0.0005 SOL. This fee is not created by Solarbitrage, but rather the
-                        Solana network. <br></br> <br></br>
-                        Solarbitrage is not an audited platform and is not responsible for any losses from its users investments.
+                        Solana network.
                         </Accordion.Body>
                     </Accordion.Item>
                     <Accordion.Item eventKey="4">
