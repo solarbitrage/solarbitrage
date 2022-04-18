@@ -1,24 +1,40 @@
 import React from "react";
-import { Link } from "react-router-dom";
-import { slide as Menu } from "react-burger-menu";
+import { Container, Nav, Navbar, Button} from "react-bootstrap"
+import { LinkContainer } from 'react-router-bootstrap'
 
-class NavBar extends React.Component {
-	showSettings (event) {
-    event.preventDefault();
-  }
-
-	render() {
-		return(
-			<div className="nav-bar">
-				<Menu>
-					<Link to="/">Home</Link>
-					<Link to="/dashboard">Dashboard</Link>
-					<Link to="/metrics">Metrics</Link>
-				</Menu>
-				
-			</div>
-		)
-	}
+function NavBar() {
+	return (
+		<Navbar collapseOnSelect expand="lg" sticky="top" bg="dark" variant="dark">
+			<Container>
+				<LinkContainer to="/">
+					<Navbar.Brand>Solarbitrage</Navbar.Brand>
+				</LinkContainer>
+				<Navbar.Toggle aria-controls="responsive-navbar-nav" />
+				<Navbar.Collapse id="responsive-navbar-nav">
+					<Nav className="me-auto">
+						<LinkContainer to="/">
+							<Nav.Link>
+								Home
+							</Nav.Link>
+						</LinkContainer>
+						<LinkContainer to="/dashboard">
+							<Nav.Link>
+								Dashboard
+							</Nav.Link>
+						</LinkContainer>
+						<LinkContainer to="/metrics">
+							<Nav.Link>
+								Metrics
+							</Nav.Link>
+						</LinkContainer>
+					</Nav>
+					<Button>
+                        View our project on GitHub! <i class="bi bi-github"></i>
+                    </Button>
+				</Navbar.Collapse>
+			</Container>
+		</Navbar>
+	)
 }
 
 export default NavBar;

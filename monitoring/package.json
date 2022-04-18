@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "body-parser": "^1.20.0",
     "express": "^4.17.1",
     "pm2": "^4.5.6",
     "socket.io": "^4.1.2"

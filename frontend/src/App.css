@@ -217,3 +217,79 @@ Note: Beware of modifying this element as it can break the animations - you shou
 .bm-overlay {
   background: rgba(0, 0, 0, 0.3);
 }
+
+/*
+  Landing Page Style Sheet
+*/
+.landing-page-jumbotron {
+  padding: 2rem 1rem;
+  background-color: #255C99;
+  height: 100vh;
+}
+
+.landing-page-text {
+  margin-top: 12.5%;
+}
+
+.landing-page-image {
+  width: 40vw;
+  margin-left: 10%;
+  max-width: 800px;
+}
+
+.info-section {
+  padding: 2rem 1rem;
+  background-color: #262626;
+  height: 100%;
+}
+
+@media (max-width: 992px) {
+  .landing-page-jumbotron {
+    height: 75vh !important;
+  }
+}
+
+.faq-section {
+  padding: 2rem 1rem;
+  background-color: #262626;
+  height: 100%;
+}
+
+.team-text{
+  text-align: center;
+}
+
+.team-section {
+  padding: 2rem 1rem;
+  background-color: #262626;
+  height: 100%;
+}
+
+.footer-section {
+  padding: 2rem 1rem;
+  padding-left: 50px;
+  background-color: #255C99;
+  text-align: center;
+  color: white;
+  height: 100%;
+}
+
+.footer-links {
+  color: white;
+}
+/*
+  General Style Sheet
+*/
+
+/* Centers element vertically and horizontally on the screen */ 
+.center {
+  position: absolute;
+  left: 25%;
+  top: 25%;
+  transform: translate(-12.5%, -12.5%);
+  padding: 10px;
+}
+
+.borderGrey {
+  border: 1px solid grey;
+}
