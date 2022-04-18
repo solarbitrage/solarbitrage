@@ -103,7 +103,7 @@ function Dashboard() {
 		getWalletMetrics("DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z", // Wallet Address
 		"8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH", 	// Token Account Address
 		"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");	// Token Address
-	}, [getWalletMetrics]);
+	}, []);
 
 	function calculateEarningsPerWeek(transactions) {
 		let oneWeekAgo = new Date();
