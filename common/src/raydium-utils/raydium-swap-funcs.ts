@@ -1,8 +1,7 @@
-import { LIQUIDITY_PROGRAM_ID_V4, nu64, SERUM_PROGRAM_ID_V3, SERUM_VERSION_TO_PROGRAMID, SplTokenInfo, struct, u8, WSOL } from "@raydium-io/raydium-sdk";
-import { Account, Connection, Keypair, PublicKey, sendAndConfirmTransaction, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
-import { TokenAmount } from "./raydium-utils/safe-math";
-import { closeAccount } from '@project-serum/serum/lib/token-instructions'
-import { createAssociatedTokenAccountIfNotExist, createTokenAccountIfNotExist } from "./raydium-utils/web3";
+import { nu64, SplTokenInfo, struct, u8, WSOL } from "@raydium-io/raydium-sdk";
+import { Connection, Keypair, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { TokenAmount } from "./safe-math";
+import { createAssociatedTokenAccountIfNotExist, createTokenAccountIfNotExist } from "./web3";
 
 interface TokenInfo {
     symbol: string;

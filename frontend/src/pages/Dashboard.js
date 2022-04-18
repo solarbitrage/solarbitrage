@@ -2,22 +2,119 @@ import React from "react";
 import HistoryPlot from "../components/historyPlot";
 import Label from "../components/dashboard/label";
 
-import { collection, query, where, onSnapshot, limit, orderBy } from "firebase/firestore";
-import database from "../firestore.config";
+import { Connection, PublicKey } from "@solana/web3.js";
 
 function Dashboard() {
-	// Hooks for the pricing history plot
-  const [pricingHistory, setPricingHistory] = React.useState([]);
-  React.useEffect(() => {
-		const pricingRef = collection(database, "pricing_history");
-    const q = query(pricingRef, where("pool_id", "==", "ORCA_SOL_USDC_BUY"), orderBy("timestamp", "desc"), limit(100));
-    onSnapshot(q, (querySnapshot) => {
-      setPricingHistory(querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        data: doc.data()
-      })))
-    })
-  }, [setPricingHistory])
+	const solanaWeb3Connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+
+	const [balance, setBalance] = React.useState(0);
+	const [successfulTransactions, setSuccessfulTransactions] = React.useState([]);
+	const [allTransactions, setAllTransactions] = React.useState([]);
+
+	/**
+	 * Using Solscan's API, given a wallet's public key and a token key to check,
+	 * find all transactions about the token. Information gets stored
+	 * inside "successfulTransactions".
+	 * @param {string} walletPublicKey Wallet's public key
+	 * @param {string} tokenKey Public key of target currency
+	 * @param {number} newOffset Offset to used to query items in the API
+	 */
+	async function getPastTokenTransactions(walletPublicKey, tokenKey, newOffset=0) {
+		let apiRequestParams = {
+			address: walletPublicKey,
+			USDCTokenAddress: tokenKey,
+			offset: newOffset,
+			limit: 10
+		}
+
+		let apiRequest = "https://api.solscan.io/account/token/txs?address=" + apiRequestParams.address + 
+			"&token_address=" + apiRequestParams.USDCTokenAddress +
+			"&offset=" + apiRequestParams.offset +
+			"&limit=" + apiRequestParams.limit;
+
+		let request = new XMLHttpRequest();
+		request.open("GET", apiRequest);
+		request.send();
+		request.onload = function() {
+			if (request.status === 200) {
+				let response = JSON.parse(request.response)
+				setSuccessfulTransactions(successfulTransactions => [...successfulTransactions, ...response.data.tx.transactions]);
+				if (response.data.tx.hasNext) {
+					getPastTokenTransactions(walletPublicKey, tokenKey, apiRequestParams.offset + 10);						
+				}
+			} else {
+				console.log(`error ${request.status} ${request.statusText}`);
+			}
+		}
+	}
+
+	/**
+	 * Get all transaction signatures tied to the user's wallet.
+	 * @param {string} walletPublicKey User wallet's public key
+	 */
+	async function getSignaturesForAddressHelper(walletPublicKey) {
+		const publicKey = new PublicKey(walletPublicKey);
+
+		// Get past transactions
+		let signatureParams = {
+			limit: 1000,
+			before: null
+		}
+		let query = await solanaWeb3Connection.getSignaturesForAddress(publicKey, signatureParams);
+		let transactionSignatures = []
+
+		while (query.length > 0) {
+			Array.prototype.push.apply(transactionSignatures, query);
+			signatureParams.before = query.at(query.length - 1).signature;
+			query = await solanaWeb3Connection.getSignaturesForAddress(publicKey, signatureParams);
+		}
+
+		setAllTransactions(transactionSignatures);
+	}
+
+	/**
+	 * Gets the balance of a token from a token account
+	 * @param {string} tokenAccountPublicKey User's token account public key
+	 */
+	async function getTokenAccountBalanceHelper(tokenAccountKey) {
+		const publicKey = new PublicKey(tokenAccountKey);
+		const response = await solanaWeb3Connection.getTokenAccountBalance(publicKey);
+
+		setBalance(response.value.amount / (10 ** response.value.decimals));
+	}
+
+	/**
+	 * Gets all metrics to display on the dashboard.
+	 * @param {string} walletPublicKey User wallet's public key
+	 * @param {string} tokenAccountPublicKey User's token account public key
+	 * @param {string} tokenKey Public key of target currency
+	 */
+	async function getWalletMetrics(walletPublicKey, tokenAccountPublicKey, tokenKey) {
+		setBalance(0);
+		setSuccessfulTransactions([]);
+		setAllTransactions([]);
+
+		getPastTokenTransactions(walletPublicKey, tokenKey);
+		getSignaturesForAddressHelper(walletPublicKey);
+		getTokenAccountBalanceHelper(tokenAccountPublicKey);
+	}
+
+	React.useEffect(() => {
+		getWalletMetrics("DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z", // Wallet Address
+		"8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH", 	// Token Account Address
+		"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");	// Token Address
+	}, []);
+
+	function calculateEarningsPerWeek(transactions) {
+		let oneWeekAgo = new Date();
+		oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+		const transactionsPastWeek = transactions.filter(x => new Date(x.blockTime * 1000.0) > oneWeekAgo);
+
+		const min = Math.min(...transactionsPastWeek.map(transaction => transaction.change.balance.amount / (10 ** transaction.change.balance.decimals)));
+		const max = Math.max(...transactionsPastWeek.map(transaction => transaction.change.balance.amount / (10 ** transaction.change.balance.decimals)));
+		return max - min;
+	}
 
 	return (
 	<div className="dashboard">
@@ -26,17 +123,17 @@ function Dashboard() {
 			<div className="widget-container row-centric">
 				<Label
 					name="Current Balance"
-					detail="40,000 USDC"
+					detail={balance.toFixed(4) + " USDC"}
 					color="#64d3a3"
 				/>
 				<Label
-					name="Earnings / Day"
-					detail="0.0323 USDC"
+					name="Earnings / Week"
+					detail={calculateEarningsPerWeek(successfulTransactions).toFixed(4) + " USDC"} 
 					color="#6e8beb"
 				/>
 				<Label
 					name="Transactions Performed"
-					detail="555555"
+					detail={allTransactions.length}
 					color="#a66eeb"
 				/>
 			</div>
@@ -47,8 +144,8 @@ function Dashboard() {
 						{
 							type: "scatter",
 							mode: "lines+points",
-							x: pricingHistory.map(ph => new Date(ph.data.timestamp.seconds * 1000)),
-							y: pricingHistory.map(ph => ph.data.rate)
+							x: successfulTransactions.map(x => new Date(x.blockTime * 1000.0)),
+							y: successfulTransactions.map(x => x.change.balance.amount / (10 ** x.change.balance.decimals))
 						}
 					]}
 					layout = {
@@ -111,12 +208,12 @@ function Dashboard() {
 					/>
 					<Label
 						name="Total transactions"
-						detail="5"
+						detail={allTransactions.length}
 						color="#a66eeb"
 					/>
 					<Label
 						name="Profitable trades"
-						detail="2"
+						detail={successfulTransactions.length}
 						color="#a66eeb"
 					/>
 					<Label

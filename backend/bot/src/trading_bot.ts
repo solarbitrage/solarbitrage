@@ -1,18 +1,20 @@
 import { getOrca, OrcaPoolConfig } from "@orca-so/sdk";
-import { jsonInfo2PoolKeys, LiquidityPoolJsonInfo, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
-import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
+import { jsonInfo2PoolKeys, Liquidity, LiquidityPoolJsonInfo, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
+import { Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { initializeApp } from 'firebase/app';
-import { get, getDatabase, onChildChanged, ref } from "firebase/database";
+import { get, getDatabase, onChildChanged, ref, set } from "firebase/database";
 import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/firestore";
 import { readFile } from "mz/fs";
+import fetch from "node-fetch";
 // ~~~~~~ firebase configs ~~~~~~
 import config from "./common/src/config";
-import { CONNECTION_COMMITMENT, CONNECTION_ENDPOINT_LIST, useConnection } from "./common/src/connection";
-import { swap as orcaSwap } from "./orca-swap-funcs";
-import { NATIVE_SOL, swap as raydiumSwap } from "./raydium-swap-funcs";
-import { createAssociatedTokenAccountIfNotExist } from "./raydium-utils/web3";
-import fetch from "node-fetch"
+import { useConnection } from "./common/src/connection";
+import { swap as orcaSwap } from "./common/src/orca-utils/orca-swap-funcs";
+import * as RaydiumRateFuncs from "./common/src/raydium-utils/raydium-rate-funcs";
+import { NATIVE_SOL, swap as raydiumSwap } from "./common/src/raydium-utils/raydium-swap-funcs";
+import { createAssociatedTokenAccountIfNotExist } from "./common/src/raydium-utils/web3";
+import { RAYDIUM_POOLS_ENDPOINT, listeners } from "./common/src/raydium-utils/constants";
 
 const firebaseConfig = {
     apiKey: config.FIREBASE_API_KEY,
@@ -24,6 +26,18 @@ const firebaseConfig = {
     appId: config.FIREBASE_APP_ID
 };
 
+// Hot patches to token info
+MAINNET_SPL_TOKENS["SOL"] = {
+    ...WSOL,
+};
+
+MAINNET_SPL_TOKENS["ETH"] = {
+    ...MAINNET_SPL_TOKENS["ETH"],
+    mint: "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
+    name: "Ether (Portal)", // TODO: fix ETH-USDC pool
+    decimals: 8
+}
+
 const app = initializeApp(firebaseConfig);
 // Get a reference to the database service
 const database = getDatabase(app);
@@ -31,23 +45,23 @@ const firestore = getFirestore(app);
 // ~~~~~~ firebase configs ~~~~~~
 
 const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/Users/noelb/my-solana-wallet/wallet-keypair.json"
-const SLIPPAGE = 0.08;
+const STARTING_SLIPPAGE = 0;
+const ADDITIONAL_SLIPPAGE = 0.005;
 const THRESHOLD = 0;
 const STARTING_USDC_BET = 4
 
 let ready_to_trade = true;  // flag to look for updates only when a swap intruction is done
 
-// SOL_USDC Raydium token
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
-const RAYDIUM_POOLS_ENDPOINT = "https://sdk.raydium.io/liquidity/mainnet.json"
 
-let connection = new Connection(CONNECTION_ENDPOINT_LIST[CONNECTION_ENDPOINT_LIST.length - 1], CONNECTION_COMMITMENT)
+const getNewConnection = useConnection(false);
+let connection = getNewConnection();
 
-const orca = getOrca(connection);
 const poolKeysMap = {};
 let owner: Keypair;
 
 let local_database: any = {};
+let pool_to_slippage_map: {[key:string]: [number, number]} = {};
 
 // function to set up local copy of the database
 async function query_pools() {
@@ -58,6 +72,24 @@ async function query_pools() {
     })
 }
 
+async function get_slippages() {
+    const slip_map = ref(database, 'mainnet_pool_to_slippage_map/');
+    return get(slip_map).then((snapshot) => {
+        if (!snapshot.exists()) return {};
+        const data = snapshot.val();
+        const ret = {}
+        for (const key of Object.keys(data)) {
+            ret[key] = [data[key]["0"], data[key]["1"]]
+        }
+        return ret;
+    })
+}
+
+async function set_slippages(val) {
+    const slip_map = ref(database, 'mainnet_pool_to_slippage_map/');
+    return set(slip_map, val);
+}
+
 async function main() {
     // ==== Setup 
     // Read secret key file to get owner keypair
@@ -66,9 +98,15 @@ async function main() {
     });
 
     const lpMetadata = await fetch(RAYDIUM_POOLS_ENDPOINT).then(res => res.json())
-    const allOfficialLpPools: LiquidityPoolJsonInfo[] = lpMetadata["official"];
-    for (const pool of allOfficialLpPools) {
-        poolKeysMap[`${pool.baseMint}-${pool.quoteMint}`] = jsonInfo2PoolKeys(pool);
+    const lpPools: LiquidityPoolJsonInfo[] = [
+        ...lpMetadata["official"],
+        ...lpMetadata["unOfficial"],
+    ].filter((val) => listeners.includes(val.id));
+    
+    for (const pool of lpPools) {
+        const baseMint = pool.baseMint === WSOL.mint ? NATIVE_SOL.mint : pool.baseMint;
+        const quoteMint = pool.quoteMint === WSOL.mint ? NATIVE_SOL.mint : pool.quoteMint;
+        poolKeysMap[`${baseMint}-${quoteMint}`] = jsonInfo2PoolKeys(pool);
     }
 
     // local_database setup
@@ -77,6 +115,13 @@ async function main() {
     local_database = queries;
     let middleTokenToPoolMap = getMiddleTokenToPoolMap("USDC");
 
+    // setup slippage's per pool_id
+    pool_to_slippage_map = await get_slippages();
+    for (const poolId of Object.keys(local_database)) {
+        if (!pool_to_slippage_map[poolId]) {
+            pool_to_slippage_map[poolId] = [STARTING_SLIPPAGE, STARTING_SLIPPAGE];
+        }
+    }
 
     // get wallet credentials
     const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
@@ -90,22 +135,39 @@ async function main() {
     const loop = () => {
         middleTokenToPoolMap = getMiddleTokenToPoolMap("USDC");
         const middleTokenToRouteMap = getMiddleTokenToRoutesMap(middleTokenToPoolMap);
-        const promises = [];
+        const profitableRoutes = []
         ready_to_trade = false;
+
+        set_slippages(pool_to_slippage_map);
+
         for (const middleTokenName of Object.keys(middleTokenToRouteMap)) {
             if (middleTokenToRouteMap[middleTokenName].length > 0) {
-                promises.push(calculate_trade(middleTokenToRouteMap[middleTokenName][0]));
+                profitableRoutes.push(middleTokenToRouteMap[middleTokenName][0])
             }
         }
-        Promise.all(promises)
+
+        console.table(
+            Object.keys(pool_to_slippage_map)
+                .map(poolId => ({ "Pool": poolId, "Buy Rate Slippage (%)": (pool_to_slippage_map[poolId][0] * 100).toFixed(4), "Sell Rate Slippage (%)": (pool_to_slippage_map[poolId][1] * 100).toFixed(4) }))
+        )
+
+
+        console.table(profitableRoutes
+            .sort((a, b) => b.estimatedProfit - a.estimatedProfit)
+            .map(r => ({
+                "Estimated Profit per $1": r.estimatedProfit,
+                "First Pool": r.route[0].pool_id,
+                "Second Pool": r.route[1].pool_id
+            })));
+
+
+        return Promise.all(profitableRoutes.sort((a, b) => b.estimatedProfit - a.estimatedProfit).map((r, i) => calculate_trade(r, i)))
             .then(() => {
                 ready_to_trade = true;
             })
             .catch(e => console.error(e))
     }
     
-    // initial trade calculation
-    loop();
 
     // ==== Start listener
     const updated_pools = ref(database, 'latest_prices/');
@@ -118,29 +180,28 @@ async function main() {
         //function that runs caclculations anytime there's a change
         // while(!ready_to_trade){
 
-        // }            
-        if (ready_to_trade) {
-            loop();
-            console.log("going to check new change")
-        }
+        // }
 
     });
+
+    for (;;) {
+        const dateString = new Date().toLocaleString()
+        console.log(dateString, "-".repeat(Math.max(process.stdout.columns - dateString.length - 1, 0)))
+        await loop();
+        await new Promise<void>((res) => setTimeout(() => res(), 300));
+    }
 }
 
-main().then(() => {}).catch(e => console.error(e))
+main().then(() => {}).catch(e => {console.error(e); process.exit(1)})
 
-async function calculate_trade({route, estimatedProfit}) {
-    // console.log(local_database, update)
+async function calculate_trade({route, estimatedProfit}, index) {
     let usdc = STARTING_USDC_BET;
 
-    console.log([
-        {pool_id: route[0].pool_id, from: route[0].buy.from, to: route[0].buy.to},
-        {pool_id: route[1].pool_id, from: route[1].sell.from, to: route[1].sell.to}
-    ], {estimatedProfit});
+    // don't bother if it is not the top 4 routes or if RNG gods say so
+    if (estimatedProfit <= THRESHOLD && index >= 4 && Math.random() > 0.5) return;
 
-    if (estimatedProfit > THRESHOLD) {
-        await arbitrage(route, usdc, usdc + (usdc * estimatedProfit))
-    }
+    // if the route is not profitable then don't make swap functions, just test out slippage
+    await arbitrage(route, usdc, usdc + (usdc * estimatedProfit), estimatedProfit <= THRESHOLD)
 }
 
 
@@ -148,10 +209,8 @@ async function calculate_trade({route, estimatedProfit}) {
 // update database on changes, if change is found, calculate the rate differences to check for profitable trades
 // if profitable trade exists, conduct a swap.
 // only after a swap is done, look for another database update?
-
-const arbitrage = async (route, fromCoinAmount, _expected_usdc) => {
-    console.log( { fromCoinAmount, _expected_usdc })    
-
+const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSkipSwap?: boolean) => {
+    const current_pool_to_slippage = JSON.parse(JSON.stringify(pool_to_slippage_map))
     let transactionId = "";
 
     const tokenAccounts = await getTokenAccounts();
@@ -159,82 +218,154 @@ const arbitrage = async (route, fromCoinAmount, _expected_usdc) => {
     transaction.feePayer = owner.publicKey;
     const signers = [];
 
+    const afterSwapPromises = [];
+
     let beforeAmt = fromCoinAmount;
+    try {
+        for (const [i, pool] of route.entries()) {
+            const pool_id = pool.pool_id;
+            const slippage = current_pool_to_slippage[pool_id][i];
+            const newTokenAmt = beforeAmt * 
+                (i === 0 ? pool.buy.rate : pool.sell.rate) * (1 - slippage);
 
-    for (const [i, pool] of route.entries()) {
-        const newTokenAmt = beforeAmt * 
-            (i === 0 ? pool.buy.rate : pool.sell.rate) * (1 - SLIPPAGE);
+            const fromTokenStr = (i === 0 ? pool.buy.from : pool.sell.from);
+            const toTokenStr = (i === 0 ? pool.buy.to : pool.sell.to);
 
-        const fromTokenStr = (i === 0 ? pool.buy.from : pool.sell.from);
-        const toTokenStr = (i === 0 ? pool.buy.to : pool.sell.to);
+            if (pool_id.split("_")[0] === "RAYDIUM") {
+                const fromToken = fromTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[fromTokenStr];
+                const toToken = toTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[toTokenStr];
 
-        if (pool.pool_id.split("_")[0] === "RAYDIUM") {
-            const fromToken = fromTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[fromTokenStr];
-            const toToken = toTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[toTokenStr];
+                const poolKeys = poolKeysMap[`${fromToken.mint}-${toToken.mint}`] ?? poolKeysMap[`${toToken.mint}-${fromToken.mint}`];
 
-            const res = await raydiumSwap(
-                connection,
-                owner,
-                poolKeysMap[`${fromToken.mint}-${toToken.mint}`] ?? poolKeysMap[`${toToken.mint}-${fromToken.mint}`],
-                fromToken,
-                toToken,
-                tokenAccounts[fromToken.mint]?.tokenAccountAddress,
-                tokenAccounts[toToken.mint]?.tokenAccountAddress,
-                beforeAmt.toString(),
-                newTokenAmt.toString(),
-                tokenAccounts[WSOL.mint]?.tokenAccountAddress
-            );
-            transaction.add(res.transaction);
-            signers.push(...res.signers);
-        } else if (pool.pool_id.split("_")[0] === "ORCA") {
-            const orcaAmmPool = orca.getPool(OrcaPoolConfig[pool.pool_id.split("_").slice(1).join("_")]);
-            const poolTokens = {
-                [orcaAmmPool.getTokenA().tag]: orcaAmmPool.getTokenA(),
-                [orcaAmmPool.getTokenB().tag]: orcaAmmPool.getTokenB()
+                // check if rates are accurately (without affecting swap call)
+                const _beforeAmt = beforeAmt;     
+                const _i = i;      
+                const _pool_id = pool.pool_id;         
+                afterSwapPromises.push((async () => {
+                    const connection = getNewConnection();
+                    // im sorry
+                    const _fromToken = fromToken.mint === NATIVE_SOL.mint ? WSOL : fromToken;
+                    const _toToken = toToken.mint === NATIVE_SOL.mint ? WSOL : toToken;
+
+                    const amountOut = RaydiumRateFuncs.getRate(poolKeys, await Liquidity.fetchInfo({ connection, poolKeys }), _fromToken, _toToken, _beforeAmt)
+                    const parsedAmountOut = (amountOut.amountOut.raw.toNumber() / Math.pow(10, toToken.decimals)) * (1 - ADDITIONAL_SLIPPAGE);
+
+                    if (
+                        parsedAmountOut < newTokenAmt &&
+                        (_i != 0 || 
+                        parsedAmountOut * route[_i+1].sell.rate < newTokenAmt * route[_i+1].sell.rate)
+                    ) {
+                        const slippageShouldBe = Math.max(0, slippage + (1 - parsedAmountOut / newTokenAmt))
+                        console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on RAYDIUM, slippage should maybe be ${slippageShouldBe})`);
+                        pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
+                    } else if (parsedAmountOut > newTokenAmt) {
+                        const slippageShouldBe =  Math.max(0, slippage + (1 - parsedAmountOut / newTokenAmt))
+                        console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} > ${newTokenAmt} which means slippage might be too high (trading on RAYDIUM, slippage should maybe be ${slippageShouldBe})`);
+                        pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
+                    }
+                })().catch((e: Error) => {console.error(`POOL_ID{${_pool_id}}[${_i}]:`,e)}))
+
+                const connection = getNewConnection();
+                if (!shouldSkipSwap) {
+                    const res = await raydiumSwap(
+                        connection,
+                        owner,
+                        poolKeys,
+                        fromToken,
+                        toToken,
+                        tokenAccounts[fromToken.mint]?.tokenAccountAddress,
+                        tokenAccounts[toToken.mint]?.tokenAccountAddress,
+                        beforeAmt.toString(),
+                        newTokenAmt.toString(),
+                        tokenAccounts[WSOL.mint]?.tokenAccountAddress
+                    );
+                    transaction.add(res.transaction);
+                    signers.push(...res.signers);
+                }
+            } else if (pool_id.split("_")[0] === "ORCA") {
+                const connection = getNewConnection();
+                const orca = getOrca(connection);
+                const orcaAmmPool = orca.getPool(OrcaPoolConfig[pool.pool_id.split("_").slice(1).join("_")]);
+                const poolTokens = {
+                    [orcaAmmPool.getTokenA().tag]: orcaAmmPool.getTokenA(),
+                    [orcaAmmPool.getTokenB().tag]: orcaAmmPool.getTokenB()
+                }
+
+
+                const fromToken = poolTokens[fromTokenStr];
+                const toToken = poolTokens[toTokenStr];
+
+                // check if rates are accurately (without affecting swap call)
+                const _beforeAmt = beforeAmt;     
+                const _i = i;      
+                const _pool_id = pool.pool_id;   
+
+                afterSwapPromises.push((async () => { 
+                    // the things we do for pooling connections
+                    const connection = getNewConnection();
+                    const orca = getOrca(connection);
+                    const orcaAmmPool = orca.getPool(OrcaPoolConfig[_pool_id.split("_").slice(1).join("_")]);
+
+                    const quote = await orcaAmmPool.getQuote(fromToken, new Decimal(_beforeAmt))
+                    const parsedAmountOut = quote.getExpectedOutputAmount().toNumber() * (1 - ADDITIONAL_SLIPPAGE);
+                                        
+                    if (
+                        parsedAmountOut < newTokenAmt &&
+                        (_i != 0 || 
+                        parsedAmountOut * route[_i+1].sell.rate < newTokenAmt * route[_i+1].sell.rate)
+                    ) {
+                        const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
+                        console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on ORCA, slippage should maybe be ${slippageShouldBe})`);
+                        pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
+                    } else if (parsedAmountOut > newTokenAmt) {
+                        const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
+                        console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} > ${newTokenAmt} which means slippage might be too high (trading on ORCA, slippage should maybe be ${slippageShouldBe})`);
+                        pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
+                    }
+                })().catch((e: Error) => {console.error(`POOL_ID{${_pool_id}}[${_i}]:`,e.message)}))
+
+                if (!shouldSkipSwap) {
+                    const { transactionPayload } = await orcaSwap(
+                        orcaAmmPool, 
+                        owner, 
+                        fromToken, 
+                        new Decimal(beforeAmt), 
+                        new Decimal(newTokenAmt), 
+                        new PublicKey(tokenAccounts[fromToken.mint.toBase58()]?.tokenAccountAddress),
+                        new PublicKey(tokenAccounts[toToken.mint.toBase58()]?.tokenAccountAddress),
+                    );
+                    transaction.add(transactionPayload.transaction);
+                    signers.push(...transactionPayload.signers); 
+                }
+
             }
 
-            
-            const fromToken = poolTokens[fromTokenStr];
-            const toToken = poolTokens[toTokenStr];
-            // orcaAmmPool.getQuote(fromToken, new Decimal(beforeAmt), new Decimal(1 / SLIPPAGE)).then(q => {
-            //     const actualNewTokenAmt = q.getExpectedOutputAmount().toNumber();
-            //     console.log({beforeAmt, newTokenAmt, actualNewTokenAmt, actualRate: q.getRate().toNumber(), expectedRate: (i === 0 ? pool.buy.rate : pool.sell.rate)});
-            // })
-            const { transactionPayload } = await orcaSwap(
-                orcaAmmPool, 
-                owner, 
-                fromToken, 
-                new Decimal(beforeAmt), 
-                new Decimal(newTokenAmt), 
-                new PublicKey(tokenAccounts[fromToken.mint.toBase58()]?.tokenAccountAddress),
-                new PublicKey(tokenAccounts[toToken.mint.toBase58()]?.tokenAccountAddress),
-            );
-            transaction.add(transactionPayload.transaction);
-            signers.push(...transactionPayload.signers); 
+            beforeAmt = newTokenAmt;
         }
 
-        beforeAmt = newTokenAmt;
-    }
+        if (!shouldSkipSwap) {
+            const beforeParsedInfo = tokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
+            const beforeUSDC = parseFloat(beforeParsedInfo.tokenAmount.uiAmount);
 
-    const beforeParsedInfo = tokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
-    const beforeUSDC = parseFloat(beforeParsedInfo.tokenAmount.uiAmount);
+            const connection = getNewConnection();
+            transactionId = await sendAndConfirmTransaction(connection, transaction, signers, {commitment: "singleGossip", skipPreflight: true});
+            console.log({ transactionId });
 
-    try {
-        transactionId = await sendAndConfirmTransaction(connection, transaction, signers, {commitment: "singleGossip", skipPreflight: true});
-        console.log({ transactionId });
+            // Repoll for token account data
+            const afterTokenAccounts = await getTokenAccounts();
+            if (!afterTokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint])
+                throw new Error("No USDC token account!");
 
-        // Repoll for token account data
-        const afterTokenAccounts = await getTokenAccounts();
-        if (!afterTokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint])
-            throw new Error("No USDC token account!");
+            const parsedInfo = afterTokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
+            const afterUSDC = parseFloat(parsedInfo.tokenAmount.uiAmount);
+            
+            write_to_database(beforeUSDC, afterUSDC, fromCoinAmount - _expected_usdc, transactionId);
+        }
 
-        const parsedInfo = afterTokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
-        const afterUSDC = parseFloat(parsedInfo.tokenAmount.uiAmount);
-        
-        write_to_database(beforeUSDC, afterUSDC, _expected_usdc, transactionId);
     } catch (err) {
-        console.error(err);
+        console.error(`CONTEXT: ${route[0].pool_id} -> ${route[1].pool_id}\n`, err);
     }
+    await Promise.allSettled(afterSwapPromises);
 }
 
 
@@ -275,8 +406,8 @@ function getMiddleTokenToRoutesMap(middleTokenToPoolMap: any) {
                 const b = middleTokenToPoolMap[middleTokenName][y];
 
                 let estimatedProfits = {
-                    "a then b": ((1 * a.buy.rate * (1 - SLIPPAGE)) * b.sell.rate * (1 - SLIPPAGE)) - 1,
-                    "b then a": ((1 * b.buy.rate * (1 - SLIPPAGE)) * a.sell.rate * (1 - SLIPPAGE)) - 1
+                    "a then b": ((1 * a.buy.rate * (1 - pool_to_slippage_map[a.pool_id][0])) * b.sell.rate * (1 - pool_to_slippage_map[b.pool_id][1])) - 1,
+                    "b then a": ((1 * b.buy.rate * (1 - pool_to_slippage_map[b.pool_id][0])) * a.sell.rate * (1 - pool_to_slippage_map[a.pool_id][1])) - 1
                 }
 
                 if (estimatedProfits["a then b"] > estimatedProfits["b then a"]) {

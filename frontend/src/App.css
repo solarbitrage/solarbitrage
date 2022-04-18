@@ -71,7 +71,8 @@ html body {
   padding: 10px;
   border-radius: 5px;
   margin: 0px 20px 5px 5px;
-  width: 15vw;
+  min-width: 15vw;
+  width: auto;
   height: 95px;
   background-color: rgb(255, 255, 255);
   filter: drop-shadow(0px 0px 5px rgb(201, 201, 201));
@@ -128,7 +129,7 @@ html body {
 .date-time {
   margin: 0px 0px 0px 0px;
   align-items: center;
-  text-align: center;
+  text-align: left;
   justify-content: space-between;
 }
 

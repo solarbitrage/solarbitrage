@@ -1,7 +1,7 @@
 import { jsonInfo2PoolKeys, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { readFile } from "mz/fs";
-import { NATIVE_SOL, swap } from "./raydium-swap-funcs";
+import { NATIVE_SOL, swap } from "./common/src/raydium-utils/raydium-swap-funcs";
 
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 

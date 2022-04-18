@@ -1,10 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, child, get, onValue, onChildChanged, query, update} from "firebase/database";
-import { collection, getFirestore, addDoc, serverTimestamp} from "firebase/firestore";
-import { readFile } from "mz/fs";
-import { Connection, Keypair } from "@solana/web3.js";
-import { getOrca, OrcaFarmConfig, OrcaPoolConfig, Network } from "@orca-so/sdk";  
-import Decimal from "decimal.js";
+import { get, getDatabase, onChildChanged, ref } from "firebase/database";
+import { getFirestore } from "firebase/firestore";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 // Your web app's Firebase configuration

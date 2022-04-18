@@ -1,9 +1,7 @@
 import { getOrca, OrcaPoolConfig, OrcaPoolToken, Quote } from "@orca-so/sdk";
-import { Keypair } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, update } from "firebase/database";
-import { readFile } from "mz/fs";
 import config from "./common/src/config";
 import { useConnection } from "./common/src/connection";
 
