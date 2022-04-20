@@ -24,7 +24,7 @@ function Dashboard() {
 			address: walletPublicKey,
 			USDCTokenAddress: tokenKey,
 			offset: newOffset,
-			limit: 1
+			limit: 10
 		}
 
 		let apiRequest = "https://api.solscan.io/account/token/txs?address=" + apiRequestParams.address + 
@@ -40,7 +40,6 @@ function Dashboard() {
 				let response = JSON.parse(request.response)
 
 				transactionArray.push(...response.data.tx.transactions);
-				console.log(transactionArray);
 
 				if (response.data.tx.hasNext) {
 					getPastTokenTransactions(walletPublicKey, tokenKey, apiRequestParams.offset + 10, transactionArray);						
@@ -109,10 +108,6 @@ function Dashboard() {
 		"8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH", 	// Token Account Address
 		"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");	// Token Address
 	}, []);
-
-	React.useEffect(() => {
-		console.log(successfulTransactions);
-	}, [successfulTransactions]);
 
 	function calculateEarningsPerWeek(transactions) {
 		let oneWeekAgo = new Date();
