@@ -24,7 +24,7 @@ function Dashboard() {
 			address: walletPublicKey,
 			USDCTokenAddress: tokenKey,
 			offset: newOffset,
-			limit: 10
+			limit: 1
 		}
 
 		let apiRequest = "https://api.solscan.io/account/token/txs?address=" + apiRequestParams.address + 
@@ -40,6 +40,7 @@ function Dashboard() {
 				let response = JSON.parse(request.response)
 
 				transactionArray.push(...response.data.tx.transactions);
+				console.log(transactionArray);
 
 				if (response.data.tx.hasNext) {
 					getPastTokenTransactions(walletPublicKey, tokenKey, apiRequestParams.offset + 10, transactionArray);						
@@ -164,8 +165,9 @@ function Dashboard() {
 						{
 							type: "scatter",
 							mode: "lines+points",
-							x: successfulTransactions ? successfulTransactions.map(x => new Date(x.blockTime * 1000.0)) : [],
-							y: successfulTransactions ? successfulTransactions.map(x => x.change.balance.amount / (10 ** x.change.balance.decimals)) : []
+							x: successfulTransactions ? [new Date()].concat(successfulTransactions.map(x => new Date(x.blockTime * 1000.0))) : [],
+							y: successfulTransactions ? [successfulTransactions[0].change.balance.amount / (10 ** successfulTransactions[0].change.balance.decimals)].concat(
+								successfulTransactions.map(x => x.change.balance.amount / (10 ** x.change.balance.decimals))) : []
 						}
 					]}
 					layout = {
