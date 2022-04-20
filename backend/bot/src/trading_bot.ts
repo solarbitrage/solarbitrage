@@ -180,7 +180,7 @@ async function main() {
                 "Second Pool": r.route[1].pool_id
             })));
 
-        return Promise.all(profitableRoutes.sort((a, b) => b.estimatedProfit - a.estimatedProfit).map((r, i) => calculate_trade(r, i, tokenAccounts)))
+        return Promise.all(profitableRoutes.sort((a, b) => b.estimatedProfit - a.estimatedProfit).map((r, i) => calculate_trade(r, i)))
             .then(() => {
                 ready_to_trade = true;
             })
