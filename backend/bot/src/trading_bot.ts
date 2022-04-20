@@ -6,7 +6,6 @@ import { initializeApp } from 'firebase/app';
 import { get, getDatabase, onChildChanged, onValue, ref, set } from "firebase/database";
 import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/firestore";
 import { readFile } from "mz/fs";
-import fetch from "node-fetch";
 // ~~~~~~ firebase configs ~~~~~~
 import config from "./common/src/config";
 import { CONNECTION_COMMITMENT, CONNECTION_ENDPOINT_LIST, useConnection } from "./common/src/connection";
@@ -18,6 +17,7 @@ import { RAYDIUM_POOLS_ENDPOINT, listeners as raydiumListeners } from "./common/
 import { listeners as orcaListeners } from "./common/src/orca-utils/constants";
 import { OrcaPoolImpl } from "@orca-so/sdk/dist/model/orca/pool/orca-pool";
 import { fetchWithTimeout } from "./common/src/fetch-timeout";
+import fetch from "node-fetch"
 
 
 const firebaseConfig = {
@@ -62,7 +62,7 @@ const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ
 const getNewConnection = useConnection(false, {
     disableRetryOnRateLimit: true,
     confirmTransactionInitialTimeout: 3000,
-    fetchMiddleware: (url, options, fetch) => fetchWithTimeout(fetch, url, {...options, timeout: 3000}),
+    fetch: (url, opts) => fetchWithTimeout(fetch, url, {...opts, timeout: 3000}),
 });
 
 // use this to get the latest price of a token
@@ -73,6 +73,7 @@ const mainConnection = new Connection(CONNECTION_ENDPOINT_LIST[0], CONNECTION_CO
 
 const poolKeysMap = {};
 const poolAddrToOrcaPool = {};
+let tokenAccounts = {};
 
 orcaListeners.map(([pool, _]) => poolAddrToOrcaPool[pool.address.toBase58()] = pool);
 
@@ -148,6 +149,9 @@ async function main() {
     await setupTokenAccounts(Object.keys(middleTokenToPoolMap));
     console.log("setup WSOL Token Account");
 
+    // get token accounts
+    tokenAccounts = await getTokenAccounts();
+
     const loop = () => {
         middleTokenToPoolMap = getMiddleTokenToPoolMap("USDC");
         const middleTokenToRouteMap = getMiddleTokenToRoutesMap(middleTokenToPoolMap);
@@ -176,8 +180,7 @@ async function main() {
                 "Second Pool": r.route[1].pool_id
             })));
 
-
-        return Promise.all(profitableRoutes.sort((a, b) => b.estimatedProfit - a.estimatedProfit).map((r, i) => calculate_trade(r, i)))
+        return Promise.all(profitableRoutes.sort((a, b) => b.estimatedProfit - a.estimatedProfit).map((r, i) => calculate_trade(r, i, tokenAccounts)))
             .then(() => {
                 ready_to_trade = true;
             })
@@ -202,11 +205,10 @@ async function main() {
         const dateString = new Date().toLocaleString()
         console.log(dateString, "-".repeat(Math.max(process.stdout.columns - dateString.length - 1, 0)))
         await loop();
-        await new Promise<void>((res) => setTimeout(() => res(), 300));
     }
 }
 
-main().then(() => {}).catch(e => {console.error(e); process.exit(1)})
+main().then(() => {}).catch(e => {console.error("FATAL", e); process.exit(1)})
 
 async function calculate_trade({route, estimatedProfit}, index) {
     let usdc = STARTING_USDC_BET;
@@ -223,9 +225,8 @@ async function calculate_trade({route, estimatedProfit}, index) {
         await arbitrage(route, usdc, usdc + (usdc * estimatedProfit), estimatedProfit <= THRESHOLD)
     } catch (e) {
         console.error(e);
-    } finally {
-        clearInterval(interval);
     }
+    clearInterval(interval);
 }
 
 
@@ -240,7 +241,6 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
         "content": "MADE A PROFIT! 🎉"
     }   
 
-    const tokenAccounts = await getTokenAccounts();
     const transaction = new Transaction();
     transaction.feePayer = owner.publicKey;
     const signers = [];
@@ -406,6 +406,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
             profitMsg.content = "MADE A PROFIT! 🎉"     // reset to default message
 
             write_to_database(beforeUSDC, afterUSDC, fromCoinAmount - _expected_usdc, transactionId);
+            tokenAccounts = {...afterTokenAccounts};
         }
 
     } catch (err) {
