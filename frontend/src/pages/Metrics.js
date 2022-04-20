@@ -242,7 +242,7 @@ function Metrics() {
                 <h3>AMMs</h3>
                 {ammsDisplay.map((name, index) => {
                   return (
-                    <Checkbox key={index} label={name} value={ammCheckedState[index]} onChange={() => handleAMMCheckboxOnChange(index)} />
+                    <Checkbox key={index} label={name} value={ammCheckedState[index]} onChange={() => handleAMMCheckboxOnChange(index)} id={"amm-" + index} />
                   );
                 })}
               </div>
@@ -250,7 +250,7 @@ function Metrics() {
                 <h3>Currencies</h3>
                 {currencies.map((name, index) => {
                   return (
-                    <Checkbox key={index} label={name} value={currencyCheckedState[index]} onChange={() => handleCurrenciesCheckboxOnChange(index)} />
+                    <Checkbox key={index} label={name} value={currencyCheckedState[index]} onChange={() => handleCurrenciesCheckboxOnChange(index)} id={"currency-" + index} />
                   );
                 })}
               </div>
@@ -258,7 +258,7 @@ function Metrics() {
                 <h3>Direction</h3>
                 {directionsDisplay.map((name, index) => {
                   return (
-                    <Checkbox key={index} label={name} value={directionCheckedState[index]} onChange={() => handleDirectionCheckboxOnChange(index)}/>
+                    <Checkbox key={index} label={name} value={directionCheckedState[index]} onChange={() => handleDirectionCheckboxOnChange(index)} id={"direction-" + index}/>
                   );
                 })}
               </div>
