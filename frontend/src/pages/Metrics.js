@@ -23,9 +23,9 @@ function Metrics() {
   const currencies = ["USDC", "BTC", "ETH", "LIQ", "ORCA", "SOL", "PORT", "RAY", "SBR", "SLRS", "SNY", "mSOL"];
   const directions = ["buy", "sell"];
 
-  const [ammCheckedState, setAMMCheckedState] = React.useState(new Array(amms.length).fill(false));
+  const [ammCheckedState, setAMMCheckedState] = React.useState(new Array(amms.length).fill(true));
   const [currencyCheckedState, setCurrencyCheckedState] = React.useState(new Array(currencies.length).fill(false));
-  const [directionCheckedState, setDirectionCheckedState] = React.useState(new Array(directions.length).fill(false));
+  const [directionCheckedState, setDirectionCheckedState] = React.useState(new Array(directions.length).fill(true));
 
   const [rateDatas, setRateDatas] = React.useState(new Array(0).fill(null));
   const [rateDisplays, setRateDisplays] = React.useState(new Array(0).fill(null));
