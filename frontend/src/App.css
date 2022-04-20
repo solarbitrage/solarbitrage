@@ -20,7 +20,6 @@ html body {
 .page-container {
   min-height: 100vh;
   height: auto;
-  margin: 0px 0px 0px 100px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -29,8 +28,8 @@ html body {
 
 .page-container h1 {
   color: #7e7e7e;
-  margin: 0;
-  padding: 40px 40px 10px 40px;
+  margin-top: 40px;
+  /* padding: 40px 40px 10px 40px; */
   align-self: flex-start;
 }
 
@@ -43,13 +42,12 @@ html body {
 
 .widget-container {
   margin: 5px 0px 5px 0px;
-  padding: 5px 0px 5px 0px;
+  padding: 5px 10px 5px 10px;
   display: flex;
   flex-wrap: wrap;
   align-content: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: flex-start;
-  width: 95%;
 }
 
 .white-boxed {
@@ -70,7 +68,7 @@ html body {
 .user-metric {
   padding: 10px;
   border-radius: 5px;
-  margin: 0px 20px 5px 5px;
+  margin: 0px 20px 5px 0px;
   min-width: 15vw;
   width: auto;
   height: 95px;
@@ -78,6 +76,7 @@ html body {
   filter: drop-shadow(0px 0px 5px rgb(201, 201, 201));
   border-style: solid;
   border-width: 0px 0px 0px 10px;
+  flex-grow: 1;
 }
 
 .user-metric h5, .user-metric h3{
@@ -135,6 +134,10 @@ html body {
 
 .date-time p{
   margin: 0px 0px 0px 0px;
+}
+
+.zero-padding {
+  padding: 0px 0px 0px 0px;
 }
 
 /* Position and sizing of burger button */

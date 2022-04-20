@@ -1,12 +1,15 @@
 import React from "react";
+import {Form} from "react-bootstrap";
 
 class Checkbox extends React.Component {
   render() {
     return(
-      <div className="checkbox-container">
-        <input type="checkbox" checked={this.props.value} onChange={this.props.onChange} />
-        {this.props.label}
-      </div>
+      <Form.Switch
+        id={this.props.id}
+        label={this.props.label}
+        checked={this.props.value}
+        onChange={this.props.onChange}
+      />
     )
   }
 }
