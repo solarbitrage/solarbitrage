@@ -68,7 +68,7 @@ html body {
 .user-metric {
   padding: 10px;
   border-radius: 5px;
-  margin: 0px 0px 5px 0px;
+  margin: 0px 20px 5px 0px;
   min-width: 15vw;
   width: auto;
   height: 95px;
@@ -76,6 +76,7 @@ html body {
   filter: drop-shadow(0px 0px 5px rgb(201, 201, 201));
   border-style: solid;
   border-width: 0px 0px 0px 10px;
+  flex-grow: 1;
 }
 
 .user-metric h5, .user-metric h3{
@@ -133,6 +134,10 @@ html body {
 
 .date-time p{
   margin: 0px 0px 0px 0px;
+}
+
+.zero-padding {
+  padding: 0px 0px 0px 0px;
 }
 
 /* Position and sizing of burger button */

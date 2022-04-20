@@ -19,7 +19,7 @@ function Dashboard() {
 	 * @param {string} tokenKey Public key of target currency
 	 * @param {number} newOffset Offset to used to query items in the API
 	 */
-	async function getPastTokenTransactions(walletPublicKey, tokenKey, newOffset=0) {
+	async function getPastTokenTransactions(walletPublicKey, tokenKey, newOffset=0, transactionArray=Array(0)) {
 		let apiRequestParams = {
 			address: walletPublicKey,
 			USDCTokenAddress: tokenKey,
@@ -39,14 +39,12 @@ function Dashboard() {
 			if (request.status === 200) {
 				let response = JSON.parse(request.response)
 
-				// Check if this is the first of many queries
-				if (newOffset === 0) {
-					setSuccessfulTransactions(response.data.tx.transactions);
-				} else {
-					setSuccessfulTransactions(successfulTransactions => [...successfulTransactions, ...response.data.tx.transactions]);
-				}
+				transactionArray.push(...response.data.tx.transactions);
+
 				if (response.data.tx.hasNext) {
-					getPastTokenTransactions(walletPublicKey, tokenKey, apiRequestParams.offset + 10);						
+					getPastTokenTransactions(walletPublicKey, tokenKey, apiRequestParams.offset + 10, transactionArray);						
+				} else {
+					setSuccessfulTransactions(transactionArray)
 				}
 			} else {
 				console.log(`error ${request.status} ${request.statusText}`);
@@ -137,7 +135,7 @@ function Dashboard() {
 		<div className="page-container">
 		<div className="container">
 		<h1>Dashboard</h1>
-		<div className="widget-container row-centric">
+		<div className="widget-container row-centric zero-padding">
 				<Label
 					name="Current Balance"
 					detail={balance ? balance.toFixed(4) + " USDC" : null}
