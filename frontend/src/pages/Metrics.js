@@ -233,161 +233,163 @@ function Metrics() {
 
   return (
     <div className="page-container">
-      <h1>Metrics</h1>
-      <div className="widget-container white-boxed col-centric">
+      <div className="container">
+        <h1>Metrics</h1>
+        <div className="widget-container white-boxed col-centric">
 
-          <div className="widget-container">
-            <div className="amm-checkbox-container filter">
-              <h3>AMMs</h3>
-              {ammsDisplay.map((name, index) => {
-                return (
-                  <Checkbox key={index} label={name} value={ammCheckedState[index]} onChange={() => handleAMMCheckboxOnChange(index)} />
-                );
-              })}
-            </div>
-            <div className="currency-checkbox-container filter">
-              <h3>Currencies</h3>
-              {currencies.map((name, index) => {
-                return (
-                  <Checkbox key={index} label={name} value={currencyCheckedState[index]} onChange={() => handleCurrenciesCheckboxOnChange(index)} />
-                );
-              })}
-            </div>
-            <div className="direction-checkbox-container filter">
-              <h3>Direction</h3>
-              {directionsDisplay.map((name, index) => {
-                return (
-                  <Checkbox key={index} label={name} value={directionCheckedState[index]} onChange={() => handleDirectionCheckboxOnChange(index)}/>
-                );
-              })}
-            </div>
-
-            <div className="datetime-container filter">
-              <h3>Time range</h3>
-              <div className="date-time">
-                <p>Start Time:</p>
-                <Datetime value={startDateTime} onChange={startDateTimeOnChangeHandler}/>
+            <div className="widget-container">
+              <div className="amm-checkbox-container filter">
+                <h3>AMMs</h3>
+                {ammsDisplay.map((name, index) => {
+                  return (
+                    <Checkbox key={index} label={name} value={ammCheckedState[index]} onChange={() => handleAMMCheckboxOnChange(index)} />
+                  );
+                })}
               </div>
-              
-              <div className="date-time">
-                <p>End Time:</p>
-                <Datetime value={endDateTime} onChange={endDateTimeOnChangeHandler}/>
+              <div className="currency-checkbox-container filter">
+                <h3>Currencies</h3>
+                {currencies.map((name, index) => {
+                  return (
+                    <Checkbox key={index} label={name} value={currencyCheckedState[index]} onChange={() => handleCurrenciesCheckboxOnChange(index)} />
+                  );
+                })}
               </div>
+              <div className="direction-checkbox-container filter">
+                <h3>Direction</h3>
+                {directionsDisplay.map((name, index) => {
+                  return (
+                    <Checkbox key={index} label={name} value={directionCheckedState[index]} onChange={() => handleDirectionCheckboxOnChange(index)}/>
+                  );
+                })}
+              </div>
+
+              <div className="datetime-container filter">
+                <h3>Time range</h3>
+                <div className="date-time">
+                  <p>Start Time:</p>
+                  <Datetime value={startDateTime} onChange={startDateTimeOnChangeHandler}/>
+                </div>
+                
+                <div className="date-time">
+                  <p>End Time:</p>
+                  <Datetime value={endDateTime} onChange={endDateTimeOnChangeHandler}/>
+                </div>
+              </div>
+
+              <div className="profitability-attributes filter">
+                <h3>Profitability Data Augments</h3>
+                <div>
+                  <label>Slippage: </label>
+                  <NumericInput min={0} max={100} value={slippageData * 100} onChange={slippageNumInputOnChangeHandler}/> %
+                  <br />
+                  <br />
+                  <Slider value={slippageData} min={0.0} max={1.0} step={0.01} onChange={slippageOnChangeHandler} />
+                </div>
+              </div>
+
+              <Button className="filter-apply-btn" variant="primary" onClick={fetchData}>Apply</Button>
+
             </div>
 
-            <div className="profitability-attributes filter">
-              <h3>Profitability Data Augments</h3>
-              <div>
-                <label>Slippage: </label>
-                <NumericInput min={0} max={100} value={slippageData * 100} onChange={slippageNumInputOnChangeHandler}/> %
-                <br />
-                <br />
-                <Slider value={slippageData} min={0.0} max={1.0} step={0.01} onChange={slippageOnChangeHandler} />
-              </div>
-            </div>
-
-            <Button className="filter-apply-btn" variant="primary" onClick={fetchData}>Apply</Button>
-
-          </div>
-
-        <HistoryPlot
-          data={
-            rateDatas.map((data, index) => {
-              //console.log(index);
-              if (data && rateDisplays[index]) {
-                let arrayData = {};
-                if (rateDisplays[index].yaxis === "y1") {
-                  arrayData = {
-                    type: "scatter",
-                    mode: "lines+points",
-                    name: rateDisplays[index].displayName,
-                    secondary_y: rateDisplays[index].secondaryYAxis,
-                    x: data.map(ph => new Date((ph.data.timestamp.seconds * 1000) + (ph.data.timestamp.nanoseconds / 1000000))),
-                    y: data.map(ph => ph.data.rate)
+          <HistoryPlot
+            data={
+              rateDatas.map((data, index) => {
+                //console.log(index);
+                if (data && rateDisplays[index]) {
+                  let arrayData = {};
+                  if (rateDisplays[index].yaxis === "y1") {
+                    arrayData = {
+                      type: "scatter",
+                      mode: "lines+points",
+                      name: rateDisplays[index].displayName,
+                      secondary_y: rateDisplays[index].secondaryYAxis,
+                      x: data.map(ph => new Date((ph.data.timestamp.seconds * 1000) + (ph.data.timestamp.nanoseconds / 1000000))),
+                      y: data.map(ph => ph.data.rate)
+                    }
                   }
-                }
-                else if (rateDisplays[index].yaxis === "y2"){
-                  arrayData = {
-                    type: "scatter",
-                    mode: "lines+points",
-                    name: rateDisplays[index].displayName,
-                    secondary_y: rateDisplays[index].secondaryYAxis,
-                    x: data.map(ph => new Date((ph.data.timestamp.seconds * 1000) + (ph.data.timestamp.nanoseconds / 1000000))),
-                    y: data.map(ph => ph.data.rate),
-                    yaxis: "y2"
+                  else if (rateDisplays[index].yaxis === "y2"){
+                    arrayData = {
+                      type: "scatter",
+                      mode: "lines+points",
+                      name: rateDisplays[index].displayName,
+                      secondary_y: rateDisplays[index].secondaryYAxis,
+                      x: data.map(ph => new Date((ph.data.timestamp.seconds * 1000) + (ph.data.timestamp.nanoseconds / 1000000))),
+                      y: data.map(ph => ph.data.rate),
+                      yaxis: "y2"
+                    }
                   }
-                }
-                else if (rateDisplays[index].yaxis === "y3"){
-                  arrayData = {
-                    type: "scatter",
-                    mode: "lines",
-                    name: "Profits",
-                    x: data.time,
-                    y: data.profit,
-                    yaxis: "y3",
-                    opacity: 0.5,
-                    fill: "tozeroy"
+                  else if (rateDisplays[index].yaxis === "y3"){
+                    arrayData = {
+                      type: "scatter",
+                      mode: "lines",
+                      name: "Profits",
+                      x: data.time,
+                      y: data.profit,
+                      yaxis: "y3",
+                      opacity: 0.5,
+                      fill: "tozeroy"
+                    }
                   }
+                  return arrayData;
+                } else {
+                  return {
+                    type: "scatter",
+                    mode: "lines+points"
+                  };
                 }
-                return arrayData;
-              } else {
-                return {
-                  type: "scatter",
-                  mode: "lines+points"
-                };
-              }
-            })}
-          layout = {
-            {
-              autosize: true,
-              title: "Rates over time",
-              yaxis: {title: 'Buy Rates'},
-              yaxis2: {
-                title: 'Sell Rates',
-                overlaying: 'y',
-                side: 'right'
-              },
-              yaxis3: {
-                title: 'USDC',
-                anchor: "free",
-                overlaying: "y",
-                side:"right",
-                position: 1.15
+              })}
+            layout = {
+              {
+                autosize: true,
+                title: "Rates over time",
+                yaxis: {title: 'Buy Rates'},
+                yaxis2: {
+                  title: 'Sell Rates',
+                  overlaying: 'y',
+                  side: 'right'
+                },
+                yaxis3: {
+                  title: 'USDC',
+                  anchor: "free",
+                  overlaying: "y",
+                  side:"right",
+                  position: 1.15
+                }
               }
             }
-          }
-        />
+          />
 
-        <Plot
-					data={
-            profitDatas.map((data, index) => {
-              if (data && rateDisplays[index]) {
-                let arrayData = {};
-                  arrayData = {
+          <Plot
+            data={
+              profitDatas.map((data, index) => {
+                if (data && rateDisplays[index]) {
+                  let arrayData = {};
+                    arrayData = {
+                      type: "scatter",
+                      mode: "lines+points",
+                      name: data.name,
+                      x: data.time,
+                      y: data.profit
+                    }
+                  return arrayData;
+                } else {
+                  return {
                     type: "scatter",
-                    mode: "lines+points",
-                    name: data.name,
-                    x: data.time,
-                    y: data.profit
-                  }
-                return arrayData;
-              } else {
-                return {
-                  type: "scatter",
-                  mode: "lines+points"
-                };
+                    mode: "lines+points"
+                  };
+                }
+              })}
+            layout={ 
+              {
+                autosize: true,
+                title: "Possible Profits From Trades",              
               }
-            })}
-					layout={ 
-            {
-              autosize: true,
-              title: "Possible Profits From Trades",              
             }
-           }
-					useResizeHandler={true}
-					style={{width: "100%", height: "70vh"}}
-				/>
+            useResizeHandler={true}
+            style={{width: "100%", height: "70vh"}}
+          />
 
+        </div>
       </div>
     </div>
   )

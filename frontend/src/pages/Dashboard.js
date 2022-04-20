@@ -7,9 +7,9 @@ import { Connection, PublicKey } from "@solana/web3.js";
 function Dashboard() {
 	const solanaWeb3Connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
 
-	const [balance, setBalance] = React.useState(0);
-	const [successfulTransactions, setSuccessfulTransactions] = React.useState([]);
-	const [allTransactions, setAllTransactions] = React.useState([]);
+	const [balance, setBalance] = React.useState(null);
+	const [successfulTransactions, setSuccessfulTransactions] = React.useState(null);
+	const [allTransactions, setAllTransactions] = React.useState(null);
 
 	/**
 	 * Using Solscan's API, given a wallet's public key and a token key to check,
@@ -38,7 +38,13 @@ function Dashboard() {
 		request.onload = function() {
 			if (request.status === 200) {
 				let response = JSON.parse(request.response)
-				setSuccessfulTransactions(successfulTransactions => [...successfulTransactions, ...response.data.tx.transactions]);
+
+				// Check if this is the first of many queries
+				if (newOffset === 0) {
+					setSuccessfulTransactions(response.data.tx.transactions);
+				} else {
+					setSuccessfulTransactions(successfulTransactions => [...successfulTransactions, ...response.data.tx.transactions]);
+				}
 				if (response.data.tx.hasNext) {
 					getPastTokenTransactions(walletPublicKey, tokenKey, apiRequestParams.offset + 10);						
 				}
@@ -90,9 +96,9 @@ function Dashboard() {
 	 * @param {string} tokenKey Public key of target currency
 	 */
 	async function getWalletMetrics(walletPublicKey, tokenAccountPublicKey, tokenKey) {
-		setBalance(0);
-		setSuccessfulTransactions([]);
-		setAllTransactions([]);
+		setBalance(null);
+		setSuccessfulTransactions(null);
+		setAllTransactions(null);
 
 		getPastTokenTransactions(walletPublicKey, tokenKey);
 		getSignaturesForAddressHelper(walletPublicKey);
@@ -105,6 +111,10 @@ function Dashboard() {
 		"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");	// Token Address
 	}, []);
 
+	React.useEffect(() => {
+		console.log(successfulTransactions);
+	}, [successfulTransactions]);
+
 	function calculateEarningsPerWeek(transactions) {
 		let oneWeekAgo = new Date();
 		oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -113,27 +123,39 @@ function Dashboard() {
 
 		const min = Math.min(...transactionsPastWeek.map(transaction => transaction.change.balance.amount / (10 ** transaction.change.balance.decimals)));
 		const max = Math.max(...transactionsPastWeek.map(transaction => transaction.change.balance.amount / (10 ** transaction.change.balance.decimals)));
+
+		// There were no trades in the past week
+		if (max === -Infinity) {
+			return 0.0;
+		}
+
 		return max - min;
 	}
 
 	return (
 	<div className="dashboard">
 		<div className="page-container">
+		<div className="container">
 		<h1>Dashboard</h1>
-			<div className="widget-container row-centric">
+		<div className="widget-container row-centric">
 				<Label
 					name="Current Balance"
-					detail={balance.toFixed(4) + " USDC"}
+					detail={balance ? balance.toFixed(4) + " USDC" : null}
 					color="#64d3a3"
 				/>
 				<Label
 					name="Earnings / Week"
-					detail={calculateEarningsPerWeek(successfulTransactions).toFixed(4) + " USDC"} 
+					detail={successfulTransactions ? calculateEarningsPerWeek(successfulTransactions).toFixed(4) + " USDC" : null} 
 					color="#6e8beb"
 				/>
 				<Label
-					name="Transactions Performed"
-					detail={allTransactions.length}
+					name="Transactions Attempted"
+					detail={allTransactions ? allTransactions.length : null}
+					color="#a66eeb"
+				/>
+				<Label
+					name="Profitable trades"
+					detail={successfulTransactions ? successfulTransactions.length : null}
 					color="#a66eeb"
 				/>
 			</div>
@@ -144,8 +166,8 @@ function Dashboard() {
 						{
 							type: "scatter",
 							mode: "lines+points",
-							x: successfulTransactions.map(x => new Date(x.blockTime * 1000.0)),
-							y: successfulTransactions.map(x => x.change.balance.amount / (10 ** x.change.balance.decimals))
+							x: successfulTransactions ? successfulTransactions.map(x => new Date(x.blockTime * 1000.0)) : [],
+							y: successfulTransactions ? successfulTransactions.map(x => x.change.balance.amount / (10 ** x.change.balance.decimals)) : []
 						}
 					]}
 					layout = {
@@ -156,73 +178,7 @@ function Dashboard() {
 					}
 				/>
 			</div>
-		
-		<h1>Bot Information</h1>
-			<div className="widget-container col-centric bot-information">
-				<div className="white-boxed graph fill">
-					<HistoryPlot
-						data={[
-							{
-								type: "scatter",
-								mode: "lines+points",
-								name: "Profit (USDC)",
-								x: [0, 1, 2, 3, 4, 5],
-								y: [0, 1, 2, 3, 4, 5]
-							},
-							{
-								type: "bar",
-								mode: "lines+points",
-								name: "Transactions",
-								x: [0, 1, 2, 3, 4, 5],
-								y: [4, 2, 0, 5, 10, 2]
-							}
-						]}
-						layout = {
-							{
-								//autosize: true,
-								title: "Bot Information"
-							}
-						}
-					/>
-				</div>
-				<div className="bot-text">
-					<Label
-						name="Current Strategy"
-						detail="Simplest"
-						color="#a66eeb"
-					/>
-					<Label
-						name="Average Earnings"
-						detail="0.001 USDC"
-						color="#a66eeb"
-					/>
-					<Label
-						name="AMMs"
-						detail="Orca, Raydium"
-						color="#a66eeb"
-					/>
-					<Label
-						name="Currencies"
-						detail="USDC, SOL, RAY, ORCA"
-						color="#a66eeb"
-					/>
-					<Label
-						name="Total transactions"
-						detail={allTransactions.length}
-						color="#a66eeb"
-					/>
-					<Label
-						name="Profitable trades"
-						detail={successfulTransactions.length}
-						color="#a66eeb"
-					/>
-					<Label
-						name="Total profit"
-						detail="1.2 USDC"
-						color="#a66eeb"
-					/>
-				</div>
-			</div>
+		</div>						
 		</div>
 	</div>)
 }
