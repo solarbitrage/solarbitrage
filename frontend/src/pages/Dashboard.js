@@ -1,7 +1,10 @@
 import React from "react";
 import HistoryPlot from "../components/historyPlot";
 import Label from "../components/dashboard/label";
+import Checkbox from "../components/checkbox";
+import {Button} from "react-bootstrap";
 
+import { getDatabase, ref, child, get, update } from "firebase/database";
 import { Connection, PublicKey } from "@solana/web3.js";
 
 function Dashboard() {
@@ -10,6 +13,10 @@ function Dashboard() {
 	const [balance, setBalance] = React.useState(null);
 	const [successfulTransactions, setSuccessfulTransactions] = React.useState(null);
 	const [allTransactions, setAllTransactions] = React.useState(null);
+
+	// Currencies in the database right now.
+	const currencies = ["USDC", "BTC", "ETH", "LIQ", "ORCA", "SOL", "PORT", "RAY", "SBR", "SLRS", "SNY", "mSOL"];
+	const [currencyCheckedState, setCurrencyCheckedState] = React.useState(new Array(currencies.length).fill(null));
 
 	/**
 	 * Using Solscan's API, given a wallet's public key and a token key to check,
@@ -103,12 +110,6 @@ function Dashboard() {
 		getTokenAccountBalanceHelper(tokenAccountPublicKey);
 	}
 
-	React.useEffect(() => {
-		getWalletMetrics("DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z", // Wallet Address
-		"8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH", 	// Token Account Address
-		"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");	// Token Address
-	}, []);
-
 	function calculateEarningsPerWeek(transactions) {
 		let oneWeekAgo = new Date();
 		oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -126,54 +127,111 @@ function Dashboard() {
 		return max - min;
 	}
 
+	React.useEffect(() => {
+
+		// Getting configurable variables from the real time database. 
+		const realtimeDBRef = ref(getDatabase());
+		get(child(realtimeDBRef, "currencies_to_use")).then((snapshot) => {
+			if (snapshot.exists()) {
+				let initialCurrenciesChecked = new Array(currencies.length).fill(null);
+				for (const currency in snapshot.val()) {
+					initialCurrenciesChecked[currencies.indexOf(currency)] = snapshot.val()[currency];
+				}
+				setCurrencyCheckedState(initialCurrenciesChecked);
+			} else {
+				console.log("No data avaliable.");
+			}
+		}).catch((error) => {
+			console.error(error);
+		})
+
+		getWalletMetrics("DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z", // Wallet Address
+		"8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH", 	// Token Account Address
+		"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");	// Token Address
+	}, []);
+
+	/**
+   * Toggles the checkbox state of the currency filter.
+   * @param {number} position the index of the checkbox of the currency filter. 
+   */
+	 const handleCurrenciesCheckboxOnChange = (position) => {
+    const updatedCurrencyCheckedState = currencyCheckedState.map((item, index) => {
+      return (index === position ? !item : item);
+    })
+    setCurrencyCheckedState(updatedCurrencyCheckedState);
+  }
+
+	function applyBotSettings() {
+		const db = getDatabase();
+
+		const updates = {};
+		for (let i = 0; i < currencies.length; ++i) {
+			updates["currencies_to_use/" + currencies[i]] = currencyCheckedState[currencies.indexOf(currencies[i])];
+		}
+
+		update(ref(db), updates);
+	}
+
 	return (
 	<div className="dashboard">
 		<div className="page-container">
-		<div className="container">
-		<h1>Dashboard</h1>
-		<div className="widget-container row-centric zero-padding">
-				<Label
-					name="Current Balance"
-					detail={balance ? balance.toFixed(4) + " USDC" : null}
-					color="#64d3a3"
-				/>
-				<Label
-					name="Earnings / Week"
-					detail={successfulTransactions ? calculateEarningsPerWeek(successfulTransactions).toFixed(4) + " USDC" : null} 
-					color="#6e8beb"
-				/>
-				<Label
-					name="Transactions Attempted"
-					detail={allTransactions ? allTransactions.length : null}
-					color="#a66eeb"
-				/>
-				<Label
-					name="Profitable trades"
-					detail={successfulTransactions ? successfulTransactions.length : null}
-					color="#a66eeb"
-				/>
-			</div>
-			
-			<div className="widget-container white-boxed graph">
-				<HistoryPlot
-					data={[
-						{
-							type: "scatter",
-							mode: "lines+points",
-							x: successfulTransactions ? [new Date()].concat(successfulTransactions.map(x => new Date(x.blockTime * 1000.0))) : [],
-							y: successfulTransactions ? [successfulTransactions[0].change.balance.amount / (10 ** successfulTransactions[0].change.balance.decimals)].concat(
-								successfulTransactions.map(x => x.change.balance.amount / (10 ** x.change.balance.decimals))) : []
+			<div className="container">
+				<h1>Dashboard</h1>
+				<div className="widget-container row-centric zero-padding">
+					<Label
+						name="Current Balance"
+						detail={balance ? balance.toFixed(4) + " USDC" : null}
+						color="#64d3a3"
+					/>
+					<Label
+						name="Earnings / Week"
+						detail={successfulTransactions ? calculateEarningsPerWeek(successfulTransactions).toFixed(4) + " USDC" : null} 
+						color="#6e8beb"
+					/>
+					<Label
+						name="Transactions Attempted"
+						detail={allTransactions ? allTransactions.length : null}
+						color="#a66eeb"
+					/>
+					<Label
+						name="Profitable trades"
+						detail={successfulTransactions ? successfulTransactions.length : null}
+						color="#a66eeb"
+					/>
+				</div>
+					
+				<div className="widget-container white-boxed graph">
+					<HistoryPlot
+						data={[
+							{
+								type: "scatter",
+								mode: "lines+points",
+								x: successfulTransactions ? [new Date()].concat(successfulTransactions.map(x => new Date(x.blockTime * 1000.0))) : [],
+								y: successfulTransactions ? [successfulTransactions[0].change.balance.amount / (10 ** successfulTransactions[0].change.balance.decimals)].concat(
+									successfulTransactions.map(x => x.change.balance.amount / (10 ** x.change.balance.decimals))) : []
+							}
+						]}
+						layout = {
+							{
+								autosize: true,
+								title: "Balance Over Time"
+							}
 						}
-					]}
-					layout = {
-						{
-							autosize: true,
-							title: "Balance Over Time"
-						}
-					}
-				/>
+					/>
+				</div>
+
+				<div className="widget-container white-boxed graph">
+					<div className="currency-checkbox-container filter">
+						<h3>Currencies</h3>
+						{currencies.map((name, index) => {
+							return (
+								<Checkbox key={index} label={name} value={currencyCheckedState[index]} onChange={() => handleCurrenciesCheckboxOnChange(index)} id={"currency-" + index} />
+							);
+						})}
+					</div>
+					<Button className="filter-apply-btn" variant="primary" onClick={applyBotSettings}>Apply</Button>
+				</div>
 			</div>
-		</div>						
 		</div>
 	</div>)
 }
