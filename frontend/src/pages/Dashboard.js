@@ -9,6 +9,8 @@ import { Connection, PublicKey } from "@solana/web3.js";
 
 function Dashboard() {
 
+	const wallet = "DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z"
+
 	// Time stuff
 	const intervals = [
 		{ label: 'year', seconds: 31536000 },
@@ -30,25 +32,40 @@ function Dashboard() {
 		return array.slice((page - 1) * pageSize, ((page - 1) * pageSize) + pageSize);
 	}
 
-	function deincrementPage() {
-		if (pageNumber > 1) {
-			setPageNumber(pageNumber - 1);
+	function deincrementSuccPage() {
+		if (succPageNumber > 1) {
+			setSuccPageNumber(succPageNumber - 1);
 		}
 	}
 
-	function incrementPage() {
-		if (pageNumber < Math.ceil(successfulTransactions.length / 10)) {
-			setPageNumber(pageNumber + 1);
+	function incrementSuccPage() {
+		if (succPageNumber < Math.ceil(successfulTransactions.length / 10)) {
+			setSuccPageNumber(succPageNumber + 1);
 		}
 	}
 
-	const [pageNumber, setPageNumber] = React.useState(1);
+	function deincrementAllPage() {
+		if (allPageNumber > 1) {
+			setAllPageNumber(allPageNumber - 1);
+		}
+	}
+
+	function incrementAllPage() {
+		if (allPageNumber < Math.ceil(allTransactions.length / 10)) {
+			setAllPageNumber(allPageNumber + 1);
+		}
+	}
+
+	const [succPageNumber, setSuccPageNumber] = React.useState(1);
+	const [allPageNumber, setAllPageNumber] = React.useState(1);
+	const [disableAllPageNumberButtons, setDisableAllPageNumberButtons] = React.useState(true);
 
 	const solanaWeb3Connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
 
 	const [balance, setBalance] = React.useState(null);
 	const [successfulTransactions, setSuccessfulTransactions] = React.useState(null);
 	const [allTransactions, setAllTransactions] = React.useState(null);
+	const [allDisplayableTransactions, setAllDisplayableTransactions] = React.useState(null);
 
 	// Currencies in the database right now.
 	const currencies = ["USDC", "BTC", "ETH", "LIQ", "ORCA", "SOL", "PORT", "RAY", "SBR", "SLRS", "SNY", "mSOL"];
@@ -91,6 +108,27 @@ function Dashboard() {
 				}
 			} else {
 				console.log(`error ${request.status} ${request.statusText}`);
+			}
+		}
+	}
+
+	async function getPastTransactions(walletPublicKey, before="", transactionArray=Array(0)) {
+		let apiRequestParams = {
+			address: walletPublicKey,
+			lastTxHash: before
+		}
+
+		let apiRequest = "https://api.solscan.io/account/transaction?address=" + apiRequestParams.address +
+			"&before=" + apiRequestParams.lastTxHash;
+
+		let request = new XMLHttpRequest();
+		request.open("GET", apiRequest);
+		request.send();
+		request.onload = function() {
+			if (request.status === 200) {
+				let response = JSON.parse(request.response);
+				transactionArray.push(...response.data);
+				setAllDisplayableTransactions([...transactionArray]);
 			}
 		}
 	}
@@ -141,6 +179,7 @@ function Dashboard() {
 		setSuccessfulTransactions(null);
 		setAllTransactions(null);
 
+		getPastTransactions(walletPublicKey);
 		getPastTokenTransactions(walletPublicKey, tokenKey);
 		getSignaturesForAddressHelper(walletPublicKey);
 		getTokenAccountBalanceHelper(tokenAccountPublicKey);
@@ -181,7 +220,7 @@ function Dashboard() {
 			console.error(error);
 		})
 
-		getWalletMetrics("DcdQUY7TAh5GSgTzoAEG5q6bZeVk95xFkJLqu4JHKa7z", // Wallet Address
+		getWalletMetrics(wallet, // Wallet Address
 		"8bH5MpK4A8J12sZo5HZTxYnrQpLV7jkxWzoTMwmWTWCH", 	// Token Account Address
 		"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");	// Token Address
 	}, []);
@@ -209,8 +248,20 @@ function Dashboard() {
 	}
 
 	React.useEffect(() => {
-		console.log(successfulTransactions);
+		//console.log(successfulTransactions);
 	}, [successfulTransactions]);
+
+	React.useEffect(() => {
+		console.log({allPageNumber, allDisplayableTransactions})
+		if (allDisplayableTransactions !== null) {
+			if (allPageNumber * 10 > allDisplayableTransactions.length + 1) {
+				getPastTransactions(wallet, allDisplayableTransactions[allDisplayableTransactions.length - 1].txHash, allDisplayableTransactions);
+				setDisableAllPageNumberButtons(true);
+			} else {
+				setDisableAllPageNumberButtons(false);
+			}
+		}
+	}, [allPageNumber, allDisplayableTransactions]);
 
 	return (
 	<div className="dashboard">
@@ -262,31 +313,32 @@ function Dashboard() {
 
 				<h1>Transaction History</h1>
 				<div className="widget-container white-boxed col-centric">
-					<Table striped borderless hover size="sm">
+				
+				{/* All Transactions */}
+				<h3>All Transactions</h3>
+				<Table striped borderless hover size="sm">
 						<thead>
 							<tr>
-								<th key="SignitureHeader">Signature</th>
-								<th key="BlockHeader">Block</th>
-								<th key="TimeHeader">Time</th>
-								<th key="TokenAccountHeader">Token Account</th>
-								<th key="ChangeAmountHeader">Change Amount</th>
-								<th key="TokenHeader">Token</th>
+								<th key="AllSignitureHeader">Signature</th>
+								<th key="AllBlockHeader">Block</th>
+								<th key="AllTimeHeader">Time</th>
+								<th key="AllInstructionsHeader">Instructions</th>
+								<th key="AllStatusHeader">Status</th>
+								<th key="AllFee">Fee</th>
 							</tr>
 						</thead>
 						<tbody>
 							{
-								successfulTransactions !== null ? 
-									arrayPagination(successfulTransactions, 10, pageNumber).map((transaction, index) => {
+								allDisplayableTransactions !== null ?
+									arrayPagination(allDisplayableTransactions, 10, allPageNumber).map((transaction, index) => {
 										return (
 											<tr>
-												<td key={"SignitureKey" + index}>{transaction.txHash.substring(0, 15) + "..."}</td>
-												<td key={"BlockKey" + index}>{"#" + transaction.slot}</td>
-												<td key={"TimeKey" + index}>{timeSince(new Date(transaction.blockTime * 1000))}</td>
-												<td key={"TokenAccountKey" + index}>{transaction.change.address.substring(0, 15) + "..."}</td>
-												<td key={"ChangeAmountKey" + index} style={transaction.change.changeAmount >= 0 ? {color: "green"} : {color: "red"}}>
-													{transaction.change.changeAmount / (10 ** transaction.change.decimals)}
-												</td>
-												<td key={"TokenKey" + index}>{transaction.change.tokenName}</td>
+												<td key={"AllSignitureKey" + index}>{transaction.txHash.substring(0, 15) + "..."}</td>
+												<td key={"AllBlockKey" + index}>{"#" + transaction.slot}</td>
+												<td key={"AllTimeKey" + index}>{timeSince(new Date(transaction.blockTime * 1000))}</td>
+												<td key={"AllInstructionsKey" + index}>{transaction.parsedInstruction.map(instruction => instruction.type).join(", ")}</td>
+												<td key={"AllStatus" + index}>{transaction.status}</td>
+												<td key={"AllFee" + index}>{transaction.fee * 0.000000001}</td>
 											</tr>
 										);
 									})
@@ -296,9 +348,50 @@ function Dashboard() {
 						</tbody>
 					</Table>
 					<div className="table-page-control">
-						<Button className="" variant="secondary" onClick={deincrementPage}>{"<<"}</Button>
-						{" " + pageNumber + " of " + (successfulTransactions !== null ? Math.ceil(successfulTransactions.length / 10) : 1) + " "}
-						<Button className="" variant="primary" onClick={incrementPage}>{">>"}</Button>
+						<Button className="" variant="secondary" onClick={deincrementAllPage} disabled={disableAllPageNumberButtons}>{"<<"}</Button>
+						{" " + allPageNumber + " of " + (allTransactions !== null ? Math.ceil(allTransactions.length / 10) : "?") + " "}
+						<Button className="" variant="primary" onClick={incrementAllPage} disabled={disableAllPageNumberButtons}>{">>"}</Button>
+					</div>
+
+					{/* Successful Transactions */}
+					<h3>Successful Transactions</h3>
+					<Table striped borderless hover size="sm">
+						<thead>
+							<tr>
+								<th key="SuccSignitureHeader">Signature</th>
+								<th key="SuccBlockHeader">Block</th>
+								<th key="SuccTimeHeader">Time</th>
+								<th key="SuccTokenAccountHeader">Token Account</th>
+								<th key="SuccChangeAmountHeader">Change Amount</th>
+								<th key="SuccTokenHeader">Token</th>
+							</tr>
+						</thead>
+						<tbody>
+							{
+								successfulTransactions !== null ? 
+									arrayPagination(successfulTransactions, 10, succPageNumber).map((transaction, index) => {
+										return (
+											<tr>
+												<td key={"SuccSignitureKey" + index}>{transaction.txHash.substring(0, 15) + "..."}</td>
+												<td key={"SuccBlockKey" + index}>{"#" + transaction.slot}</td>
+												<td key={"SuccTimeKey" + index}>{timeSince(new Date(transaction.blockTime * 1000))}</td>
+												<td key={"SuccTokenAccountKey" + index}>{transaction.change.address.substring(0, 15) + "..."}</td>
+												<td key={"SuccChangeAmountKey" + index} style={transaction.change.changeAmount >= 0 ? {color: "green"} : {color: "red"}}>
+													{transaction.change.changeAmount / (10 ** transaction.change.decimals)}
+												</td>
+												<td key={"SuccTokenKey" + index}>{transaction.change.tokenName}</td>
+											</tr>
+										);
+									})
+								:
+								[]
+							}
+						</tbody>
+					</Table>
+					<div className="table-page-control">
+						<Button className="" variant="secondary" onClick={deincrementSuccPage}>{"<<"}</Button>
+						{" " + succPageNumber + " of " + (successfulTransactions !== null ? Math.ceil(successfulTransactions.length / 10) : "?") + " "}
+						<Button className="" variant="primary" onClick={incrementSuccPage}>{">>"}</Button>
 					</div>
 				</div>
 
