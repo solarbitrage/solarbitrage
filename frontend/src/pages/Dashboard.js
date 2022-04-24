@@ -2,12 +2,48 @@ import React from "react";
 import HistoryPlot from "../components/historyPlot";
 import Label from "../components/dashboard/label";
 import Checkbox from "../components/checkbox";
-import {Button} from "react-bootstrap";
+import {Button, Table} from "react-bootstrap";
 
 import { getDatabase, ref, child, get, update } from "firebase/database";
 import { Connection, PublicKey } from "@solana/web3.js";
 
 function Dashboard() {
+
+	// Time stuff
+	const intervals = [
+		{ label: 'year', seconds: 31536000 },
+		{ label: 'month', seconds: 2592000 },
+		{ label: 'day', seconds: 86400 },
+		{ label: 'hour', seconds: 3600 },
+		{ label: 'minute', seconds: 60 },
+		{ label: 'second', seconds: 1 }
+	];
+	
+	function timeSince(date) {
+		const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+		const interval = intervals.find(i => i.seconds < seconds);
+		const count = Math.floor(seconds / interval.seconds);
+		return `${count} ${interval.label}${count !== 1 ? 's' : ''} ago`;
+	}
+
+	function arrayPagination(array, pageSize, page) {
+		return array.slice((page - 1) * pageSize, ((page - 1) * pageSize) + pageSize);
+	}
+
+	function deincrementPage() {
+		if (pageNumber > 1) {
+			setPageNumber(pageNumber - 1);
+		}
+	}
+
+	function incrementPage() {
+		if (pageNumber < Math.ceil(successfulTransactions.length / 10)) {
+			setPageNumber(pageNumber + 1);
+		}
+	}
+
+	const [pageNumber, setPageNumber] = React.useState(1);
+
 	const solanaWeb3Connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
 
 	const [balance, setBalance] = React.useState(null);
@@ -172,6 +208,10 @@ function Dashboard() {
 		update(ref(db), updates);
 	}
 
+	React.useEffect(() => {
+		console.log(successfulTransactions);
+	}, [successfulTransactions]);
+
 	return (
 	<div className="dashboard">
 		<div className="page-container">
@@ -220,13 +260,55 @@ function Dashboard() {
 					/>
 				</div>
 
+				<h1>Transaction History</h1>
+				<div className="widget-container white-boxed col-centric">
+					<Table striped borderless hover size="sm">
+						<thead>
+							<tr>
+								<th key="SignitureHeader">Signature</th>
+								<th key="BlockHeader">Block</th>
+								<th key="TimeHeader">Time</th>
+								<th key="TokenAccountHeader">Token Account</th>
+								<th key="ChangeAmountHeader">Change Amount</th>
+								<th key="TokenHeader">Token</th>
+							</tr>
+						</thead>
+						<tbody>
+							{
+								successfulTransactions !== null ? 
+									arrayPagination(successfulTransactions, 10, pageNumber).map((transaction, index) => {
+										return (
+											<tr>
+												<td key={"SignitureKey" + index}>{transaction.txHash.substring(0, 15) + "..."}</td>
+												<td key={"BlockKey" + index}>{"#" + transaction.slot}</td>
+												<td key={"TimeKey" + index}>{timeSince(new Date(transaction.blockTime * 1000))}</td>
+												<td key={"TokenAccountKey" + index}>{transaction.change.address.substring(0, 15) + "..."}</td>
+												<td key={"ChangeAmountKey" + index} style={transaction.change.changeAmount >= 0 ? {color: "green"} : {color: "red"}}>
+													{transaction.change.changeAmount / (10 ** transaction.change.decimals)}
+												</td>
+												<td key={"TokenKey" + index}>{transaction.change.tokenName}</td>
+											</tr>
+										);
+									})
+								:
+								[]
+							}
+						</tbody>
+					</Table>
+					<div className="table-page-control">
+						<Button className="" variant="secondary" onClick={deincrementPage}>{"<<"}</Button>
+						{" " + pageNumber + " of " + (successfulTransactions !== null ? Math.ceil(successfulTransactions.length / 10) : 1) + " "}
+						<Button className="" variant="primary" onClick={incrementPage}>{">>"}</Button>
+					</div>
+				</div>
+
 				<h1>Bot Configurations</h1>
 				<div className="widget-container white-boxed graph">
 					<div className="currency-checkbox-container filter">
 						<h3>Currencies</h3>
 						{currencies.map((name, index) => {
 							return (
-								<Checkbox key={index} label={name} value={currencyCheckedState[index]} onChange={() => handleCurrenciesCheckboxOnChange(index)} id={"currency-" + index} />
+								<Checkbox key={"CheckboxKey" + index} label={name} value={currencyCheckedState[index]} onChange={() => handleCurrenciesCheckboxOnChange(index)} id={"currency-" + index} />
 							);
 						})}
 					</div>

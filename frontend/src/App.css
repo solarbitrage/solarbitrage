@@ -139,6 +139,10 @@ html body {
   padding: 0px 0px 0px 0px;
 }
 
+.table-page-control {
+  align-self: center;
+}
+
 /* Position and sizing of burger button */
 .bm-burger-button {
   position: fixed;
