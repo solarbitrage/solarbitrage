@@ -220,6 +220,7 @@ function Dashboard() {
 					/>
 				</div>
 
+				<h1>Bot Configurations</h1>
 				<div className="widget-container white-boxed graph">
 					<div className="currency-checkbox-container filter">
 						<h3>Currencies</h3>
