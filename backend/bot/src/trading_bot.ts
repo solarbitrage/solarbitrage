@@ -202,17 +202,30 @@ async function main() {
         ADDITIONAL_SLIPPAGE = snapshot.val();
     });
 
+    let gotValidTokens = undefined;
+    const waitForValidTokens = new Promise((resolve, _) => {gotValidTokens = resolve});
+
     const config_pools = ref(database, 'currencies_to_use');
     onValue(config_pools, (snapshot) => {
+        if (gotValidTokens) {
+            gotValidTokens();
+            gotValidTokens = undefined;
+        }
         VALID_TOKENS = Object.keys(snapshot.val()).filter(function(currency) {
-            return snapshot.val()[currency]
-        })
+            return snapshot.val()[currency];
+        }); 
+        console.log("NEW VALID TOKEN:", VALID_TOKENS);
     });
+
+    console.log("Waiting for valid tokens...");
+    await waitForValidTokens;
+    console.log({ VALID_TOKENS })
 
     for (;;) {
         const dateString = new Date().toLocaleString()
         console.log(dateString, "-".repeat(Math.max(process.stdout.columns - dateString.length - 1, 0)))
         await loop();
+        await new Promise((resolve) => setTimeout(resolve, 10));
     }
 }
 
