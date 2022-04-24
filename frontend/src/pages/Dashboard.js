@@ -333,11 +333,14 @@ function Dashboard() {
 									arrayPagination(allDisplayableTransactions, 10, allPageNumber).map((transaction, index) => {
 										return (
 											<tr>
-												<td key={"AllSignitureKey" + index}>{transaction.txHash.substring(0, 15) + "..."}</td>
+												<td key={"AllSignitureKey" + index}>
+													<a href={"https://solscan.io/tx/" + transaction.txHash} target="_blank">
+														{transaction.txHash.substring(0, 15) + "..."}
+													</a></td>
 												<td key={"AllBlockKey" + index}>{"#" + transaction.slot}</td>
 												<td key={"AllTimeKey" + index}>{timeSince(new Date(transaction.blockTime * 1000))}</td>
 												<td key={"AllInstructionsKey" + index}>{transaction.parsedInstruction.map(instruction => instruction.type).join(", ")}</td>
-												<td key={"AllStatus" + index}>{transaction.status}</td>
+												<td key={"AllStatus" + index} style={transaction.status === "Fail" ? {color: "red"} : {color: "green"}}>{transaction.status}</td>
 												<td key={"AllFee" + index}>{transaction.fee * 0.000000001}</td>
 											</tr>
 										);
@@ -372,7 +375,12 @@ function Dashboard() {
 									arrayPagination(successfulTransactions, 10, succPageNumber).map((transaction, index) => {
 										return (
 											<tr>
-												<td key={"SuccSignitureKey" + index}>{transaction.txHash.substring(0, 15) + "..."}</td>
+												<td key={"SuccSignitureKey" + index}>
+													<a href={"https://solscan.io/tx/" + transaction.txHash} target="_blank">
+														{transaction.txHash.substring(0, 15) + "..."}
+													</a>
+												</td>
+												
 												<td key={"SuccBlockKey" + index}>{"#" + transaction.slot}</td>
 												<td key={"SuccTimeKey" + index}>{timeSince(new Date(transaction.blockTime * 1000))}</td>
 												<td key={"SuccTokenAccountKey" + index}>{transaction.change.address.substring(0, 15) + "..."}</td>
