@@ -54,6 +54,7 @@ const STARTING_SLIPPAGE = 0;
 const THRESHOLD = 0;
 const STARTING_USDC_BET = 4
 let ADDITIONAL_SLIPPAGE = 0.005; // modifiable by firebase
+let VALID_TOKENS = []; // modifiable by firebase
 
 let ready_to_trade = true;  // flag to look for updates only when a swap intruction is done
 
@@ -199,6 +200,13 @@ async function main() {
     const config_slippage = ref(database, 'configuration/acceptable_slippage');
     onValue( config_slippage, (snapshot) => {
         ADDITIONAL_SLIPPAGE = snapshot.val();
+    });
+
+    const config_pools = ref(database, 'currencies_to_use');
+    onValue(config_pools, (snapshot) => {
+        VALID_TOKENS = Object.keys(snapshot.val()).filter(function(currency) {
+            return snapshot.val()[currency]
+        })
     });
 
     for (;;) {
@@ -419,7 +427,14 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
 
 function getMiddleTokenToPoolMap(mainToken: string) {
     const poolsWithUSDC = Object.keys(local_database)
-        .filter(amm => amm.includes("_" +mainToken))
+        .filter(function (amm) {
+            var [firstCurrency, secondCurrency] = amm.split('_').slice(1)
+            const mainTokenExists = firstCurrency == mainToken || secondCurrency == mainToken;
+            const firstTokenValid = VALID_TOKENS.includes(firstCurrency);
+            const secondTokenValid = VALID_TOKENS.includes(secondCurrency);
+
+            return mainTokenExists && firstTokenValid && secondTokenValid;
+        })
         .map(pool => ({...local_database[pool], pool_id: pool, tokens: pool.split("_").slice(1)}));
 
     const mapFromMiddleTokenToPool = {};
