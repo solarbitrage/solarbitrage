@@ -49,7 +49,7 @@ const database = getDatabase(app);
 const firestore = getFirestore(app);
 // ~~~~~~ firebase configs ~~~~~~
 
-const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/Users/noelb/my-solana-wallet/wallet-keypair.json"
+const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/home/corridor/development/solarbitrage/backend/bot/wallet-keypair.json"
 const STARTING_SLIPPAGE = 0;
 const THRESHOLD = 0;
 const STARTING_USDC_BET = 4
