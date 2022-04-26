@@ -7,6 +7,7 @@
     "start": "tsc || node dist/trading_bot.js",
     "trading-bot": "tsc || node dist/trading_bot.js",
     "lint": "eslint . --ext .ts",
+    "tsc": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon bot.ts"
   },

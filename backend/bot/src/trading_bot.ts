@@ -51,10 +51,12 @@ const firestore = getFirestore(app);
 
 const args = process.argv.slice(2);
 
+const MIDDLE_TOKEN = args.length > 1 ? args[1] : "USDC";
+
 const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/home/corridor/development/solarbitrage/backend/bot/wallet-keypair.json"
 const STARTING_SLIPPAGE = 0;
-const THRESHOLD = -0.009;
-const STARTING_USDC_BET = 4
+const THRESHOLD = 0;
+const STARTING_BET = args.length > 2 ? parseInt(args[2]) : 5;
 let ADDITIONAL_SLIPPAGE = 0.005; // modifiable by firebase
 let VALID_TOKENS = []; // modifiable by firebase
 
@@ -166,7 +168,7 @@ async function main() {
     tokenAccounts = await getTokenAccounts();
 
     const loop = () => {
-        middleTokenToPoolMap = getMiddleTokenToPoolMap("USDC");
+        middleTokenToPoolMap = getMiddleTokenToPoolMap(MIDDLE_TOKEN);
         const middleTokenToRouteMap = getMiddleTokenToRoutesMap(middleTokenToPoolMap);
         const profitableRoutes = []
         ready_to_trade = false;
@@ -186,7 +188,7 @@ async function main() {
         console.table(profitableRoutes
             .sort((a, b) => b.estimatedProfit - a.estimatedProfit)
             .map(r => ({
-                "Estimated Profit per $1": r.estimatedProfit,
+                [`Estimated Profit per 1 ${MIDDLE_TOKEN}`]: r.estimatedProfit,
                 "First Pool": r.route[0].pool_id,
                 "Second Pool": r.route[1].pool_id
             })));
@@ -235,14 +237,14 @@ async function main() {
         const dateString = new Date().toLocaleString()
         console.log(dateString, "-".repeat(Math.max(process.stdout.columns - dateString.length - 1, 0)))
         await loop();
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 60));
     }
 }
 
 main().then(() => {}).catch(e => {console.error("FATAL", e); process.exit(1)})
 
 async function calculate_trade({route, estimatedProfit}, index) {
-    let usdc = STARTING_USDC_BET;
+    let starting = STARTING_BET;
 
     // don't bother if it is not profitable or if RNG gods say so
     if (estimatedProfit <= THRESHOLD && (args[0] !== "SLIP_CHECK" || Math.random() > 0.3)) return;
@@ -253,7 +255,7 @@ async function calculate_trade({route, estimatedProfit}, index) {
         console.log(`waiting on ${route[0].pool_id} -> ${route[1].pool_id}; time elapsed: ${(Date.now() - startTime) / 1000}s`);
     }, 5000);
     try {
-        await arbitrage(route, usdc, usdc + (usdc * estimatedProfit), estimatedProfit <= THRESHOLD)
+        await arbitrage(route, starting, starting + (starting * estimatedProfit), estimatedProfit <= THRESHOLD)
     } catch (e) {
         console.error(e);
     }
@@ -265,7 +267,7 @@ async function calculate_trade({route, estimatedProfit}, index) {
 // update database on changes, if change is found, calculate the rate differences to check for profitable trades
 // if profitable trade exists, conduct a swap.
 // only after a swap is done, look for another database update?
-const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSkipSwap?: boolean) => {
+const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSkipSwap?: boolean) => {
     const current_pool_to_slippage = JSON.parse(JSON.stringify(pool_to_slippage_map))
     let transactionId = "";
     const profitMsg = {
@@ -296,6 +298,8 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                 const toToken = toTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[toTokenStr];
 
                 const poolKeys = poolKeysMap[pool_addr];
+
+                transaction.add(Liquidity.makeSimulatePoolInfoInstruction({ poolKeys }));
 
                 // check if rates are accurately (without affecting swap call)
                 const _beforeAmt = beforeAmt;     
@@ -436,7 +440,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
             }).catch(err => console.error(err))
             profitMsg.content = "MADE A PROFIT! 🎉"     // reset to default message
 
-            write_to_database(beforeUSDC, afterUSDC, fromCoinAmount - _expected_usdc, transactionId);
+            write_to_database(beforeUSDC, afterUSDC, fromCoinAmount - _expected_end, transactionId);
             tokenAccounts = {...afterTokenAccounts};
         }
 
