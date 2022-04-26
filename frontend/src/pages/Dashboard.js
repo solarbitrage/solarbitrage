@@ -1,4 +1,5 @@
 import React from "react";
+import axios from 'axios'
 import HistoryPlot from "../components/historyPlot";
 import Label from "../components/dashboard/label";
 import Checkbox from "../components/checkbox";
@@ -56,21 +57,24 @@ function Dashboard() {
 		}
 	}
 
-	function getFailedAmm(transaction){
-		let failedAmm;
-		if(transaction.status==="Fail"){
-			let AmmId = transaction.logMessage[transaction.logMessage.length - 1].split(' ')[1]
-			if(AmmId === "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"){
-				failedAmm = "Transaction failed at Orca"
+	async function getFailedAmm(transactionId) {
+		const url = "https://public-api.solscan.io/transaction/"+transactionId;
+		let res = await axios.get(url).then(function (res){
+			let response = res.data;
+			if(response.status==="Success"){
+				return response.status;
 			}
-			else if(AmmId === "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"){
-				failedAmm = "Transaction failed at Raydium"
+			else{
+				let failedToken = response.logMessage[response.logMessage.length - 1].split(' ')[1]
+				if(failedToken === "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"){
+					return "Swap failed at Orca"
+				}
+				else if(failedToken === "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"){
+					return "Swap failed at Raydium"
+				}
 			}
-		}
-		else{
-			return "Success"
-		}
-		return failedAmm
+		})
+		return res
 	}
 
 	const [succPageNumber, setSuccPageNumber] = React.useState(1);
