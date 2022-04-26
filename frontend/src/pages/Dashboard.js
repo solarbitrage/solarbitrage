@@ -56,6 +56,23 @@ function Dashboard() {
 		}
 	}
 
+	function getFailedAmm(transaction){
+		let failedAmm;
+		if(transaction.status==="Fail"){
+			let AmmId = transaction.logMessage[transaction.logMessage.length - 1].split(' ')[1]
+			if(AmmId === "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"){
+				failedAmm = "Transaction failed at Orca"
+			}
+			else if(AmmId === "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"){
+				failedAmm = "Transaction failed at Raydium"
+			}
+		}
+		else{
+			return "Success"
+		}
+		return failedAmm
+	}
+
 	const [succPageNumber, setSuccPageNumber] = React.useState(1);
 	const [allPageNumber, setAllPageNumber] = React.useState(1);
 	const [disableAllPageNumberButtons, setDisableAllPageNumberButtons] = React.useState(true);
@@ -340,7 +357,7 @@ function Dashboard() {
 												<td key={"AllBlockKey" + index}>{"#" + transaction.slot}</td>
 												<td key={"AllTimeKey" + index}>{timeSince(new Date(transaction.blockTime * 1000))}</td>
 												<td key={"AllInstructionsKey" + index}>{transaction.parsedInstruction.map(instruction => instruction.type).join(", ")}</td>
-												<td key={"AllStatus" + index} style={transaction.status === "Fail" ? {color: "red"} : {color: "green"}}>{transaction.status}</td>
+												<td key={"AllStatus" + index} style={transaction.status === "Fail" ? {color: "red"} : {color: "green"}}>{getFailedAmm(transaction)}</td>
 												<td key={"AllFee" + index}>{transaction.fee * 0.000000001}</td>
 											</tr>
 										);
