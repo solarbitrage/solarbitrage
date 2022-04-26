@@ -51,7 +51,7 @@ const firestore = getFirestore(app);
 
 const args = process.argv.slice(2);
 
-const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/Users/noelb/my-solana-wallet/wallet-keypair.json"
+const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/home/corridor/development/solarbitrage/backend/bot/wallet-keypair.json"
 const STARTING_SLIPPAGE = 0;
 const THRESHOLD = -0.009;
 const STARTING_USDC_BET = 4
