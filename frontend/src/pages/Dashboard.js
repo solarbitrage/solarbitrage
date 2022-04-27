@@ -75,18 +75,30 @@ function Dashboard() {
 	 */
 	async function getFailedAmm(transactionId) {
 		const url = "https://public-api.solscan.io/transaction/"+transactionId;
+		const orcaId = "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"
+		const raydiumId = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"
+		let logs;
 		let res = await axios.get(url).then(function (res){
 			let response = res.data;
+			logs = response.logMessage;
 			if(response.status==="Success"){
-				return response.status;
+				return response.status + '\n' + logs;
 			}
 			else{
-				let failedToken = response.logMessage[response.logMessage.length - 1].split(' ')[1]
-				if(failedToken === "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"){
-					return "Swap failed at Orca"
+				let startAmm = response.logMessage[0].split(' ')[1]
+				let endAmm = response.logMessage[response.logMessage.length - 1].split(' ')[1]
+				if(endAmm === orcaId && (startAmm === orcaId || startAmm === "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")){
+					return "Failed at First Swap. AMM: Orca\n" + logs
 				}
-				else if(failedToken === "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"){
-					return "Swap failed at Raydium"
+				else if(endAmm === orcaId && startAmm === raydiumId){
+					// 4PUtqr4qG2iLaVNproDH21F7VyoF9T2J6kM8iPiXLB1XGu7zSbM3yJ1EtzzmQZX8JE2zdWgi8z8wv7pJMXiyeztD
+					return "Failed at Second Swap. AMM: Orca"
+				}
+				else if(endAmm === raydiumId && startAmm === raydiumId){
+					return "Failed at First Swap. AMM: Raydium\n" + logs
+				}
+				else if(endAmm === raydiumId && (startAmm === orcaId || startAmm === "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")){
+					return "Failed at Second Swap. AMM: Raydium"
 				}
 			}
 		})
