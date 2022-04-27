@@ -29,34 +29,50 @@ function Dashboard() {
 		return `${count} ${interval.label}${count !== 1 ? 's' : ''} ago`;
 	}
 
+	/**
+	 * Paginates an array.
+	 * @param {array} array array to paginate
+	 * @param {number} pageSize size of data to display
+	 * @param {number} page page number, the offset
+	 * @returns 
+	 */
 	function arrayPagination(array, pageSize, page) {
 		return array.slice((page - 1) * pageSize, ((page - 1) * pageSize) + pageSize);
 	}
 
+	// Handler for deincrementing successful transactions
 	function deincrementSuccPage() {
 		if (succPageNumber > 1) {
 			setSuccPageNumber(succPageNumber - 1);
 		}
 	}
 
+	// Handler for incrementing successful transactions
 	function incrementSuccPage() {
 		if (succPageNumber < Math.ceil(successfulTransactions.length / 10)) {
 			setSuccPageNumber(succPageNumber + 1);
 		}
 	}
 
+	// Handler for deincrementing all transactions
 	function deincrementAllPage() {
 		if (allPageNumber > 1) {
 			setAllPageNumber(allPageNumber - 1);
 		}
 	}
 
+	// Handler for incrementing all transactions
 	function incrementAllPage() {
 		if (allPageNumber < Math.ceil(allTransactions.length / 10)) {
 			setAllPageNumber(allPageNumber + 1);
 		}
 	}
 
+	/**
+	 * Retrieves the reason why a transaction failed.
+	 * @param {string} transactionId txHash of a failed transaction.
+	 * @returns 
+	 */
 	async function getFailedAmm(transactionId) {
 		const url = "https://public-api.solscan.io/transaction/"+transactionId;
 		let res = await axios.get(url).then(function (res){
@@ -133,6 +149,12 @@ function Dashboard() {
 		}
 	}
 
+	/**
+	 * Gets 10 past transactions from solscan.
+	 * @param {string} walletPublicKey Wallet's public key.
+	 * @param {string} before txHash of previous transaction. Defaults no nothing.
+	 * @param {array} transactionArray existing transaction array. Defaults to an array with the size of 0.
+	 */
 	async function getPastTransactions(walletPublicKey, before="", transactionArray=Array(0)) {
 		let apiRequestParams = {
 			address: walletPublicKey,
@@ -157,7 +179,6 @@ function Dashboard() {
 					promiseArray.push(failedAt);
 				}
 				Promise.all(promiseArray).then(values => {
-					console.log("HOW");
 					for (let i = 0; i < transactionArray.length; ++i) {
 						transactionArray[i].status = values[i];
 					}
@@ -220,6 +241,11 @@ function Dashboard() {
 		getTokenAccountBalanceHelper(tokenAccountPublicKey);
 	}
 
+	/**
+	 * Calculated the USDC earnings for the past week.
+	 * @param {array} transactions Array of transactions from solana web3
+	 * @returns 
+	 */
 	function calculateEarningsPerWeek(transactions) {
 		let oneWeekAgo = new Date();
 		oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -237,8 +263,10 @@ function Dashboard() {
 		return max - min;
 	}
 
+	/**
+	 * Functions to fire once when the page loads.
+	 */
 	React.useEffect(() => {
-
 		// Getting configurable variables from the real time database. 
 		const realtimeDBRef = ref(getDatabase());
 		get(child(realtimeDBRef, "currencies_to_use")).then((snapshot) => {
@@ -271,6 +299,9 @@ function Dashboard() {
     setCurrencyCheckedState(updatedCurrencyCheckedState);
   }
 
+	/**
+	 * Applys bot settings based on which checkboxes are checked in the front end.
+	 */
 	function applyBotSettings() {
 		const db = getDatabase();
 
@@ -282,10 +313,9 @@ function Dashboard() {
 		update(ref(db), updates);
 	}
 
-	React.useEffect(() => {
-		//console.log(successfulTransactions);
-	}, [successfulTransactions]);
-
+	/**
+	 * Disable or enable buttons while grabbing past transaction data from solscan
+	 */
 	React.useEffect(() => {
 		if (allDisplayableTransactions !== null) {
 			if (allPageNumber * 10 > allDisplayableTransactions.length + 1) {
