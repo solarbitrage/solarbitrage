@@ -7,6 +7,7 @@ import config from "./common/src/config";
 import { fetchWithTimeout } from "./common/src/fetch-timeout";
 import { useConnection } from "./common/src/connection";
 import { listeners } from "./common/src/orca-utils/constants";
+import { formatDistance } from "date-fns"
 import fetch from "node-fetch";
 
 
@@ -35,47 +36,58 @@ const orcaRequests = async () => {
   // Initialzie Orca object with appropriate network connection
   const myArgs = process.argv.slice(2).map((item) => parseInt(item));
 
-  try {
-    console.log("Gathering ORCA data");
+  console.log("Gathering ORCA data");
 
-    // Gather swapping data
-    await Promise.allSettled(
-      listeners.slice(...myArgs).map(async ([pool, poolId]) => {
-        for (;;) {
-          try {
-            const connection = getNextConnection();
-            const currentPool = new OrcaPoolImpl(connection, Network.MAINNET, pool);
-
-            const coinA = currentPool.getTokenA();
-            const coinB = currentPool.getTokenB();
-
-            const tradingAmount = new Decimal(1);
-            const buyQuote = await Promise.race([
-              currentPool.getQuote(coinB, tradingAmount),
-              new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("getQuote Timeout")), 8000))
-            ])
-            const buyRate = buyQuote.getExpectedOutputAmount().toNumber();
-            const sellRate = 1 / buyQuote.getExpectedOutputAmount().toNumber();
-
-            // Update Firebase Real-time Database
-            updateDatabase(
-              poolId,
-              pool.address.toBase58(),
-              buyRate,
-              sellRate,
-              coinA,
-              coinB
-            );
-          } catch (e) {
-            console.error(e);
-          }
-          await sleep(200);
-        }
-      })
-    );
-  } catch (err) {
-    console.warn(err);
+  const listenerSlice = listeners.slice(...myArgs);
+  const lastUpdatedMap = {};
+  for (const [_, poolId] of listenerSlice) {
+    lastUpdatedMap[poolId] = null;
   }
+
+  setInterval(() => {
+    console.table(Object.keys(lastUpdatedMap).map((poolId) => ({
+      "Pool ID": poolId,
+      "Last Checked": lastUpdatedMap[poolId] ? formatDistance(lastUpdatedMap[poolId], new Date(), { addSuffix: true, includeSeconds: true }) : "~",
+    })));
+  }, 5000);
+
+  // Gather swapping data
+  await Promise.allSettled(
+    listenerSlice.map(async ([pool, poolId]) => {
+      for (;;) {
+        try {
+          const connection = getNextConnection();
+          const currentPool = new OrcaPoolImpl(connection, Network.MAINNET, pool);
+
+          const coinA = currentPool.getTokenA();
+          const coinB = currentPool.getTokenB();
+
+          const tradingAmount = new Decimal(1);
+          const buyQuote = await Promise.race([
+            currentPool.getQuote(coinB, tradingAmount),
+            new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("getQuote Timeout")), 8000))
+          ])
+          lastUpdatedMap[poolId] = new Date();
+          const buyRate = buyQuote.getExpectedOutputAmount().toNumber();
+          const sellRate = 1 / buyQuote.getExpectedOutputAmount().toNumber();
+
+          // Update Firebase Real-time Database
+          updateDatabase(
+            poolId,
+            pool.address.toBase58(),
+            buyRate,
+            sellRate,
+            coinA,
+            coinB
+          );
+        } catch (e) {
+          console.error(e);
+        }
+        await sleep(200);
+      }
+    })
+  );
+
 };
 
 function updateDatabase(

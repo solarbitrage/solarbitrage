@@ -24,6 +24,8 @@ import {
 } from "./common/src/raydium-utils/constants";
 import { useConnection } from "./common/src/connection";
 import { fetchWithTimeout } from "./common/src/fetch-timeout";
+import { formatDistance } from "date-fns";
+
 // Firebase Configuration
 const firebaseConfig = {
   apiKey: config.FIREBASE_API_KEY,
@@ -76,8 +78,22 @@ function updateDatabase(poolName, data) {
 
   const myArgs = process.argv.slice(2).map(item => parseInt(item));
 
+  const listenerSlice = lpPools.slice(...myArgs);
+  const lastUpdatedMap = {};
+  for (const pool of listenerSlice) {
+    lastUpdatedMap[poolMintAddrToName[pool.id.toBase58()]] = null;
+  }
+
+  setInterval(() => {
+    console.table(Object.keys(lastUpdatedMap).map((poolId) => ({
+      "Pool ID": poolId,
+      "Last Checked": lastUpdatedMap[poolId] ? formatDistance(lastUpdatedMap[poolId], new Date(), { addSuffix: true, includeSeconds: true }) : "~",
+    })));
+  }, 5000);
+
+
   return Promise.all(
-    lpPools.slice(...myArgs).map(async (pool) => {
+    listenerSlice.map(async (pool) => {
       for (;;) {
         try {
           const connection = getNextConnection();
@@ -91,6 +107,7 @@ function updateDatabase(poolName, data) {
           ]);
 
           const poolName = poolMintAddrToName[pool.id.toBase58()];
+          lastUpdatedMap[poolName] = new Date();
           const coinTickers = poolName.split("_").slice(1);
 
           const amountOut = getRate(
