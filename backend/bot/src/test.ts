@@ -1,5 +1,7 @@
 import { readFile } from "mz/fs";
-import { jsonInfo2PoolKeys, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
+import { jsonInfo2PoolKeys, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
+import { MAINNET_SPL_TOKENS } from "./common/src/raydium-utils/tokens";
+
 import { NATIVE_SOL, swap } from "./common/src/raydium-utils/raydium-swap-funcs";
 
 import { initializeApp } from 'firebase/app';
