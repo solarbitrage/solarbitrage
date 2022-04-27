@@ -9,6 +9,7 @@ import Datetime from "react-datetime";
 import "react-datetime/css/react-datetime.css";
 import NumericInput from "react-numeric-input";
 
+import { getDatabase, ref, child, get } from "firebase/database";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import database from "../firestore.config";
 //import { async } from "@firebase/util";
@@ -20,11 +21,10 @@ function Metrics() {
 
   // Names as listed in the firestore database.
   const amms = ["ORCA", "RAYDIUM"];
-  const currencies = ["USDC", "BTC", "ETH", "LIQ", "ORCA", "SOL", "PORT", "RAY", "SBR", "SLRS", "SNY", "mSOL"];
   const directions = ["buy", "sell"];
 
   const [ammCheckedState, setAMMCheckedState] = React.useState(new Array(amms.length).fill(true));
-  const [currencyCheckedState, setCurrencyCheckedState] = React.useState(new Array(currencies.length).fill(false));
+  const [currencyCheckedState, setCurrencyCheckedState] = React.useState(new Array(0).fill(false));
   const [directionCheckedState, setDirectionCheckedState] = React.useState(new Array(directions.length).fill(true));
 
   const [rateDatas, setRateDatas] = React.useState(new Array(0).fill(null));
@@ -76,15 +76,15 @@ function Metrics() {
 
     for (let directionIndex = 0; directionIndex < directions.length; directionIndex++) {
       for (let ammIndex = 0; ammIndex < amms.length; ammIndex++) {
-        for (let currencyIndex = 0; currencyIndex < currencies.length; currencyIndex++) {
+        for (let currencyIndex = 0; currencyIndex < currencyCheckedState.length; currencyIndex++) {
           // Check if the filters are checked
-          if (ammCheckedState[ammIndex] && currencyCheckedState[currencyIndex] && directionCheckedState[directionIndex]) {
+          if (ammCheckedState[ammIndex] && currencyCheckedState[currencyIndex].enabled && directionCheckedState[directionIndex]) {
 
             // Create pairs
-            for (let currencyPairIndex = currencyIndex + 1; currencyPairIndex < currencies.length; currencyPairIndex++) {
-              if (currencyCheckedState[currencyPairIndex]) {
-                let poolID = amms[ammIndex] + "_" + currencies[currencyIndex] + "_" + currencies[currencyPairIndex];
-                let poolIDReversed = amms[ammIndex] + "_" + currencies[currencyPairIndex] + "_" + currencies[currencyIndex];
+            for (let currencyPairIndex = currencyIndex + 1; currencyPairIndex < currencyCheckedState.length; currencyPairIndex++) {
+              if (currencyCheckedState[currencyPairIndex].enabled) {
+                let poolID = amms[ammIndex] + "_" + currencyCheckedState[currencyIndex].currency + "_" + currencyCheckedState[currencyPairIndex].currency;
+                let poolIDReversed = amms[ammIndex] + "_" + currencyCheckedState[currencyPairIndex].currency + "_" + currencyCheckedState[currencyIndex].currency;
 
                 const q1 = query(collection(database, "pricing_history"), 
                   where("pool_id", "==", poolID), 
@@ -99,10 +99,10 @@ function Metrics() {
                   where("timestamp", "<=", endDate),
                   orderBy("timestamp", "desc"));
                 
-                let rateDisplay = ammsDisplay[ammIndex] + " | " + directionsDisplay[directionIndex] + " " + currencies[currencyIndex] + " to " + currencies[currencyPairIndex];
+                let rateDisplay = ammsDisplay[ammIndex] + " | " + directionsDisplay[directionIndex] + " " + currencyCheckedState[currencyIndex].currency + " to " + currencyCheckedState[currencyPairIndex].currency;
                 queryPoolRate(q1, rateDisplay, directionIndex);
 
-                rateDisplay = ammsDisplay[ammIndex] + " | " + directionsDisplay[directionIndex] + " " + currencies[currencyPairIndex] + " to " + currencies[currencyIndex];
+                rateDisplay = ammsDisplay[ammIndex] + " | " + directionsDisplay[directionIndex] + " " + currencyCheckedState[currencyPairIndex].currency + " to " + currencyCheckedState[currencyIndex].currency;
                 queryPoolRate(q2, rateDisplay, directionIndex);
               }
             }
@@ -136,7 +136,10 @@ function Metrics() {
    */
   const handleCurrenciesCheckboxOnChange = (position) => {
     const updatedCurrencyCheckedState = currencyCheckedState.map((item, index) => {
-      return (index === position ? !item : item);
+      if (index === position) {
+        item.enabled = !item.enabled
+      }
+      return item;
     })
     setCurrencyCheckedState(updatedCurrencyCheckedState);
   }
@@ -155,7 +158,7 @@ function Metrics() {
   // Calculate Profits
   React.useEffect(() => {
     if (ammCheckedState.filter(x => x === true).length < 2 
-      || currencyCheckedState.filter(x => x === true).length < 2
+      || currencyCheckedState.filter(x => x.enabled === true).length < 2
       || directionCheckedState.filter(x => x === true).length < 2) {
       return;
     }
@@ -165,7 +168,7 @@ function Metrics() {
         return null;
       }
       
-      //console.log({poolABuy, poolBBuy});
+      console.log({poolABuy, poolBBuy});
       // Grabbing relevant data
       let poolARates = {
         buyTime: poolABuy.map(ph => new Date((ph.data.timestamp.seconds * 1000.0) + (ph.data.timestamp.nanoseconds / 1000000))),
@@ -224,12 +227,40 @@ function Metrics() {
     }
 
     let offset = rateDatas.length / 4;
+    console.log(rateDatas);
     for (let i = 0; i < rateDatas.length; i++) {
       if (rateDatas[i] && rateDatas[(offset * 1) + i] && rateDatas[(offset * 2) + i] && rateDatas[(offset * 3) + i]) {
         calculateProfitability(rateDatas[i], rateDatas[(offset * 2) + i], rateDatas[(offset * 1) + i], rateDatas[(offset * 3) + i], 0);
       }
     }
   }, [rateDatas, slippageData, ammCheckedState, currencyCheckedState, directionCheckedState]);
+
+  /**
+	 * Functions to fire once when the page loads.
+	 */
+	React.useEffect(() => {
+		// Getting configurable variables from the real time database. 
+		const realtimeDBRef = ref(getDatabase());
+		get(child(realtimeDBRef, "currencies_to_use")).then((snapshot) => {
+			if (snapshot.exists()) {
+				let initialCurrenciesChecked = new Array(0);
+				
+				let i = 0;
+				for (const currency in snapshot.val()) {
+					initialCurrenciesChecked[i] = {
+						currency: currency,
+						enabled: false
+					}
+					++i;
+				}
+				setCurrencyCheckedState(initialCurrenciesChecked);
+			} else {
+				console.log("No data avaliable.");
+			}
+		}).catch((error) => {
+			console.error(error);
+		})
+	}, []);
 
   return (
     <div className="page-container">
@@ -248,9 +279,9 @@ function Metrics() {
               </div>
               <div className="currency-checkbox-container filter">
                 <h3>Currencies</h3>
-                {currencies.map((name, index) => {
+                {currencyCheckedState.map((entry, index) => {
                   return (
-                    <Checkbox key={index} label={name} value={currencyCheckedState[index]} onChange={() => handleCurrenciesCheckboxOnChange(index)} id={"currency-" + index} />
+                    <Checkbox key={index} label={entry.currency} value={entry.enabled} onChange={() => handleCurrenciesCheckboxOnChange(index)} id={"currency-" + index} />
                   );
                 })}
               </div>

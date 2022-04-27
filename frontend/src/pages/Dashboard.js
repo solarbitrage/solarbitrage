@@ -1,4 +1,5 @@
 import React from "react";
+import axios from 'axios'
 import HistoryPlot from "../components/historyPlot";
 import Label from "../components/dashboard/label";
 import Checkbox from "../components/checkbox";
@@ -28,32 +29,79 @@ function Dashboard() {
 		return `${count} ${interval.label}${count !== 1 ? 's' : ''} ago`;
 	}
 
+	/**
+	 * Paginates an array.
+	 * @param {array} array array to paginate
+	 * @param {number} pageSize size of data to display
+	 * @param {number} page page number, the offset
+	 * @returns 
+	 */
 	function arrayPagination(array, pageSize, page) {
 		return array.slice((page - 1) * pageSize, ((page - 1) * pageSize) + pageSize);
 	}
 
+	// Handler for deincrementing successful transactions
 	function deincrementSuccPage() {
 		if (succPageNumber > 1) {
 			setSuccPageNumber(succPageNumber - 1);
 		}
 	}
 
+	// Handler for incrementing successful transactions
 	function incrementSuccPage() {
 		if (succPageNumber < Math.ceil(successfulTransactions.length / 10)) {
 			setSuccPageNumber(succPageNumber + 1);
 		}
 	}
 
+	// Handler for deincrementing all transactions
 	function deincrementAllPage() {
 		if (allPageNumber > 1) {
 			setAllPageNumber(allPageNumber - 1);
 		}
 	}
 
+	// Handler for incrementing all transactions
 	function incrementAllPage() {
 		if (allPageNumber < Math.ceil(allTransactions.length / 10)) {
 			setAllPageNumber(allPageNumber + 1);
 		}
+	}
+
+	/**
+	 * Retrieves the reason why a transaction failed.
+	 * @param {string} transactionId txHash of a failed transaction.
+	 * @returns 
+	 */
+	async function getFailedAmm(transactionId) {
+		const url = "https://public-api.solscan.io/transaction/"+transactionId;
+		const orcaId = "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"
+		const raydiumId = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"
+		let logs;
+		let res = await axios.get(url).then(function (res){
+			let response = res.data;
+			logs = response.logMessage;
+			if(response.status==="Success"){
+				return response.status + '\n' + logs;
+			}
+			else{
+				let startAmm = response.logMessage[0].split(' ')[1]
+				let endAmm = response.logMessage[response.logMessage.length - 1].split(' ')[1]
+				if(endAmm === orcaId && (startAmm === orcaId || startAmm === "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")){
+					return "Failed at First Swap. AMM: Orca"
+				}
+				else if(endAmm === orcaId && startAmm === raydiumId){
+					return "Failed at Second Swap. AMM: Orca"
+				}
+				else if(endAmm === raydiumId && startAmm === raydiumId){
+					return "Failed at First Swap. AMM: Raydium"
+				}
+				else if(endAmm === raydiumId && (startAmm === orcaId || startAmm === "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")){
+					return "Failed at Second Swap. AMM: Raydium"
+				}
+			}
+		})
+		return res
 	}
 
 	const [succPageNumber, setSuccPageNumber] = React.useState(1);
@@ -68,8 +116,8 @@ function Dashboard() {
 	const [allDisplayableTransactions, setAllDisplayableTransactions] = React.useState(null);
 
 	// Currencies in the database right now.
-	const currencies = ["USDC", "BTC", "ETH", "LIQ", "ORCA", "SOL", "PORT", "RAY", "SBR", "SLRS", "SNY", "mSOL"];
-	const [currencyCheckedState, setCurrencyCheckedState] = React.useState(new Array(currencies.length).fill(null));
+	// const currencies = ["USDC", "BTC", "ETH", "LIQ", "ORCA", "SOL", "PORT", "RAY", "SBR", "SLRS", "SNY", "mSOL"];
+	const [currencyCheckedState, setCurrencyCheckedState] = React.useState(new Array(0).fill(null));
 
 	/**
 	 * Using Solscan's API, given a wallet's public key and a token key to check,
@@ -112,6 +160,12 @@ function Dashboard() {
 		}
 	}
 
+	/**
+	 * Gets 10 past transactions from solscan.
+	 * @param {string} walletPublicKey Wallet's public key.
+	 * @param {string} before txHash of previous transaction. Defaults no nothing.
+	 * @param {array} transactionArray existing transaction array. Defaults to an array with the size of 0.
+	 */
 	async function getPastTransactions(walletPublicKey, before="", transactionArray=Array(0)) {
 		let apiRequestParams = {
 			address: walletPublicKey,
@@ -124,10 +178,23 @@ function Dashboard() {
 		let request = new XMLHttpRequest();
 		request.open("GET", apiRequest);
 		request.send();
-		request.onload = function() {
+		request.onload = async function() {
 			if (request.status === 200) {
 				let response = JSON.parse(request.response);
 				transactionArray.push(...response.data);
+
+				let promiseArray = []
+				for (let i = 0; i < transactionArray.length; ++i) {
+					let failedAt = getFailedAmm(transactionArray[i].txHash);
+					promiseArray.push(failedAt);
+				}
+				Promise.all(promiseArray).then(values => {
+					for (let i = 0; i < transactionArray.length; ++i) {
+						transactionArray[i].status = values[i];
+					}
+					setAllDisplayableTransactions([...transactionArray]);
+				});
+
 				setAllDisplayableTransactions([...transactionArray]);
 			}
 		}
@@ -185,6 +252,11 @@ function Dashboard() {
 		getTokenAccountBalanceHelper(tokenAccountPublicKey);
 	}
 
+	/**
+	 * Calculated the USDC earnings for the past week.
+	 * @param {array} transactions Array of transactions from solana web3
+	 * @returns 
+	 */
 	function calculateEarningsPerWeek(transactions) {
 		let oneWeekAgo = new Date();
 		oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -202,15 +274,23 @@ function Dashboard() {
 		return max - min;
 	}
 
+	/**
+	 * Functions to fire once when the page loads.
+	 */
 	React.useEffect(() => {
-
 		// Getting configurable variables from the real time database. 
 		const realtimeDBRef = ref(getDatabase());
 		get(child(realtimeDBRef, "currencies_to_use")).then((snapshot) => {
 			if (snapshot.exists()) {
-				let initialCurrenciesChecked = new Array(currencies.length).fill(null);
+				let initialCurrenciesChecked = new Array(0);
+				
+				let i = 0;
 				for (const currency in snapshot.val()) {
-					initialCurrenciesChecked[currencies.indexOf(currency)] = snapshot.val()[currency];
+					initialCurrenciesChecked[i] = {
+						currency: currency,
+						enabled: snapshot.val()[currency]
+					}
+					++i;
 				}
 				setCurrencyCheckedState(initialCurrenciesChecked);
 			} else {
@@ -229,30 +309,35 @@ function Dashboard() {
    * Toggles the checkbox state of the currency filter.
    * @param {number} position the index of the checkbox of the currency filter. 
    */
-	 const handleCurrenciesCheckboxOnChange = (position) => {
+	const handleCurrenciesCheckboxOnChange = (position) => {
     const updatedCurrencyCheckedState = currencyCheckedState.map((item, index) => {
-      return (index === position ? !item : item);
+			if (index === position) {
+				item.enabled = !item.enabled
+			}
+      return item;
     })
     setCurrencyCheckedState(updatedCurrencyCheckedState);
   }
 
+	/**
+	 * Applys bot settings based on which checkboxes are checked in the front end.
+	 */
 	function applyBotSettings() {
 		const db = getDatabase();
 
 		const updates = {};
-		for (let i = 0; i < currencies.length; ++i) {
-			updates["currencies_to_use/" + currencies[i]] = currencyCheckedState[currencies.indexOf(currencies[i])];
+		for (let i = 0; i < currencyCheckedState.length; ++i) {
+			updates["currencies_to_use/" + currencyCheckedState[i].currency] = currencyCheckedState[i].enabled;
 		}
 
 		update(ref(db), updates);
 	}
 
-	React.useEffect(() => {
-		console.log(successfulTransactions);
-	}, [successfulTransactions]);
+	/**
+	 * Disable or enable buttons while grabbing past transaction data from solscan
+	 */
 
 	React.useEffect(() => {
-		console.log({allPageNumber, allDisplayableTransactions})
 		if (allDisplayableTransactions !== null) {
 			if (allPageNumber * 10 > allDisplayableTransactions.length + 1) {
 				getPastTransactions(wallet, allDisplayableTransactions[allDisplayableTransactions.length - 1].txHash, allDisplayableTransactions);
@@ -261,6 +346,10 @@ function Dashboard() {
 				setDisableAllPageNumberButtons(false);
 			}
 		}
+	}, [allPageNumber, allDisplayableTransactions]);
+
+	React.useEffect(() => {
+		
 	}, [allPageNumber, allDisplayableTransactions]);
 
 	return (
@@ -334,13 +423,13 @@ function Dashboard() {
 										return (
 											<tr>
 												<td key={"AllSignitureKey" + index}>
-													<a href={"https://solscan.io/tx/" + transaction.txHash} target="_blank">
+													<a href={"https://solscan.io/tx/" + transaction.txHash} target="_blank" rel="noreferrer">
 														{transaction.txHash.substring(0, 15) + "..."}
 													</a></td>
 												<td key={"AllBlockKey" + index}>{"#" + transaction.slot}</td>
 												<td key={"AllTimeKey" + index}>{timeSince(new Date(transaction.blockTime * 1000))}</td>
 												<td key={"AllInstructionsKey" + index}>{transaction.parsedInstruction.map(instruction => instruction.type).join(", ")}</td>
-												<td key={"AllStatus" + index} style={transaction.status === "Fail" ? {color: "red"} : {color: "green"}}>{transaction.status}</td>
+												<td key={"AllStatus" + index} style={transaction.status.includes("fail") || transaction.status.includes("Fail") ? {color: "red"} : {color: "green"}}>{transaction.status}</td>
 												<td key={"AllFee" + index}>{transaction.fee * 0.000000001}</td>
 											</tr>
 										);
@@ -376,7 +465,7 @@ function Dashboard() {
 										return (
 											<tr>
 												<td key={"SuccSignitureKey" + index}>
-													<a href={"https://solscan.io/tx/" + transaction.txHash} target="_blank">
+													<a href={"https://solscan.io/tx/" + transaction.txHash} target="_blank" rel="noreferrer">
 														{transaction.txHash.substring(0, 15) + "..."}
 													</a>
 												</td>
@@ -407,9 +496,9 @@ function Dashboard() {
 				<div className="widget-container white-boxed graph">
 					<div className="currency-checkbox-container filter">
 						<h3>Currencies</h3>
-						{currencies.map((name, index) => {
+						{currencyCheckedState.map((entry, index) => {
 							return (
-								<Checkbox key={"CheckboxKey" + index} label={name} value={currencyCheckedState[index]} onChange={() => handleCurrenciesCheckboxOnChange(index)} id={"currency-" + index} />
+								<Checkbox key={"CheckboxKey" + index} label={entry.currency} value={entry.enabled} onChange={() => handleCurrenciesCheckboxOnChange(index)} id={"currency-" + index} />
 							);
 						})}
 					</div>
