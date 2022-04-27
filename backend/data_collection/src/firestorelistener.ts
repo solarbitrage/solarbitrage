@@ -1,8 +1,9 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, onChildChanged } from "firebase/database";
+import { getDatabase, ref, onChildChanged, get } from "firebase/database";
 import { collection, getFirestore, addDoc, serverTimestamp} from "firebase/firestore";
 import fetch from "node-fetch"
 import config from "./common/src/config"
+import { formatDistance, formatDuration } from "date-fns"
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -20,23 +21,53 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const firestore = getFirestore(app);
 
+const args = process.argv.slice(2);
+
 let timeout: NodeJS.Timeout;
 const DISCORD_STATUS_WEBHOOK = process.env.DISCORD_STATUS_WEBHOOK;
 
-function main() {
+function lastUpdatedArrToAvg(arr: Date[]) {
+    const diffs = [];
+    for (let i=1; i<arr.length; i++) {
+        diffs.push(arr[i].getTime() - arr[i-1].getTime());
+    }
+    return diffs.reduce((a, b) => a + b, 0) / (diffs.length || 1);
+}
+
+async function get_slippages() {
+    const slip_map = ref(database, 'mainnet_pool_to_slippage_map/');
+    return get(slip_map).then((snapshot) => {
+        if (!snapshot.exists()) return {};
+        const data = snapshot.val();
+        const ret = {}
+        for (const key of Object.keys(data)) {
+            ret[key] = [data[key]["0"] || 0, data[key]["1"] || 0]
+        }
+        return ret;
+    })
+}
+
+async function main() {
     const slippageRef = ref(database, 'mainnet_pool_to_slippage_map/');
     const latestPricesRef = ref(database, 'latest_prices/');
 
-    const currentSlippage = {};
+    const currentSlippage = await get_slippages();
+    const currentRates = {};
 
     onChildChanged(slippageRef, (snapshot) => {
         const data = snapshot.val();
         const key = snapshot.key;
-        currentSlippage[key] = data;
+        currentSlippage[key] = [data["0"], data["1"]];
     })
 
     onChildChanged(latestPricesRef, (data) => {
-        console.log(data.key, data.val());
+        const now = new Date();
+        currentRates[data.key] = {
+            ...data.val(),
+            lastUpdated: now,
+            lastUpdatedArr: (currentRates[data.key]?.lastUpdatedArr || []),
+        };
+        // console.log(data.key, data.val());
 
         if (timeout) {
             clearTimeout(timeout);
@@ -55,6 +86,22 @@ function main() {
                 })
             }).catch(e => console.error(e));
         }, 2 * 60 * 60 * 1000); // 2 hours
+
+        console.table(Object.keys(currentRates)
+            .sort((a, b) => currentRates[a].lastUpdated.getTime() - currentRates[b].lastUpdated.getTime())
+            .map(key => ({
+                "Pool ID": key,
+                "Last Buy Rate": currentRates[key]?.buy?.rate,
+                "Rate Last Changed": formatDistance(currentRates[key].lastUpdated, now, { addSuffix: true, includeSeconds: true }),
+                "Average Price Change Rate": formatDuration({
+                    seconds: parseFloat((lastUpdatedArrToAvg([...currentRates[key].lastUpdatedArr, now]) / 1000).toFixed(6))
+                }, { format: ["hours", "minutes", "seconds"], delimiter: ', ' }),
+            })));
+        
+        currentRates[data.key].lastUpdatedArr.push(now)
+        currentRates[data.key].lastUpdatedArr = currentRates[data.key].lastUpdatedArr.slice(-20);
+
+        if (args[0] === "SKIP_DOC_SAVE") return;
 
         addDoc(collection(firestore, "pricing_history"), {
             pool_id: data.key,
@@ -84,4 +131,4 @@ function main() {
     })
 }
 
-main();
+main().catch(e => console.error(e));

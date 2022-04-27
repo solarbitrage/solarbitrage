@@ -336,6 +336,7 @@ function Dashboard() {
 	/**
 	 * Disable or enable buttons while grabbing past transaction data from solscan
 	 */
+
 	React.useEffect(() => {
 		if (allDisplayableTransactions !== null) {
 			if (allPageNumber * 10 > allDisplayableTransactions.length + 1) {
@@ -374,7 +375,7 @@ function Dashboard() {
 					/>
 					<Label
 						name="Profitable trades"
-						detail={successfulTransactions ? successfulTransactions.length : null}
+						detail={successfulTransactions ? successfulTransactions.filter(transaction => transaction.change.changeAmount > 0 && transaction.blockTime >= 1649323165).length : null}
 						color="#a66eeb"
 					/>
 				</div>

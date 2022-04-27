@@ -12,6 +12,7 @@ export const listeners: [OrcaPoolParams, string][] = [
     [orcaPoolConfigs[OrcaPoolConfig.LIQ_USDC], "ORCA_LIQ_USDC"],
     [orcaPoolConfigs[OrcaPoolConfig.SNY_USDC], "ORCA_SNY_USDC"],
     [orcaPoolConfigs[OrcaPoolConfig.mSOL_USDC], "ORCA_mSOL_USDC"],
+    [orcaPoolConfigs[OrcaPoolConfig.SLIM_USDC], "ORCA_SLIM_USDC"],
     [orcaPoolConfigs[OrcaPoolConfig.SLRS_USDC], "ORCA_SLRS_USDC"],
     [orcaPoolConfigs[OrcaPoolConfig.PORT_USDC], "ORCA_PORT_USDC"],
     [orcaPoolConfigs[OrcaPoolConfig.SBR_USDC], "ORCA_SBR_USDC"],
