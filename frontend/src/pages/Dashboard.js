@@ -88,14 +88,13 @@ function Dashboard() {
 				let startAmm = response.logMessage[0].split(' ')[1]
 				let endAmm = response.logMessage[response.logMessage.length - 1].split(' ')[1]
 				if(endAmm === orcaId && (startAmm === orcaId || startAmm === "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")){
-					return "Failed at First Swap. AMM: Orca\n" + logs
+					return "Failed at First Swap. AMM: Orca"
 				}
 				else if(endAmm === orcaId && startAmm === raydiumId){
-					// 4PUtqr4qG2iLaVNproDH21F7VyoF9T2J6kM8iPiXLB1XGu7zSbM3yJ1EtzzmQZX8JE2zdWgi8z8wv7pJMXiyeztD
 					return "Failed at Second Swap. AMM: Orca"
 				}
 				else if(endAmm === raydiumId && startAmm === raydiumId){
-					return "Failed at First Swap. AMM: Raydium\n" + logs
+					return "Failed at First Swap. AMM: Raydium"
 				}
 				else if(endAmm === raydiumId && (startAmm === orcaId || startAmm === "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")){
 					return "Failed at Second Swap. AMM: Raydium"
@@ -183,7 +182,6 @@ function Dashboard() {
 			if (request.status === 200) {
 				let response = JSON.parse(request.response);
 				transactionArray.push(...response.data);
-				console.log(transactionArray);
 
 				let promiseArray = []
 				for (let i = 0; i < transactionArray.length; ++i) {
@@ -194,6 +192,7 @@ function Dashboard() {
 					for (let i = 0; i < transactionArray.length; ++i) {
 						transactionArray[i].status = values[i];
 					}
+					setAllDisplayableTransactions([...transactionArray]);
 				});
 
 				setAllDisplayableTransactions([...transactionArray]);
