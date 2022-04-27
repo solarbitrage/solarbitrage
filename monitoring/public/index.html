@@ -6,21 +6,25 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"
     integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@4.18.0/css/xterm.css">
   <link rel="stylesheet" href="css/stype.css">
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"
     integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm@4.18.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.js"></script>
   <script src="js/main.js"></script>
   <title>Solarbitrage Monitoring</title>
 </head>
 
 <body>
-  <div class="container">
-    <div class="card panel-success">
-      <div class="card-body">
-        <div class="card-title">Processes</div>
-        <table id="tbl-processes" class="table">
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-md-4 border-left pt-4" style="height: 100vh; overflow: auto;">
+        <h4 class="mb-3">Processes</h4>
+        <button data-action="stop-tail" class="btn btn-sm btn-outline-secondary mb-3">Stop Tailing</button>
+        <table id="tbl-processes" class="table table-sm">
           <thead>
             <tr>
               <th scope="col">Id</th>
@@ -33,11 +37,12 @@
           </tbody>
         </table>
       </div>
+      <div class="col-md-8 p-0">
+        <div style="width: 100%; height: 100vh; background: black;" class="p-3">
+          <div id="terminal" style="min-height: 400px; height: 100%;"></div>
+        </div>
+      </div>
     </div>
-
-    <br>
-    <pre id="console">
-    </pre>
   </div>
 </body>
 

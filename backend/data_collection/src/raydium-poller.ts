@@ -24,6 +24,8 @@ import {
 } from "./common/src/raydium-utils/constants";
 import { useConnection } from "./common/src/connection";
 import { fetchWithTimeout } from "./common/src/fetch-timeout";
+import { formatDistance } from "date-fns";
+
 // Firebase Configuration
 const firebaseConfig = {
   apiKey: config.FIREBASE_API_KEY,
@@ -53,10 +55,8 @@ const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 // Connection info
 
-const getNextConnection = useConnection(true, {
-  disableRetryOnRateLimit: true,
-  confirmTransactionInitialTimeout: 2000,
-  fetchMiddleware: (url, options, fetch) => fetchWithTimeout(fetch, url, options),
+const getNextConnection = useConnection(false, {
+  fetch: (url, opts) => fetchWithTimeout(fetch, url, {...opts, timeout: 8000}),
 });
 
 function updateDatabase(poolName, data) {
@@ -78,95 +78,93 @@ function updateDatabase(poolName, data) {
 
   const myArgs = process.argv.slice(2).map(item => parseInt(item));
 
+  const listenerSlice = lpPools.slice(...myArgs);
+  const lastUpdatedMap = {};
+  for (const pool of listenerSlice) {
+    lastUpdatedMap[poolMintAddrToName[pool.id.toBase58()]] = null;
+  }
 
-  for (;;) {
-    const startTime = new Date();
-    const dateString = startTime.toLocaleString();
-    console.log(
-      dateString,
-      "-".repeat(Math.max(process.stdout.columns - dateString.length - 1, 0))
-    );
+  setInterval(() => {
+    console.table(Object.keys(lastUpdatedMap).map((poolId) => ({
+      "Pool ID": poolId,
+      "Last Checked": lastUpdatedMap[poolId] ? formatDistance(lastUpdatedMap[poolId], new Date(), { addSuffix: true, includeSeconds: true }) : "~",
+    })));
+  }, 5000);
 
-    try {
-      await Promise.all(
-        _.chunk(lpPools, 5).slice(...myArgs).map((chunk) => {
+
+  return Promise.all(
+    listenerSlice.map(async (pool) => {
+      for (;;) {
+        try {
           const connection = getNextConnection();
 
-          return Liquidity.fetchMultipleInfo({
-            connection,
-            pools: chunk,
-          }).then((poolInfos) => {
-            for (const [i, poolInfo] of poolInfos.entries()) {
-              const poolName = poolMintAddrToName[chunk[i].id.toBase58()];
-              const coinTickers = poolName.split("_").slice(1);
+          const poolInfo =  await Promise.race([
+            Liquidity.fetchInfo({
+              connection,
+              poolKeys: pool
+            }),
+            new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("fetchInfo Timeout")), 8000))
+          ]);
 
-              const amountOut = getRate(
-                chunk[i],
-                poolInfo,
-                MAINNET_SPL_TOKENS[coinTickers[1]],
-                MAINNET_SPL_TOKENS[coinTickers[0]],
-                1
-              );
+          const poolName = poolMintAddrToName[pool.id.toBase58()];
+          lastUpdatedMap[poolName] = new Date();
+          const coinTickers = poolName.split("_").slice(1);
 
-              const parsedAmountOut =
-                amountOut.amountOut.raw.toNumber() /
-                Math.pow(10, MAINNET_SPL_TOKENS[coinTickers[0]].decimals);
+          const amountOut = getRate(
+            pool,
+            poolInfo,
+            MAINNET_SPL_TOKENS[coinTickers[1]],
+            MAINNET_SPL_TOKENS[coinTickers[0]],
+            1
+          );
 
-              const results = {
-                provider: "RAYDIUM",
-                network_fees: 10000,
-              };
+          const parsedAmountOut =
+            amountOut.amountOut.raw.toNumber() /
+            Math.pow(10, MAINNET_SPL_TOKENS[coinTickers[0]].decimals);
 
-              const sellResults = {
-                ...results,
-                rate_raw: `${1 / parsedAmountOut}`,
-                from: coinTickers[0],
-                rate: 1 / parsedAmountOut,
-                to: coinTickers[1],
-              };
+          const results = {
+            provider: "RAYDIUM",
+            network_fees: 10000,
+          };
 
-              const buyResults = {
-                ...results,
-                rate_raw: `${parsedAmountOut}`,
-                rate: parsedAmountOut,
-                from: coinTickers[1],
-                to: coinTickers[0],
-              };
+          const sellResults = {
+            ...results,
+            rate_raw: `${1 / parsedAmountOut}`,
+            from: coinTickers[0],
+            rate: 1 / parsedAmountOut,
+            to: coinTickers[1],
+          };
 
-              const poolResults = {
-                provider: "RAYDIUM",
-                pool_addr: chunk[i].id.toBase58(),
-                buy: {
-                  ...buyResults,
-                },
-                sell: {
-                  ...sellResults,
-                },
-              };
+          const buyResults = {
+            ...results,
+            rate_raw: `${parsedAmountOut}`,
+            rate: parsedAmountOut,
+            from: coinTickers[1],
+            to: coinTickers[0],
+          };
 
-              console.log(
-                `${poolName}`,
-                amountOut.minAmountOut.currency.decimals
-              );
-              // console.table([
-              //   {
-              //     route: `${coinTickers[0]} -> ${coinTickers[1]}`,
-              //     rate: sellResults.rate,
-              //   },
-              //   {
-              //     route: `${coinTickers[1]} -> ${coinTickers[0]}`,
-              //     rate: buyResults.rate,
-              //   },
-              // ]);
+          const poolResults = {
+            provider: "RAYDIUM",
+            pool_addr: pool.id.toBase58(),
+            buy: {
+              ...buyResults,
+            },
+            sell: {
+              ...sellResults,
+            },
+          };
 
-              updateDatabase(`${poolName}`, poolResults);
-            }
-          });
-        })
-      );
-    } catch (e) {
-      console.error(e);
-    }
-    await sleep(400);
-  }
+          console.log(
+            `${poolName}`,
+            amountOut.minAmountOut.currency.decimals
+          );
+
+          updateDatabase(`${poolName}`, poolResults);
+        } catch (e) {
+          console.error(e);
+        }  
+        await sleep(200);
+      }
+    })
+  );
 })().catch((e) => console.error("FATAL ERROR:", e));
