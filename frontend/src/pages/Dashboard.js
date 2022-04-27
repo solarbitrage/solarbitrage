@@ -248,7 +248,7 @@ function Dashboard() {
 	}
 
 	React.useEffect(() => {
-		//console.log(successfulTransactions);
+		console.log(successfulTransactions);
 	}, [successfulTransactions]);
 
 	React.useEffect(() => {
@@ -286,7 +286,7 @@ function Dashboard() {
 					/>
 					<Label
 						name="Profitable trades"
-						detail={successfulTransactions ? successfulTransactions.length : null}
+						detail={successfulTransactions ? successfulTransactions.filter(transaction => transaction.change.changeAmount > 0 && transaction.blockTime >= 1649323165).length : null}
 						color="#a66eeb"
 					/>
 				</div>
