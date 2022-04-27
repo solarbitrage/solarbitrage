@@ -247,7 +247,7 @@ async function calculate_trade({route, estimatedProfit}, index) {
     let starting = STARTING_BET;
 
     // don't bother if it is not profitable or if RNG gods say so
-    if (estimatedProfit <= THRESHOLD && (args[0] !== "SLIP_CHECK" || Math.random() > 0.3)) return;
+    if (estimatedProfit <= THRESHOLD && (args[0] !== "SLIP_CHECK" || index < 2 || Math.random() > 0.3)) return;
  
     // if the route is not profitable then don't make swap functions, just test out slippage
     const startTime = Date.now();

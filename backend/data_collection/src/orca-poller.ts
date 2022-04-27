@@ -1,4 +1,4 @@
-import { Network, OrcaPoolToken, Quote } from "@orca-so/sdk";
+import { Network, OrcaPoolToken } from "@orca-so/sdk";
 import { OrcaPoolImpl } from "@orca-so/sdk/dist/model/orca/pool/orca-pool";
 import Decimal from "decimal.js";
 import { initializeApp } from "firebase/app";
@@ -7,13 +7,14 @@ import config from "./common/src/config";
 import { fetchWithTimeout } from "./common/src/fetch-timeout";
 import { useConnection } from "./common/src/connection";
 import { listeners } from "./common/src/orca-utils/constants";
+import fetch from "node-fetch";
 
 
 const getNextConnection = useConnection(true, {
-  disableRetryOnRateLimit: true,
-  confirmTransactionInitialTimeout: 2000,
-  fetchMiddleware: (url, options, fetch) => fetchWithTimeout(fetch, url, options),
+  fetch: (url, opts) => fetchWithTimeout(fetch, url, {...opts, timeout: 8000}),
 });
+
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -40,32 +41,41 @@ const orcaRequests = async () => {
     // Gather swapping data
     await Promise.allSettled(
       listeners.slice(...myArgs).map(async ([pool, poolId]) => {
-        const connection = getNextConnection();
-        const currentPool = new OrcaPoolImpl(connection, Network.MAINNET, pool);
+        for (;;) {
+          try {
+            const connection = getNextConnection();
+            const currentPool = new OrcaPoolImpl(connection, Network.MAINNET, pool);
 
-        const coinA = currentPool.getTokenA();
-        const coinB = currentPool.getTokenB();
+            const coinA = currentPool.getTokenA();
+            const coinB = currentPool.getTokenB();
 
-        const tradingAmount = new Decimal(1);
-        const buyQuote = await currentPool.getQuote(coinB, tradingAmount);
-        const buyRate = buyQuote.getExpectedOutputAmount().toNumber();
-        const sellRate = 1 / buyQuote.getExpectedOutputAmount().toNumber();
+            const tradingAmount = new Decimal(1);
+            const buyQuote = await Promise.race([
+              currentPool.getQuote(coinB, tradingAmount),
+              new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("getQuote Timeout")), 8000))
+            ])
+            const buyRate = buyQuote.getExpectedOutputAmount().toNumber();
+            const sellRate = 1 / buyQuote.getExpectedOutputAmount().toNumber();
 
-        // Update Firebase Real-time Database
-        updateDatabase(
-          poolId,
-          pool.address.toBase58(),
-          buyRate,
-          sellRate,
-          coinA,
-          coinB
-        );
+            // Update Firebase Real-time Database
+            updateDatabase(
+              poolId,
+              pool.address.toBase58(),
+              buyRate,
+              sellRate,
+              coinA,
+              coinB
+            );
+          } catch (e) {
+            console.error(e);
+          }
+          await sleep(200);
+        }
       })
     );
   } catch (err) {
     console.warn(err);
   }
-  setTimeout(orcaRequests, 250);
 };
 
 function updateDatabase(
