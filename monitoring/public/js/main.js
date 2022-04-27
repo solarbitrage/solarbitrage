@@ -82,7 +82,7 @@ $(async function () {
     const processes = await response.json();
 
     for (const process of processes) {
-      const response = await fetch(`/processes/${proces.name}/restart`, {
+      const response = await fetch(`/processes/${process.name}/restart`, {
         method: "PUT",
       });
 
