@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, onChildChanged } from "firebase/database";
+import { getDatabase, ref, onChildChanged, get } from "firebase/database";
 import { collection, getFirestore, addDoc, serverTimestamp} from "firebase/firestore";
 import fetch from "node-fetch"
 import config from "./common/src/config"
@@ -34,17 +34,30 @@ function lastUpdatedArrToAvg(arr: Date[]) {
     return diffs.reduce((a, b) => a + b, 0) / (diffs.length || 1);
 }
 
-function main() {
+async function get_slippages() {
+    const slip_map = ref(database, 'mainnet_pool_to_slippage_map/');
+    return get(slip_map).then((snapshot) => {
+        if (!snapshot.exists()) return {};
+        const data = snapshot.val();
+        const ret = {}
+        for (const key of Object.keys(data)) {
+            ret[key] = [data[key]["0"] || 0, data[key]["1"] || 0]
+        }
+        return ret;
+    })
+}
+
+async function main() {
     const slippageRef = ref(database, 'mainnet_pool_to_slippage_map/');
     const latestPricesRef = ref(database, 'latest_prices/');
 
-    const currentSlippage = {};
+    const currentSlippage = await get_slippages();
     const currentRates = {};
 
     onChildChanged(slippageRef, (snapshot) => {
         const data = snapshot.val();
         const key = snapshot.key;
-        currentSlippage[key] = {...data, lastUpdated: new Date()};
+        currentSlippage[key] = [data["0"], data["1"]];
     })
 
     onChildChanged(latestPricesRef, (data) => {
@@ -118,4 +131,4 @@ function main() {
     })
 }
 
-main();
+main().catch(e => console.error(e));

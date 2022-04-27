@@ -468,7 +468,7 @@ function getMiddleTokenToPoolMap(mainToken: string) {
     for (const pool of poolsWithUSDC) {
         let middleTokenName = ""
         for (const t of pool.tokens) {
-            if (t !== "UDSC") {
+            if (t !== mainToken) {
                 middleTokenName = t;
                 break;
             }
