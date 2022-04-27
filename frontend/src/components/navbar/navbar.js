@@ -5,7 +5,7 @@ import { LinkContainer } from 'react-router-bootstrap'
 function NavBar() {
 	return (
 		<Navbar collapseOnSelect expand="lg" sticky="top" bg="dark" variant="dark">
-			<Container>
+			<Container fluid>
 				<LinkContainer to="/">
 					<Navbar.Brand>Solarbitrage</Navbar.Brand>
 				</LinkContainer>
@@ -25,6 +25,11 @@ function NavBar() {
 						<LinkContainer to="/metrics">
 							<Nav.Link>
 								Metrics
+							</Nav.Link>
+						</LinkContainer>
+						<LinkContainer to="/monitoring">
+							<Nav.Link>
+								Monitoring
 							</Nav.Link>
 						</LinkContainer>
 					</Nav>
