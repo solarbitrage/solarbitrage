@@ -309,7 +309,7 @@ function Dashboard() {
    * Toggles the checkbox state of the currency filter.
    * @param {number} position the index of the checkbox of the currency filter. 
    */
-	 const handleCurrenciesCheckboxOnChange = (position) => {
+	const handleCurrenciesCheckboxOnChange = (position) => {
     const updatedCurrencyCheckedState = currencyCheckedState.map((item, index) => {
 			if (index === position) {
 				item.enabled = !item.enabled
