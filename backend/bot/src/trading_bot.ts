@@ -3,10 +3,9 @@ import { jsonInfo2PoolKeys, Liquidity, LiquidityPoolJsonInfo, MAINNET_SPL_TOKENS
 import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { initializeApp } from 'firebase/app';
-import { get, getDatabase, onChildChanged, onValue, ref, set } from "firebase/database";
+import { get, getDatabase, onChildChanged, onValue, ref, set, update } from "firebase/database";
 import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/firestore";
 import { readFile } from "mz/fs";
-import fetch from "node-fetch";
 // ~~~~~~ firebase configs ~~~~~~
 import config from "./common/src/config";
 import { CONNECTION_COMMITMENT, CONNECTION_ENDPOINT_LIST, useConnection } from "./common/src/connection";
@@ -18,6 +17,7 @@ import { RAYDIUM_POOLS_ENDPOINT, listeners as raydiumListeners } from "./common/
 import { listeners as orcaListeners } from "./common/src/orca-utils/constants";
 import { OrcaPoolImpl } from "@orca-so/sdk/dist/model/orca/pool/orca-pool";
 import { fetchWithTimeout } from "./common/src/fetch-timeout";
+import fetch from "node-fetch"
 
 
 const firebaseConfig = {
@@ -49,11 +49,16 @@ const database = getDatabase(app);
 const firestore = getFirestore(app);
 // ~~~~~~ firebase configs ~~~~~~
 
-const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/Users/noelb/my-solana-wallet/wallet-keypair.json"
+const args = process.argv.slice(2);
+
+const MIDDLE_TOKEN = args.length > 1 ? args[1] : "USDC";
+
+const WALLET_KEY_PATH = process.env.WALLET_KEY_PATH ?? "/home/corridor/development/solarbitrage/backend/bot/wallet-keypair.json"
 const STARTING_SLIPPAGE = 0;
 const THRESHOLD = 0;
-const STARTING_USDC_BET = 4
+const STARTING_BET = args.length > 2 ? parseInt(args[2]) : 5;
 let ADDITIONAL_SLIPPAGE = 0.005; // modifiable by firebase
+let VALID_TOKENS = []; // modifiable by firebase
 
 let ready_to_trade = true;  // flag to look for updates only when a swap intruction is done
 
@@ -62,7 +67,7 @@ const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ
 const getNewConnection = useConnection(false, {
     disableRetryOnRateLimit: true,
     confirmTransactionInitialTimeout: 3000,
-    fetchMiddleware: (url, options, fetch) => fetchWithTimeout(fetch, url, {...options, timeout: 3000}),
+    fetch: (url, opts) => fetchWithTimeout(fetch, url, {...opts, timeout: 3000}),
 });
 
 // use this to get the latest price of a token
@@ -73,6 +78,7 @@ const mainConnection = new Connection(CONNECTION_ENDPOINT_LIST[0], CONNECTION_CO
 
 const poolKeysMap = {};
 const poolAddrToOrcaPool = {};
+let tokenAccounts = {};
 
 orcaListeners.map(([pool, _]) => poolAddrToOrcaPool[pool.address.toBase58()] = pool);
 
@@ -97,7 +103,7 @@ async function get_slippages() {
         const data = snapshot.val();
         const ret = {}
         for (const key of Object.keys(data)) {
-            ret[key] = [data[key]["0"], data[key]["1"]]
+            ret[key] = [data[key]["0"] || (1-STARTING_SLIPPAGE), data[key]["1"] || (1-STARTING_SLIPPAGE)]
         }
         return ret;
     })
@@ -135,9 +141,19 @@ async function main() {
     pool_to_slippage_map = await get_slippages();
     for (const poolId of Object.keys(local_database)) {
         if (!pool_to_slippage_map[poolId]) {
-            pool_to_slippage_map[poolId] = [STARTING_SLIPPAGE, STARTING_SLIPPAGE];
+            pool_to_slippage_map[poolId] = [1-STARTING_SLIPPAGE, 1-STARTING_SLIPPAGE];
         }
     }
+
+    const slip_map = ref(database, 'mainnet_pool_to_slippage_map/');
+    onValue(slip_map, (snapshot) => {
+        if (!snapshot.exists()) return;
+        const data = snapshot.val();
+        for (const key of Object.keys(data)) {
+            pool_to_slippage_map[key] = [data[key]["0"] || (1-STARTING_SLIPPAGE), data[key]["1"] || (1-STARTING_SLIPPAGE)]
+        }
+    });
+
 
     // get wallet credentials
     const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
@@ -148,13 +164,14 @@ async function main() {
     await setupTokenAccounts(Object.keys(middleTokenToPoolMap));
     console.log("setup WSOL Token Account");
 
+    // get token accounts
+    tokenAccounts = await getTokenAccounts();
+
     const loop = () => {
-        middleTokenToPoolMap = getMiddleTokenToPoolMap("USDC");
+        middleTokenToPoolMap = getMiddleTokenToPoolMap(MIDDLE_TOKEN);
         const middleTokenToRouteMap = getMiddleTokenToRoutesMap(middleTokenToPoolMap);
         const profitableRoutes = []
         ready_to_trade = false;
-
-        set_slippages(pool_to_slippage_map);
 
         for (const middleTokenName of Object.keys(middleTokenToRouteMap)) {
             if (middleTokenToRouteMap[middleTokenName].length > 0) {
@@ -164,18 +181,17 @@ async function main() {
 
         console.table(
             Object.keys(pool_to_slippage_map)
-                .map(poolId => ({ "Pool": poolId, "Buy Rate Slippage (%)": (pool_to_slippage_map[poolId][0] * 100).toFixed(4), "Sell Rate Slippage (%)": (pool_to_slippage_map[poolId][1] * 100).toFixed(4) }))
+                .map(poolId => ({ "Pool": poolId, "Buy Rate Multiplier": (pool_to_slippage_map[poolId][0]).toFixed(4), "Sell Rate Multiplier": (pool_to_slippage_map[poolId][1]).toFixed(4) }))
         )
 
 
         console.table(profitableRoutes
             .sort((a, b) => b.estimatedProfit - a.estimatedProfit)
             .map(r => ({
-                "Estimated Profit per $1": r.estimatedProfit,
+                [`Estimated Profit per 1 ${MIDDLE_TOKEN}`]: r.estimatedProfit,
                 "First Pool": r.route[0].pool_id,
                 "Second Pool": r.route[1].pool_id
             })));
-
 
         return Promise.all(profitableRoutes.sort((a, b) => b.estimatedProfit - a.estimatedProfit).map((r, i) => calculate_trade(r, i)))
             .then(() => {
@@ -198,34 +214,52 @@ async function main() {
         ADDITIONAL_SLIPPAGE = snapshot.val();
     });
 
+    let gotValidTokens = undefined;
+    const waitForValidTokens = new Promise((resolve, _) => {gotValidTokens = resolve});
+
+    const config_pools = ref(database, 'currencies_to_use');
+    onValue(config_pools, (snapshot) => {
+        if (gotValidTokens) {
+            gotValidTokens();
+            gotValidTokens = undefined;
+        }
+        VALID_TOKENS = Object.keys(snapshot.val()).filter(function(currency) {
+            return snapshot.val()[currency];
+        }); 
+        console.log("NEW VALID TOKEN:", VALID_TOKENS);
+    });
+
+    console.log("Waiting for valid tokens...");
+    await waitForValidTokens;
+    console.log({ VALID_TOKENS })
+
     for (;;) {
         const dateString = new Date().toLocaleString()
         console.log(dateString, "-".repeat(Math.max(process.stdout.columns - dateString.length - 1, 0)))
         await loop();
-        await new Promise<void>((res) => setTimeout(() => res(), 300));
+        await new Promise((resolve) => setTimeout(resolve, 60));
     }
 }
 
-main().then(() => {}).catch(e => {console.error(e); process.exit(1)})
+main().then(() => {}).catch(e => {console.error("FATAL", e); process.exit(1)})
 
 async function calculate_trade({route, estimatedProfit}, index) {
-    let usdc = STARTING_USDC_BET;
+    let starting = STARTING_BET;
 
-    // don't bother if it is not the top 4 routes or if RNG gods say so
-    if (estimatedProfit <= THRESHOLD && index >= 4 && Math.random() < 0.3) return;
-
+    // don't bother if it is not profitable or if RNG gods say so
+    if (estimatedProfit <= THRESHOLD && (args[0] !== "SLIP_CHECK" || Math.random() > 0.3)) return;
+ 
     // if the route is not profitable then don't make swap functions, just test out slippage
     const startTime = Date.now();
     const interval = setInterval(() => {
         console.log(`waiting on ${route[0].pool_id} -> ${route[1].pool_id}; time elapsed: ${(Date.now() - startTime) / 1000}s`);
     }, 5000);
     try {
-        await arbitrage(route, usdc, usdc + (usdc * estimatedProfit), estimatedProfit <= THRESHOLD)
+        await arbitrage(route, starting, starting + (starting * estimatedProfit), estimatedProfit <= THRESHOLD)
     } catch (e) {
         console.error(e);
-    } finally {
-        clearInterval(interval);
     }
+    clearInterval(interval);
 }
 
 
@@ -233,14 +267,13 @@ async function calculate_trade({route, estimatedProfit}, index) {
 // update database on changes, if change is found, calculate the rate differences to check for profitable trades
 // if profitable trade exists, conduct a swap.
 // only after a swap is done, look for another database update?
-const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSkipSwap?: boolean) => {
+const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSkipSwap?: boolean) => {
     const current_pool_to_slippage = JSON.parse(JSON.stringify(pool_to_slippage_map))
     let transactionId = "";
     const profitMsg = {
         "content": "MADE A PROFIT! 🎉"
     }   
 
-    const tokenAccounts = await getTokenAccounts();
     const transaction = new Transaction();
     transaction.feePayer = owner.publicKey;
     const signers = [];
@@ -255,8 +288,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
             const pool_addr = pool.pool_addr;
 
             const slippage = current_pool_to_slippage[pool_id][i];
-            const newTokenAmt = beforeAmt * 
-                (i === 0 ? pool.buy.rate : pool.sell.rate) * (1 - slippage);
+            const newTokenAmt = i === 0 ? (beforeAmt * pool.buy.rate) : (beforeAmt * pool.sell.rate);
 
             const fromTokenStr = (i === 0 ? pool.buy.from : pool.sell.from);
             const toTokenStr = (i === 0 ? pool.buy.to : pool.sell.to);
@@ -266,6 +298,8 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                 const toToken = toTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[toTokenStr];
 
                 const poolKeys = poolKeysMap[pool_addr];
+
+                transaction.add(Liquidity.makeSimulatePoolInfoInstruction({ poolKeys }));
 
                 // check if rates are accurately (without affecting swap call)
                 const _beforeAmt = beforeAmt;     
@@ -287,13 +321,13 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                         (_i != 0 || 
                         parsedAmountOut * route[_i+1].sell.rate < newTokenAmt * route[_i+1].sell.rate)
                     ) {
-                        const slippageShouldBe = Math.max(0, slippage + (1 - parsedAmountOut / newTokenAmt))
+                        const slippageShouldBe = parsedAmountOut / newTokenAmt;
                         console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on RAYDIUM, slippage should maybe be ${slippageShouldBe})`);
-                        pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
+                        update(ref(database, 'mainnet_pool_to_slippage_map/'+_pool_id), { [_i]: slippageShouldBe });
                     } else if (parsedAmountOut > newTokenAmt) {
-                        const slippageShouldBe =  Math.max(0, slippage + (1 - parsedAmountOut / newTokenAmt))
+                        const slippageShouldBe = parsedAmountOut / newTokenAmt;
                         console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} > ${newTokenAmt} which means slippage might be too high (trading on RAYDIUM, slippage should maybe be ${slippageShouldBe})`);
-                        pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
+                        update(ref(database, 'mainnet_pool_to_slippage_map/'+_pool_id), { [_i]: slippageShouldBe });
                     }
                 })().catch((e: Error) => {console.error(`ERR: POOL_ID{${_pool_id}}[${_i}]:`,e)}))
 
@@ -308,7 +342,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                         tokenAccounts[fromToken.mint]?.tokenAccountAddress,
                         tokenAccounts[toToken.mint]?.tokenAccountAddress,
                         beforeAmt.toString(),
-                        newTokenAmt.toString(),
+                        i === 0 ? newTokenAmt.toString() : fromCoinAmount.toString(), // if it is the second swap then we should set the minimum out to be the same as the input
                         tokenAccounts[WSOL.mint]?.tokenAccountAddress
                     );
                     transaction.add(res.transaction);
@@ -349,13 +383,13 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                         (_i != 0 || 
                         parsedAmountOut * route[_i+1].sell.rate < newTokenAmt * route[_i+1].sell.rate)
                     ) {
-                        const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
+                        const slippageShouldBe = parsedAmountOut / newTokenAmt;
                         console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} < ${newTokenAmt} which results in a unprofitable trade (trading on ORCA, slippage should maybe be ${slippageShouldBe})`);
-                        pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
+                        update(ref(database, 'mainnet_pool_to_slippage_map/'+_pool_id), { [_i]: slippageShouldBe });
                     } else if (parsedAmountOut > newTokenAmt) {
-                        const slippageShouldBe = slippage + (1 - parsedAmountOut / newTokenAmt)
-                        console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} > ${newTokenAmt} which means slippage might be too high (trading on ORCA, slippage should maybe be ${slippageShouldBe})`);
-                        pool_to_slippage_map[_pool_id][_i] = slippageShouldBe; 
+                        const slippageShouldBe = parsedAmountOut / newTokenAmt;
+                        console.warn(`POOL_ID{${pool.pool_id}}[${_i}]: SLIPPAGE_WARNING: ${parsedAmountOut} > ${newTokenAmt} which means slippage might be too high (trading on ORCA, slippage should maybe be ${slippageShouldBe.toFixed(4)})`);
+                        update(ref(database, 'mainnet_pool_to_slippage_map/'+_pool_id), { [_i]: slippageShouldBe });
                     }
                 })().catch((e: Error) => {console.error(`ERR: POOL_ID{${_pool_id}}[${_i}]:`,e.message)}))
 
@@ -365,7 +399,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
                         owner, 
                         fromToken, 
                         new Decimal(beforeAmt), 
-                        new Decimal(newTokenAmt), 
+                        new Decimal(i === 0 ? newTokenAmt : fromCoinAmount), // if it is the second swap then we should set the minimum out to be the same as the input
                         new PublicKey(tokenAccounts[fromToken.mint.toBase58()]?.tokenAccountAddress),
                         new PublicKey(tokenAccounts[toToken.mint.toBase58()]?.tokenAccountAddress),
                     );
@@ -382,6 +416,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
             const beforeParsedInfo = tokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
             const beforeUSDC = parseFloat(beforeParsedInfo.tokenAmount.uiAmount);
 
+            console.log("SENDING TRANSACTION")
             transactionId = await sendAndConfirmTransaction(mainConnection, transaction, signers, {commitment: "singleGossip", skipPreflight: true});
             console.log({ transactionId });
 
@@ -405,7 +440,8 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
             }).catch(err => console.error(err))
             profitMsg.content = "MADE A PROFIT! 🎉"     // reset to default message
 
-            write_to_database(beforeUSDC, afterUSDC, fromCoinAmount - _expected_usdc, transactionId);
+            write_to_database(beforeUSDC, afterUSDC, fromCoinAmount - _expected_end, transactionId);
+            tokenAccounts = {...afterTokenAccounts};
         }
 
     } catch (err) {
@@ -418,7 +454,14 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_usdc, shouldSk
 
 function getMiddleTokenToPoolMap(mainToken: string) {
     const poolsWithUSDC = Object.keys(local_database)
-        .filter(amm => amm.includes("_" +mainToken))
+        .filter(function (amm) {
+            var [firstCurrency, secondCurrency] = amm.split('_').slice(1)
+            const mainTokenExists = firstCurrency == mainToken || secondCurrency == mainToken;
+            const firstTokenValid = VALID_TOKENS.includes(firstCurrency);
+            const secondTokenValid = VALID_TOKENS.includes(secondCurrency);
+
+            return mainTokenExists && firstTokenValid && secondTokenValid;
+        })
         .map(pool => ({...local_database[pool], pool_id: pool, tokens: pool.split("_").slice(1)}));
 
     const mapFromMiddleTokenToPool = {};
@@ -453,8 +496,8 @@ function getMiddleTokenToRoutesMap(middleTokenToPoolMap: any) {
                 const b = middleTokenToPoolMap[middleTokenName][y];
 
                 let estimatedProfits = {
-                    "a then b": ((1 * a.buy.rate * (1 - pool_to_slippage_map[a.pool_id][0])) * b.sell.rate * (1 - pool_to_slippage_map[b.pool_id][1])) - 1,
-                    "b then a": ((1 * b.buy.rate * (1 - pool_to_slippage_map[b.pool_id][0])) * a.sell.rate * (1 - pool_to_slippage_map[a.pool_id][1])) - 1
+                    "a then b": (1 * a.buy.rate * pool_to_slippage_map[a.pool_id][0] * b.sell.rate * pool_to_slippage_map[b.pool_id][1]) - 1,
+                    "b then a": (1 * b.buy.rate * pool_to_slippage_map[b.pool_id][0] * a.sell.rate * pool_to_slippage_map[a.pool_id][1]) - 1
                 }
 
                 if (estimatedProfits["a then b"] > estimatedProfits["b then a"]) {

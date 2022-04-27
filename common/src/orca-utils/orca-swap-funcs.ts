@@ -18,10 +18,7 @@ export async function swap(
     amountIn: Decimal | OrcaU64,
     minimumAmountOut: Decimal | OrcaU64,
     inputPoolTokenUserAddress: PublicKey,
-    outputPoolTokenUserAddress: PublicKey,
-    approvalInstruction?: {
-        userTransferAuthority: Keypair;
-    } & Instruction
+    outputPoolTokenUserAddress: PublicKey
 ) {
     const _owner = new Owner(owner);
 
@@ -42,19 +39,19 @@ export async function swap(
         throw new Error("Unable to derive input / output token associated address.");
     }
 
-    let userTransferAuthority: Keypair;
-    let inputDefinedApprovalInstr = !!approvalInstruction;
+    let userTransferAuthority = _owner;
+    // let inputDefinedApprovalInstr = !!approvalInstruction;
 
-    if (!inputDefinedApprovalInstr) {
-        approvalInstruction = createApprovalInstruction(
-            ownerAddress,
-            amountInU64,
-            inputPoolTokenUserAddress
-        );
-        userTransferAuthority = approvalInstruction.userTransferAuthority;
-    } else {
-        userTransferAuthority = approvalInstruction.userTransferAuthority;
-    }
+    // if (!inputDefinedApprovalInstr) {
+    //     approvalInstruction = createApprovalInstruction(
+    //         ownerAddress,
+    //         amountInU64,
+    //         inputPoolTokenUserAddress
+    //     );
+    //     userTransferAuthority = approvalInstruction.userTransferAuthority;
+    // } else {
+    //     userTransferAuthority = approvalInstruction.userTransferAuthority;
+    // }
             
     const swapInstruction = await createSwapInstruction(
         (pool as any).poolParams,
@@ -73,9 +70,9 @@ export async function swap(
     // .addInstruction(resolveInputAddrInstructions)
     // .addInstruction(resolveOutputAddrInstructions)
 
-    if (!inputDefinedApprovalInstr) {
-        transactionPayloadBuilder = transactionPayloadBuilder.addInstruction(approvalInstruction)
-    }
+    // if (!inputDefinedApprovalInstr) {
+    //     transactionPayloadBuilder = transactionPayloadBuilder.addInstruction(approvalInstruction)
+    // }
 
     const transactionPayload = await transactionPayloadBuilder
         .addInstruction(swapInstruction).build();
