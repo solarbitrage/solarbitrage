@@ -15,10 +15,19 @@ export interface IProcessOutLog {
 
 class Pm2Lib {
   //private readonly SCRIPT_PATH = process.env.SCRIPT_PATH;
-  private readonly DATA_COLLECTION_SCRIPT_PATH = 'npm run --prefix ../backend/data_collection/'
+  private readonly DATA_COLLECTION_SCRIPT_PATH = 'npm run --prefix ../backend/data_collection/';
   private readonly TRADING_BOT_SCRIPT_PATH = 'npm run --prefix ../backend/bot/'
-  private readonly DATA_COLLECTION_PROCESSES = ['data-collection-orca', 'data-collection-raydium', 'listener'];
-  private readonly TRADING_BOT_PROCESSES = ['trading-bot']
+  private readonly DATA_COLLECTION_PROCESSES = [
+    'data-collection-orca -- 0 3',
+    'data-collection-orca -- 3 6',
+    'data-collection-orca -- 6 9',
+    'data-collection-orca -- 9 12',
+    'data-collection-orca -- 12 15',
+    'data-collection-raydium -- 0 2', 
+    'data-collection-raydium -- 2 4', 
+    'listener'
+  ];
+  private readonly TRADING_BOT_PROCESSES = ['trading-bot', 'trading-bot-slip-check']
 
   private readonly PROCESSES = this.TRADING_BOT_PROCESSES.concat(this.DATA_COLLECTION_PROCESSES)
 
