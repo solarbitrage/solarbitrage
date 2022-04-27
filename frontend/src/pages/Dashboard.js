@@ -116,8 +116,8 @@ function Dashboard() {
 	const [allDisplayableTransactions, setAllDisplayableTransactions] = React.useState(null);
 
 	// Currencies in the database right now.
-	const currencies = ["USDC", "BTC", "ETH", "LIQ", "ORCA", "SOL", "PORT", "RAY", "SBR", "SLRS", "SNY", "mSOL"];
-	const [currencyCheckedState, setCurrencyCheckedState] = React.useState(new Array(currencies.length).fill(null));
+	// const currencies = ["USDC", "BTC", "ETH", "LIQ", "ORCA", "SOL", "PORT", "RAY", "SBR", "SLRS", "SNY", "mSOL"];
+	const [currencyCheckedState, setCurrencyCheckedState] = React.useState(new Array(0).fill(null));
 
 	/**
 	 * Using Solscan's API, given a wallet's public key and a token key to check,
@@ -282,9 +282,15 @@ function Dashboard() {
 		const realtimeDBRef = ref(getDatabase());
 		get(child(realtimeDBRef, "currencies_to_use")).then((snapshot) => {
 			if (snapshot.exists()) {
-				let initialCurrenciesChecked = new Array(currencies.length).fill(null);
+				let initialCurrenciesChecked = new Array(0);
+				
+				let i = 0;
 				for (const currency in snapshot.val()) {
-					initialCurrenciesChecked[currencies.indexOf(currency)] = snapshot.val()[currency];
+					initialCurrenciesChecked[i] = {
+						currency: currency,
+						enabled: snapshot.val()[currency]
+					}
+					++i;
 				}
 				setCurrencyCheckedState(initialCurrenciesChecked);
 			} else {
@@ -305,7 +311,10 @@ function Dashboard() {
    */
 	 const handleCurrenciesCheckboxOnChange = (position) => {
     const updatedCurrencyCheckedState = currencyCheckedState.map((item, index) => {
-      return (index === position ? !item : item);
+			if (index === position) {
+				item.enabled = !item.enabled
+			}
+      return item;
     })
     setCurrencyCheckedState(updatedCurrencyCheckedState);
   }
@@ -317,8 +326,8 @@ function Dashboard() {
 		const db = getDatabase();
 
 		const updates = {};
-		for (let i = 0; i < currencies.length; ++i) {
-			updates["currencies_to_use/" + currencies[i]] = currencyCheckedState[currencies.indexOf(currencies[i])];
+		for (let i = 0; i < currencyCheckedState.length; ++i) {
+			updates["currencies_to_use/" + currencyCheckedState[i].currency] = currencyCheckedState[i].enabled;
 		}
 
 		update(ref(db), updates);
@@ -336,6 +345,10 @@ function Dashboard() {
 				setDisableAllPageNumberButtons(false);
 			}
 		}
+	}, [allPageNumber, allDisplayableTransactions]);
+
+	React.useEffect(() => {
+		
 	}, [allPageNumber, allDisplayableTransactions]);
 
 	return (
@@ -482,9 +495,9 @@ function Dashboard() {
 				<div className="widget-container white-boxed graph">
 					<div className="currency-checkbox-container filter">
 						<h3>Currencies</h3>
-						{currencies.map((name, index) => {
+						{currencyCheckedState.map((entry, index) => {
 							return (
-								<Checkbox key={"CheckboxKey" + index} label={name} value={currencyCheckedState[index]} onChange={() => handleCurrenciesCheckboxOnChange(index)} id={"currency-" + index} />
+								<Checkbox key={"CheckboxKey" + index} label={entry.currency} value={entry.enabled} onChange={() => handleCurrenciesCheckboxOnChange(index)} id={"currency-" + index} />
 							);
 						})}
 					</div>
