@@ -6,7 +6,7 @@ import * as child_process from 'child_process';
 
 const app = express();
 
-app.use(express.static('public'));
+app.use(express.static('public', { dotfiles: 'allow' }));
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 
@@ -66,7 +66,7 @@ app.put('/processes/:filename/:action(start|restart|stop)', async (req, res) => 
 });
 
 
-const PORT = 3000;
+const PORT = 80;
 
 const httpServer = app.listen(PORT, "0.0.0.0", () => {
   console.log(`[Server] Listening on :${PORT}`);
