@@ -3,8 +3,20 @@ import pm2Lib from './pm2Lib';
 import socketIO from './socketIO';
 import bodyParser from 'body-parser';
 import * as child_process from 'child_process';
+import fs from "fs";
+import https from "https";
 
 const app = express();
+
+const privateKey = fs.readFileSync('/etc/letsencrypt/live/triangulum.ryanhall.net/privkey.pem', 'utf8');
+const certificate = fs.readFileSync('/etc/letsencrypt/live/triangulum.ryanhall.net/cert.pem', 'utf8');
+const ca = fs.readFileSync('/etc/letsencrypt/live/triangulum.ryanhall.net/chain.pem', 'utf8');
+
+const credentials = {
+  key: privateKey,
+  cert: certificate,
+  ca: ca
+};
 
 app.use(express.static('public', { dotfiles: 'allow' }));
 app.use(bodyParser.urlencoded({ extended: true }))
@@ -66,10 +78,12 @@ app.put('/processes/:filename/:action(start|restart|stop)', async (req, res) => 
 });
 
 
-const PORT = 80;
+const PORT = 443;
 
-const httpServer = app.listen(PORT, "0.0.0.0", () => {
+const httpsServer = https.createServer(credentials, app);
+
+httpsServer.listen(PORT, "0.0.0.0", () => {
   console.log(`[Server] Listening on :${PORT}`);
 });
 
-socketIO.init(httpServer);
+socketIO.init(httpsServer);
