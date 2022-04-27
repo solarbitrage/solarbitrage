@@ -4,11 +4,12 @@ import {
   LiquidityPoolJsonInfo,
   jsonInfo2PoolKeys,
   TokenAmount,
-  MAINNET_SPL_TOKENS,
   Token,
   Percent,
   WSOL,
 } from "@raydium-io/raydium-sdk";
+
+import { MAINNET_SPL_TOKENS } from "./common/src/raydium-utils/tokens";
 
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set } from "firebase/database";

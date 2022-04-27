@@ -22,11 +22,11 @@ class Pm2Lib {
     'data-collection-orca -- 3 6',
     'data-collection-orca -- 6 9',
     'data-collection-orca -- 9 12',
-    'data-collection-orca -- 12 15',
+    'data-collection-orca -- 12 99',
     'data-collection-raydium -- 0 5', 
     'data-collection-raydium -- 5 10', 
     'data-collection-raydium -- 10 15', 
-    'data-collection-raydium -- 15 20', 
+    'data-collection-raydium -- 15 99', 
     'listener'
   ];
   private readonly TRADING_BOT_PROCESSES = ['trading-bot', 'trading-bot-slip-check']

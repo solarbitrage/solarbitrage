@@ -1,5 +1,6 @@
 import { getOrca, Network, OrcaPoolConfig } from "@orca-so/sdk";
-import { jsonInfo2PoolKeys, Liquidity, LiquidityPoolJsonInfo, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
+import { jsonInfo2PoolKeys, Liquidity, LiquidityPoolJsonInfo, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
+import { MAINNET_SPL_TOKENS } from "./common/src/raydium-utils/tokens";
 import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { initializeApp } from 'firebase/app';
