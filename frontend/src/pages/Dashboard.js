@@ -145,10 +145,24 @@ function Dashboard() {
 		let request = new XMLHttpRequest();
 		request.open("GET", apiRequest);
 		request.send();
-		request.onload = function() {
+		request.onload = async function() {
 			if (request.status === 200) {
 				let response = JSON.parse(request.response);
 				transactionArray.push(...response.data);
+				console.log(transactionArray);
+
+				let promiseArray = []
+				for (let i = 0; i < transactionArray.length; ++i) {
+					let failedAt = getFailedAmm(transactionArray[i].txHash);
+					promiseArray.push(failedAt);
+				}
+				Promise.all(promiseArray).then(values => {
+					console.log("HOW");
+					for (let i = 0; i < transactionArray.length; ++i) {
+						transactionArray[i].status = values[i];
+					}
+				});
+
 				setAllDisplayableTransactions([...transactionArray]);
 			}
 		}
@@ -273,7 +287,6 @@ function Dashboard() {
 	}, [successfulTransactions]);
 
 	React.useEffect(() => {
-		console.log({allPageNumber, allDisplayableTransactions})
 		if (allDisplayableTransactions !== null) {
 			if (allPageNumber * 10 > allDisplayableTransactions.length + 1) {
 				getPastTransactions(wallet, allDisplayableTransactions[allDisplayableTransactions.length - 1].txHash, allDisplayableTransactions);
@@ -355,13 +368,13 @@ function Dashboard() {
 										return (
 											<tr>
 												<td key={"AllSignitureKey" + index}>
-													<a href={"https://solscan.io/tx/" + transaction.txHash} target="_blank">
+													<a href={"https://solscan.io/tx/" + transaction.txHash} target="_blank" rel="noreferrer">
 														{transaction.txHash.substring(0, 15) + "..."}
 													</a></td>
 												<td key={"AllBlockKey" + index}>{"#" + transaction.slot}</td>
 												<td key={"AllTimeKey" + index}>{timeSince(new Date(transaction.blockTime * 1000))}</td>
 												<td key={"AllInstructionsKey" + index}>{transaction.parsedInstruction.map(instruction => instruction.type).join(", ")}</td>
-												<td key={"AllStatus" + index} style={transaction.status === "Fail" ? {color: "red"} : {color: "green"}}>{getFailedAmm(transaction)}</td>
+												<td key={"AllStatus" + index} style={transaction.status.includes("fail") || transaction.status.includes("Fail") ? {color: "red"} : {color: "green"}}>{transaction.status}</td>
 												<td key={"AllFee" + index}>{transaction.fee * 0.000000001}</td>
 											</tr>
 										);
@@ -397,7 +410,7 @@ function Dashboard() {
 										return (
 											<tr>
 												<td key={"SuccSignitureKey" + index}>
-													<a href={"https://solscan.io/tx/" + transaction.txHash} target="_blank">
+													<a href={"https://solscan.io/tx/" + transaction.txHash} target="_blank" rel="noreferrer">
 														{transaction.txHash.substring(0, 15) + "..."}
 													</a>
 												</td>
