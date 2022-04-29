@@ -116,6 +116,7 @@ async function set_slippages(val) {
 }
 
 async function main() {
+    debugger;
     // ==== Setup 
     // Read secret key file to get owner keypair
     const secretKeyString = await readFile(WALLET_KEY_PATH, {
@@ -132,11 +133,31 @@ async function main() {
         poolKeysMap[pool.id] = jsonInfo2PoolKeys(pool);
     }
 
+    // get valid token list
+    let gotValidTokens = undefined;
+    const waitForValidTokens = new Promise((resolve, _) => {gotValidTokens = resolve});
+
+    const config_pools = ref(database, 'currencies_to_use');
+    onValue(config_pools, (snapshot) => {
+        if (gotValidTokens) {
+            gotValidTokens();
+            gotValidTokens = undefined;
+        }
+        VALID_TOKENS = Object.keys(snapshot.val()).filter(function(currency) {
+            return snapshot.val()[currency];
+        }); 
+        console.log("NEW VALID TOKEN:", VALID_TOKENS);
+    });
+
+    console.log("Waiting for valid tokens...");
+    await waitForValidTokens;
+    console.log({ VALID_TOKENS })
+
     // local_database setup
     const queries = await query_pools();
     console.log("local_database setup");
     local_database = queries;
-    let middleTokenToPoolMap = getMiddleTokenToPoolMap("USDC");
+    let middleTokenToPoolMap = getMiddleTokenToPoolMap(MIDDLE_TOKEN);
 
     // setup slippage's per pool_id
     pool_to_slippage_map = await get_slippages();
@@ -154,7 +175,6 @@ async function main() {
             pool_to_slippage_map[key] = [data[key]["0"] || (1-STARTING_SLIPPAGE), data[key]["1"] || (1-STARTING_SLIPPAGE)]
         }
     });
-
 
     // get wallet credentials
     const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
@@ -214,25 +234,6 @@ async function main() {
     onValue( config_slippage, (snapshot) => {
         ADDITIONAL_SLIPPAGE = snapshot.val();
     });
-
-    let gotValidTokens = undefined;
-    const waitForValidTokens = new Promise((resolve, _) => {gotValidTokens = resolve});
-
-    const config_pools = ref(database, 'currencies_to_use');
-    onValue(config_pools, (snapshot) => {
-        if (gotValidTokens) {
-            gotValidTokens();
-            gotValidTokens = undefined;
-        }
-        VALID_TOKENS = Object.keys(snapshot.val()).filter(function(currency) {
-            return snapshot.val()[currency];
-        }); 
-        console.log("NEW VALID TOKEN:", VALID_TOKENS);
-    });
-
-    console.log("Waiting for valid tokens...");
-    await waitForValidTokens;
-    console.log({ VALID_TOKENS })
 
     for (;;) {
         const dateString = new Date().toLocaleString()
@@ -577,7 +578,7 @@ async function setupTokenAccounts(tokens: string[]) {
         }
 
         if ((i+1) % 3 && transaction.instructions.length > 0) {
-            const tx = await sendAndConfirmTransaction(connection, transaction, signers, { commitment: "singleGossip" });
+            const tx = await sendAndConfirmTransaction(mainConnection, transaction, signers, { commitment: "singleGossip" });
             transaction = new Transaction();
             signers = [owner];
             console.log("create token acc: ", tx)
@@ -586,7 +587,7 @@ async function setupTokenAccounts(tokens: string[]) {
     }
     
     if (transaction.instructions.length > 0) {
-        const tx = await sendAndConfirmTransaction(connection, transaction, signers, { commitment: "singleGossip" });
+        const tx = await sendAndConfirmTransaction(mainConnection, transaction, signers, { commitment: "singleGossip" });
         console.log("create token acc: ", tx)    
     }
 }
