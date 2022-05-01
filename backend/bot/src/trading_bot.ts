@@ -123,6 +123,9 @@ async function main() {
         encoding: "utf8",
     });
 
+    const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
+    owner = Keypair.fromSecretKey(secretKey);
+
     const lpMetadata = await fetch(RAYDIUM_POOLS_ENDPOINT).then(res => res.json())
     const lpPools: LiquidityPoolJsonInfo[] = [
         ...lpMetadata["official"],
@@ -272,7 +275,9 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSki
     }   
 
     const transaction = new Transaction();
+    const swapTransactions = new Transaction();
     transaction.feePayer = owner.publicKey;
+    swapTransactions.feePayer = owner.publicKey;
     const signers = [];
 
     const afterSwapPromises = [];
@@ -342,7 +347,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSki
                         i === 0 ? newTokenAmt.toString() : fromCoinAmount.toString(), // if it is the second swap then we should set the minimum out to be the same as the input
                         tokenAccounts[WSOL.mint]?.tokenAccountAddress
                     );
-                    transaction.add(res.transaction);
+                    swapTransactions.add(res.transaction);
                     signers.push(...res.signers);
                 }
             } else if (provider === "ORCA") {
@@ -400,7 +405,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSki
                         new PublicKey(tokenAccounts[fromToken.mint.toBase58()]?.tokenAccountAddress),
                         new PublicKey(tokenAccounts[toToken.mint.toBase58()]?.tokenAccountAddress),
                     );
-                    transaction.add(transactionPayload.transaction);
+                    swapTransactions.add(transactionPayload.transaction);
                     signers.push(...transactionPayload.signers); 
                 }
 
@@ -408,6 +413,8 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSki
 
             beforeAmt = newTokenAmt;
         }
+
+        transaction.add(swapTransactions);
 
         if (!shouldSkipSwap) {
             const beforeParsedInfo = tokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
