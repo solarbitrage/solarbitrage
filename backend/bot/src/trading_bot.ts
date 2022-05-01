@@ -1,4 +1,4 @@
-import { getOrca, Network, OrcaPoolConfig } from "@orca-so/sdk";
+import { Network } from "@orca-so/sdk";
 import { jsonInfo2PoolKeys, Liquidity, LiquidityPoolJsonInfo, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
 import { MAINNET_SPL_TOKENS } from "./common/src/raydium-utils/tokens";
 import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
@@ -176,11 +176,6 @@ async function main() {
         }
     });
 
-    // get wallet credentials
-    const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
-    owner = Keypair.fromSecretKey(secretKey);
-    console.log("wallet creds");
-
     // setup token account
     await setupTokenAccounts(Object.keys(middleTokenToPoolMap));
     console.log("setup WSOL Token Account");
@@ -290,7 +285,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSki
             const pool_addr = pool.pool_addr;
 
             const slippage = current_pool_to_slippage[pool_id][i];
-            const newTokenAmt = i === 0 ? (beforeAmt * pool.buy.rate) : (beforeAmt * pool.sell.rate);
+            const newTokenAmt = i === 0 ? (beforeAmt * pool.buy.rate * slippage) : (beforeAmt * pool.sell.rate * slippage);
 
             const fromTokenStr = (i === 0 ? pool.buy.from : pool.sell.from);
             const toTokenStr = (i === 0 ? pool.buy.to : pool.sell.to);
