@@ -1,4 +1,5 @@
-import { jsonInfo2PoolKeys, MAINNET_SPL_TOKENS, parseSimulateValue } from "@raydium-io/raydium-sdk";
+import { jsonInfo2PoolKeys, parseSimulateValue } from "@raydium-io/raydium-sdk";
+import { MAINNET_SPL_TOKENS } from "./common/src/raydium-utils/tokens";
 import { BN } from "bn.js"
 import * as RaydiumRateFuncs from "./common/src/raydium-utils/raydium-rate-funcs";
 import { NATIVE_SOL } from "./common/src/raydium-utils/raydium-swap-funcs";
@@ -24,42 +25,42 @@ const makePoolInfo = (json: any) => {
 }
 
 const poolKeys = jsonInfo2PoolKeys({
-    "id": "7XXKU8oGDbeGrkPyK5yHKzdsrMJtB7J2TMugjbrXEhB5",
-    "baseMint": "SLRSSpSLUTP7okbCUBYStWCo1vUgyt775faPqz8HUMr",
+    "id": "DudevotmDLN3KDHA1uTV1AyTYdwGnKUDFEXS9AXLjQ1z",
+    "baseMint": "Saber2gLauYim4Mvftnrasomsv6NvAuncvMEZwcLpD1",
     "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-    "lpMint": "2Xxbm1hdv5wPeen5ponDSMT3VqhGMTQ7mH9stNXm9shU",
+    "lpMint": "Pxjdp9tJwouUT4c9UC8Lu6YCYuuvSHmKcFuj1GG8UkR",
     "version": 4,
     "programId": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
     "authority": "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1",
-    "openOrders": "3wNRVMaot3R2piZkzmKsAqewcZ5ABktqrJZrc4Vz3uWs",
-    "targetOrders": "BwSmQF7nxRqzzVdfaynxM98dNbXFi94cemDDtxMfV3SB",
-    "baseVault": "6vjnbp6vhw4RxNqN3e2tfE3VnkbCx8RCLt8RBmHZvuoC",
-    "quoteVault": "2anKifuiizorX69zWQddupMqawGfk3TMPGZs4t7ZZk43",
-    "withdrawQueue": "Fh5WTfP9jCbkLPzsspCs4WCSPGqE5GYE8v7kqFXijMSA",
-    "lpVault": "9oiniKrJ7r1cHw97gv4XPxTFS9i61vSa7PkpRcm8qGeK",
+    "openOrders": "3dTC22bCbA6cLr7npckvknxeBuUugqFRj6RP9jhrNHyE",
+    "targetOrders": "BEjcspDwC27jthE9Tm8w9oNde9LJUDPJ7znU1k3C9u3q",
+    "baseVault": "272j93C1vUfVyHDiC1FrcwM4ogUZasCfgyciUFNJUg9D",
+    "quoteVault": "J3SwSfRqHfWbcpHD2UU8VxnsFFpFQpFCxwUW4QUDWUqv",
+    "withdrawQueue": "8yXHrkaqExgS7VGHKHmhMiDEdECMdqTVoaWNR1gpwjmS",
+    "lpVault": "8JS1E2bBfEdrCMZ6jvCw5KF1xbXP5utuzHocnCGUeGjj",
     "marketVersion": 3,
     "marketProgramId": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
-    "marketId": "2Gx3UfV831BAh8uQv1FKSPKS9yajfeeD8GJ4ZNb2o2YP",
-    "marketAuthority": "CjiJdQ9a7dnjTKfVPZ2fwn31NtgJA1kRU55pwDE8HHrM",
-    "marketBaseVault": "6B527pfkvbvbLRDgjASLGygdaQ1fFLwmmqyFCgTacsKH",
-    "marketQuoteVault": "Bsa11vdveUhSouxAXSYCE4yXToUP58N9EEeM1P8qbtp3",
-    "marketBids": "6kMW5vafM4mWZJdBNpH4EsVjFSuSTUokx5meYoVY8GTw",
-    "marketAsks": "D5asu2BVatxtgGFugwmNubdknAsLSJDZcqRHvkaS8UBd",
-    "marketEventQueue": "66Go3JcjNJaDHHvJyaFaV8rh8GAciLzvM8WzN7fRE3HM"
+    "marketId": "6qC4GyqzzoLYeye9GKQyJTG4HjRMiq967Z1Jt6Eee8rd",
+    "marketAuthority": "41CWKMtDX8FDbuRZCRPmBNEboNWmPkZKePVQy3f2dhRA",
+    "marketBaseVault": "9GfyCNoVdnKaZDfC7Bema53NsVDuNxVfwh3F7LXm1hwh",
+    "marketQuoteVault": "FvZnJA8vYDLYGYNYxn3rXdPHSUJL3nWmr7kqGUvRpG6x",
+    "marketBids": "8Y7vgzDauidz65TbPs9U3aqcjUGEjhFVR172ZggxXSkv",
+    "marketAsks": "Yz2HZcXweCw6U4kBeMRcZb1ednJdejrvkBxhw45YPQG",
+    "marketEventQueue": "FeEAqsvJTf9dCB2CJsL6YQ5pFeyMyrWxd5VP5YRT58fB"
 });
 
 
 const poolInfo = makePoolInfo(
-    JSON.parse(`{"status":1,"coin_decimals":6,"pc_decimals":6,"lp_decimals":6,"pool_pc_amount":29417075622,"pool_coin_amount":251405031343,"pool_lp_supply":361372971145,"pool_open_time":0,"amm_id":"7XXKU8oGDbeGrkPyK5yHKzdsrMJtB7J2TMugjbrXEhB5"}`)
+    JSON.parse(`{"status":1,"coin_decimals":6,"pc_decimals":6,"lp_decimals":6,"pool_pc_amount":130722077,"pool_coin_amount":5921028298,"pool_lp_supply":77540603,"pool_open_time":0,"amm_id":"DudevotmDLN3KDHA1uTV1AyTYdwGnKUDFEXS9AXLjQ1z"}`)
 )
 
-const fromTokenStr: string = "SLRS";
-const toTokenStr: string = "USDC";
+const fromTokenStr: string = "USDC";
+const toTokenStr: string = "SBR";
 
 const fromToken = fromTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[fromTokenStr];
 const toToken = toTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[toTokenStr];
 
 
-const amountOut = RaydiumRateFuncs.getRate(poolKeys, poolInfo, fromToken, toToken, 34.21);
+const amountOut = RaydiumRateFuncs.getRate(poolKeys, poolInfo, fromToken, toToken, 5);
 
 console.log(amountOut.amountOut.toFixed(6));

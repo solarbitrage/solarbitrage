@@ -77,6 +77,24 @@ $(async function () {
     $("#tbl-processes tbody").html(trs.join(""));
   }
 
+  async function restartAllProcesses() {
+    const response = await fetch("/processes");
+    const processes = await response.json();
+
+    for (const process of processes) {
+      const response = await fetch(`/processes/${process.name}/restart`, {
+        method: "PUT",
+      });
+
+      const data = await response.json();
+
+      if (response.status !== 200) {
+        throw new Error(data.message);
+      }
+    }
+
+    updateProcessesStatus();
+  }
   function showStdLog(process) {
     term.clear();
     term.write(`Tailing logs for ${process}...\n`);
@@ -151,6 +169,8 @@ $(async function () {
       stopFunc = showStdLog(process);
     } else if (action === "stop-tail") {
       stopFunc();
+    } else if (action === "restart-all") {
+      restartAllProcesses();
     }
   });
 });

@@ -1,5 +1,6 @@
-import { getOrca, Network, OrcaPoolConfig } from "@orca-so/sdk";
-import { jsonInfo2PoolKeys, Liquidity, LiquidityPoolJsonInfo, MAINNET_SPL_TOKENS, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
+import { Network } from "@orca-so/sdk";
+import { jsonInfo2PoolKeys, Liquidity, LiquidityPoolJsonInfo, TokenAmount, WSOL } from "@raydium-io/raydium-sdk";
+import { MAINNET_SPL_TOKENS } from "./common/src/raydium-utils/tokens";
 import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { initializeApp } from 'firebase/app';
@@ -115,11 +116,15 @@ async function set_slippages(val) {
 }
 
 async function main() {
+    debugger;
     // ==== Setup 
     // Read secret key file to get owner keypair
     const secretKeyString = await readFile(WALLET_KEY_PATH, {
         encoding: "utf8",
     });
+
+    const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
+    owner = Keypair.fromSecretKey(secretKey);
 
     const lpMetadata = await fetch(RAYDIUM_POOLS_ENDPOINT).then(res => res.json())
     const lpPools: LiquidityPoolJsonInfo[] = [
@@ -131,11 +136,31 @@ async function main() {
         poolKeysMap[pool.id] = jsonInfo2PoolKeys(pool);
     }
 
+    // get valid token list
+    let gotValidTokens = undefined;
+    const waitForValidTokens = new Promise((resolve, _) => {gotValidTokens = resolve});
+
+    const config_pools = ref(database, 'currencies_to_use');
+    onValue(config_pools, (snapshot) => {
+        if (gotValidTokens) {
+            gotValidTokens();
+            gotValidTokens = undefined;
+        }
+        VALID_TOKENS = Object.keys(snapshot.val()).filter(function(currency) {
+            return snapshot.val()[currency];
+        }); 
+        console.log("NEW VALID TOKEN:", VALID_TOKENS);
+    });
+
+    console.log("Waiting for valid tokens...");
+    await waitForValidTokens;
+    console.log({ VALID_TOKENS })
+
     // local_database setup
     const queries = await query_pools();
     console.log("local_database setup");
     local_database = queries;
-    let middleTokenToPoolMap = getMiddleTokenToPoolMap("USDC");
+    let middleTokenToPoolMap = getMiddleTokenToPoolMap(MIDDLE_TOKEN);
 
     // setup slippage's per pool_id
     pool_to_slippage_map = await get_slippages();
@@ -153,12 +178,6 @@ async function main() {
             pool_to_slippage_map[key] = [data[key]["0"] || (1-STARTING_SLIPPAGE), data[key]["1"] || (1-STARTING_SLIPPAGE)]
         }
     });
-
-
-    // get wallet credentials
-    const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
-    owner = Keypair.fromSecretKey(secretKey);
-    console.log("wallet creds");
 
     // setup token account
     await setupTokenAccounts(Object.keys(middleTokenToPoolMap));
@@ -214,25 +233,6 @@ async function main() {
         ADDITIONAL_SLIPPAGE = snapshot.val();
     });
 
-    let gotValidTokens = undefined;
-    const waitForValidTokens = new Promise((resolve, _) => {gotValidTokens = resolve});
-
-    const config_pools = ref(database, 'currencies_to_use');
-    onValue(config_pools, (snapshot) => {
-        if (gotValidTokens) {
-            gotValidTokens();
-            gotValidTokens = undefined;
-        }
-        VALID_TOKENS = Object.keys(snapshot.val()).filter(function(currency) {
-            return snapshot.val()[currency];
-        }); 
-        console.log("NEW VALID TOKEN:", VALID_TOKENS);
-    });
-
-    console.log("Waiting for valid tokens...");
-    await waitForValidTokens;
-    console.log({ VALID_TOKENS })
-
     for (;;) {
         const dateString = new Date().toLocaleString()
         console.log(dateString, "-".repeat(Math.max(process.stdout.columns - dateString.length - 1, 0)))
@@ -275,7 +275,9 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSki
     }   
 
     const transaction = new Transaction();
+    const swapTransactions = new Transaction();
     transaction.feePayer = owner.publicKey;
+    swapTransactions.feePayer = owner.publicKey;
     const signers = [];
 
     const afterSwapPromises = [];
@@ -288,7 +290,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSki
             const pool_addr = pool.pool_addr;
 
             const slippage = current_pool_to_slippage[pool_id][i];
-            const newTokenAmt = i === 0 ? (beforeAmt * pool.buy.rate) : (beforeAmt * pool.sell.rate);
+            const newTokenAmt = i === 0 ? (beforeAmt * pool.buy.rate * slippage) : (beforeAmt * pool.sell.rate * slippage);
 
             const fromTokenStr = (i === 0 ? pool.buy.from : pool.sell.from);
             const toTokenStr = (i === 0 ? pool.buy.to : pool.sell.to);
@@ -345,7 +347,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSki
                         i === 0 ? newTokenAmt.toString() : fromCoinAmount.toString(), // if it is the second swap then we should set the minimum out to be the same as the input
                         tokenAccounts[WSOL.mint]?.tokenAccountAddress
                     );
-                    transaction.add(res.transaction);
+                    swapTransactions.add(res.transaction);
                     signers.push(...res.signers);
                 }
             } else if (provider === "ORCA") {
@@ -403,7 +405,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSki
                         new PublicKey(tokenAccounts[fromToken.mint.toBase58()]?.tokenAccountAddress),
                         new PublicKey(tokenAccounts[toToken.mint.toBase58()]?.tokenAccountAddress),
                     );
-                    transaction.add(transactionPayload.transaction);
+                    swapTransactions.add(transactionPayload.transaction);
                     signers.push(...transactionPayload.signers); 
                 }
 
@@ -411,6 +413,8 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSki
 
             beforeAmt = newTokenAmt;
         }
+
+        transaction.add(swapTransactions);
 
         if (!shouldSkipSwap) {
             const beforeParsedInfo = tokenAccounts[MAINNET_SPL_TOKENS["USDC"].mint]?.parsedInfo;
@@ -576,7 +580,7 @@ async function setupTokenAccounts(tokens: string[]) {
         }
 
         if ((i+1) % 3 && transaction.instructions.length > 0) {
-            const tx = await sendAndConfirmTransaction(connection, transaction, signers, { commitment: "singleGossip" });
+            const tx = await sendAndConfirmTransaction(mainConnection, transaction, signers, { commitment: "singleGossip" });
             transaction = new Transaction();
             signers = [owner];
             console.log("create token acc: ", tx)
@@ -585,7 +589,7 @@ async function setupTokenAccounts(tokens: string[]) {
     }
     
     if (transaction.instructions.length > 0) {
-        const tx = await sendAndConfirmTransaction(connection, transaction, signers, { commitment: "singleGossip" });
+        const tx = await sendAndConfirmTransaction(mainConnection, transaction, signers, { commitment: "singleGossip" });
         console.log("create token acc: ", tx)    
     }
 }
