@@ -73,31 +73,49 @@ function Dashboard() {
 	 * @param {string} transactionId txHash of a failed transaction.
 	 * @returns 
 	 */
-	async function getFailedAmm(transactionId) {
+	 async function getAmm(transactionId) {
 		const url = "https://public-api.solscan.io/transaction/"+transactionId;
 		const orcaId = "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"
 		const raydiumId = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"
-		let logs;
+		let logArray;
 		let res = await axios.get(url).then(function (res){
 			let response = res.data;
-			logs = response.logMessage;
 			if(response.status==="Success"){
-				return response.status + '\n' + logs;
+				return response.status;
 			}
 			else{
-				let startAmm = response.logMessage[0].split(' ')[1]
-				let endAmm = response.logMessage[response.logMessage.length - 1].split(' ')[1]
-				if(endAmm === orcaId && (startAmm === orcaId || startAmm === "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")){
-					return "Failed at First Swap. AMM: Orca"
+				logArray = response.logMessage  // what if transaction doesn't have log message
+				// always swapping within Orca
+				if(logArray[0].split(' ')[1] === orcaId){
+					if(logArray.length <= 5){
+						return "Failed at First Swap. AMM: Orca"
+					}
+					else{
+						return "Failed at Second Swap. AMM: Orca"
+					}
 				}
-				else if(endAmm === orcaId && startAmm === raydiumId){
-					return "Failed at Second Swap. AMM: Orca"
-				}
-				else if(endAmm === raydiumId && startAmm === raydiumId){
-					return "Failed at First Swap. AMM: Raydium"
-				}
-				else if(endAmm === raydiumId && (startAmm === orcaId || startAmm === "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")){
-					return "Failed at Second Swap. AMM: Raydium"
+				// could swap between Orca and Raydium or only within Raydium - 6 cases
+				else{
+					let startAmm = logArray[4].split(' ')[1]
+					let endAmm = logArray[logArray.length - 1].split(' ')[1]
+					if(startAmm === orcaId && endAmm === orcaId){
+						return "Failed at First Swap. AMM: Orca"
+					}
+					else if(startAmm === orcaId && endAmm === raydiumId){
+						return "Failed at Second Swap. AMM: Raydium"
+					}
+					else if(startAmm === raydiumId && endAmm === raydiumId){
+						return "Failed at First Swap. AMM: Raydium"
+					}
+					else if(startAmm === raydiumId && endAmm === orcaId){
+						return "Failed at Second Swap. AMM: Orca"
+					}
+					else if(logArray.length <= 9){
+						return "Failed at First Swap. AMM: Raydium"
+					}
+					else{
+						return "Failed at Second Swap. AMM: Raydium"
+					}
 				}
 			}
 		})
