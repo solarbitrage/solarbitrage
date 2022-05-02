@@ -200,15 +200,18 @@ function Dashboard() {
 			if (request.status === 200) {
 				let response = JSON.parse(request.response);
 				transactionArray.push(...response.data);
+				// console.log(response.data);
+				// console.log(response.length);
+				// console.log(response.data.length);
 
 				let promiseArray = []
-				for (let i = 0; i < transactionArray.length; ++i) {
-					let failedAt = getFailedAmm(transactionArray[i].txHash);
+				for (let i = 0; i < response.data.length; ++i) {
+					let failedAt = getFailedAmm(transactionArray[transactionArray.length - response.data.length + i].txHash);
 					promiseArray.push(failedAt);
 				}
 				Promise.all(promiseArray).then(values => {
-					for (let i = 0; i < transactionArray.length; ++i) {
-						transactionArray[i].status = values[i];
+					for (let i = 0; i < response.data.length; ++i) {
+						transactionArray[transactionArray.length - response.data.length + i].status = values[i];
 					}
 					setAllDisplayableTransactions([...transactionArray]);
 				});
