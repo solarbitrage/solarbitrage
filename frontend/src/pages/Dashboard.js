@@ -73,7 +73,7 @@ function Dashboard() {
 	 * @param {string} transactionId txHash of a failed transaction.
 	 * @returns 
 	 */
-	 async function getAmm(transactionId) {
+	 async function getFailedAmm(transactionId) {
 		const url = "https://public-api.solscan.io/transaction/"+transactionId;
 		const orcaId = "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"
 		const raydiumId = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"
