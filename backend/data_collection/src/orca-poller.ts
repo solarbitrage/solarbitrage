@@ -83,7 +83,7 @@ const orcaRequests = async () => {
         } catch (e) {
           console.error(e);
         }
-        await sleep(200);
+        await sleep(400);
       }
     })
   );

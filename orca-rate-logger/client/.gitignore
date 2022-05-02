@@ -1,0 +1,6 @@
+# Specific files
+firebase_config.js
+
+# Directories
+node_modules
+dist
