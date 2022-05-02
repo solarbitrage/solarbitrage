@@ -1,7 +1,7 @@
 import { nu64, SplTokenInfo, struct, u8, WSOL } from "@raydium-io/raydium-sdk";
 import { Connection, Keypair, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { TokenAmount } from "./safe-math";
-import { createAssociatedTokenAccountIfNotExist, createTokenAccountIfNotExist } from "./web3";
+import { createTokenAccountIfNotExist } from "./web3";
 
 interface TokenInfo {
     symbol: string;
@@ -72,8 +72,8 @@ export async function swap(
     // to
     let toWrappedSolAcc: PublicKey | null = null;
 
-    let newFromTokenAccount = PublicKey.default;
-    let newToTokenAccount = PublicKey.default;
+    let newFromTokenAccount = new PublicKey(fromTokenAccount);
+    let newToTokenAccount = new PublicKey(toTokenAccount);
 
     if (fromCoinMint === WSOL.mint) {
         fromWrappedSolAcc = await createTokenAccountIfNotExist(
@@ -84,13 +84,6 @@ export async function swap(
             getBigNumber(amountIn.wei) + 1e7,
             transaction,
             signers
-        );
-    } else {
-        newFromTokenAccount = await createAssociatedTokenAccountIfNotExist(
-            fromTokenAccount,
-            owner.publicKey,
-            fromCoinMint,
-            transaction
         );
     }
 
@@ -103,13 +96,6 @@ export async function swap(
             1e7,
             transaction,
             signers
-        );
-    } else {
-        newToTokenAccount = await createAssociatedTokenAccountIfNotExist(
-            toTokenAccount,
-            owner.publicKey,
-            toCoinMint,
-            transaction
         );
     }
 
