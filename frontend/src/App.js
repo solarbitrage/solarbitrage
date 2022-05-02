@@ -15,20 +15,31 @@ import Landing from './pages/Landing';
 import Footer from './components/footer'
 import Monitoring from './pages/Monitoring'
 
+export const AppContext = React.createContext({
+  showFooter: true,
+  setShowFooter: () => {},
+})
+
 function App() {
+  const [showFooter, setShowFooter] = React.useState(true);
   return (
     <div className="App">
-      <Router>
-        <NavBar />
-        <Routes>
-            <Route element={ <App /> } />
-            <Route path="/" element={ <Landing /> } />
-            <Route path="/dashboard" element={ <Dashboard /> } />
-            <Route path="/metrics" element={ <Metrics /> } />
-            <Route path="/monitoring" element= { <Monitoring /> } />
-        </Routes>
-        <Footer />
-    </Router>
+      <AppContext.Provider value={{
+        showFooter,
+        setShowFooter
+      }}>
+        <Router>
+          <NavBar />
+          <Routes>
+              <Route element={ <App /> } />
+              <Route path="/" element={ <Landing /> } />
+              <Route path="/dashboard" element={ <Dashboard /> } />
+              <Route path="/metrics" element={ <Metrics /> } />
+              <Route path="/monitoring" element= { <Monitoring /> } />
+          </Routes>
+          {showFooter ? <Footer /> : null}
+      </Router>
+      </AppContext.Provider>
     </div>
   );
 }

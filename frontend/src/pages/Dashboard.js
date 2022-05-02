@@ -113,6 +113,7 @@ function Dashboard() {
 	const [balance, setBalance] = React.useState(null);
 	const [successfulTransactions, setSuccessfulTransactions] = React.useState(null);
 	const [allTransactions, setAllTransactions] = React.useState(null);
+	const [transactionStatuses, setTransactionStatuses] = React.useState({});
 	const [allDisplayableTransactions, setAllDisplayableTransactions] = React.useState(null);
 
 	// Currencies in the database right now.
@@ -183,17 +184,14 @@ function Dashboard() {
 				let response = JSON.parse(request.response);
 				transactionArray.push(...response.data);
 
-				let promiseArray = []
 				for (let i = 0; i < transactionArray.length; ++i) {
-					let failedAt = getFailedAmm(transactionArray[i].txHash);
-					promiseArray.push(failedAt);
+					getFailedAmm(transactionArray[i].txHash)
+						.then(status => {
+							const newTransactionStatuses = {};
+							newTransactionStatuses[transactionArray[i].txHash] = status;
+							setTransactionStatuses((oldVal) => ({...oldVal, ...newTransactionStatuses}));
+						});
 				}
-				Promise.all(promiseArray).then(values => {
-					for (let i = 0; i < transactionArray.length; ++i) {
-						transactionArray[i].status = values[i];
-					}
-					setAllDisplayableTransactions([...transactionArray]);
-				});
 
 				setAllDisplayableTransactions([...transactionArray]);
 			}
@@ -349,7 +347,7 @@ function Dashboard() {
 	}, [allPageNumber, allDisplayableTransactions]);
 
 	React.useEffect(() => {
-		
+
 	}, [allPageNumber, allDisplayableTransactions]);
 
 	return (
@@ -429,7 +427,7 @@ function Dashboard() {
 												<td key={"AllBlockKey" + index}>{"#" + transaction.slot}</td>
 												<td key={"AllTimeKey" + index}>{timeSince(new Date(transaction.blockTime * 1000))}</td>
 												<td key={"AllInstructionsKey" + index}>{transaction.parsedInstruction.map(instruction => instruction.type).join(", ")}</td>
-												<td key={"AllStatus" + index} style={transaction.status.includes("fail") || transaction.status.includes("Fail") ? {color: "red"} : {color: "green"}}>{transaction.status}</td>
+												<td key={"AllStatus" + index} style={transactionStatuses[transaction.txHash]?.includes("fail") || transactionStatuses[transaction.txHash]?.includes("Fail") ? {color: "red"} : {color: "green"}}>{transactionStatuses[transaction.txHash]}</td>
 												<td key={"AllFee" + index}>{transaction.fee * 0.000000001}</td>
 											</tr>
 										);
