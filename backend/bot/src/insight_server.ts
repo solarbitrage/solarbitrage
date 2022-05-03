@@ -138,8 +138,8 @@ app.get('/api/tx/:txId', (req, res) => {
                 const amountOut = RaydiumRateFuncs.getRate(poolKeys, parsedRaydiumAccInfo, fromToken, toToken, amountIn);
                 const altAmountOut = RaydiumRateFuncs.getRate(poolKeys, parsedRaydiumAccInfo, fromToken, toToken, alternativeBeforeAmt);
 
-                const parsedAmountOut = (amountOut.amountOut.raw.toNumber() / Math.pow(10, toToken.decimals)) * (1 - ADDITIONAL_SLIPPAGE);
-                const parsedAltAmountOut = (altAmountOut.amountOut.raw.toNumber() / Math.pow(10, toToken.decimals)) * (1 - ADDITIONAL_SLIPPAGE);
+                const parsedAmountOut = (amountOut.amountOut.raw.toNumber() / Math.pow(10, toToken.decimals));
+                const parsedAltAmountOut = (altAmountOut.amountOut.raw.toNumber() / Math.pow(10, toToken.decimals));
                 
                 if (i === 0) {
                     transactionReality.afterFirstSwap = parsedAmountOut;
@@ -173,8 +173,8 @@ app.get('/api/tx/:txId', (req, res) => {
                 const quote = await currentPool.getQuoteWithPoolAmounts(fromToken, new Decimal(amountIn), new BN(inputAccAmtParsed) as any, new BN(outputAccAmtParsed) as any);
                 const altQuote = await currentPool.getQuoteWithPoolAmounts(fromToken, new Decimal(alternativeBeforeAmt), new BN(inputAccAmtParsed) as any, new BN(outputAccAmtParsed) as any);
                 
-                const parsedAmountOut = quote.getExpectedOutputAmount().toNumber() * (1 - ADDITIONAL_SLIPPAGE);
-                const parsedAltAmountOut = altQuote.getExpectedOutputAmount().toNumber() * (1 - ADDITIONAL_SLIPPAGE);
+                const parsedAmountOut = quote.getExpectedOutputAmount().toNumber();
+                const parsedAltAmountOut = altQuote.getExpectedOutputAmount().toNumber();
 
                 if (i === 0) {
                     transactionReality.afterFirstSwap = parsedAmountOut;

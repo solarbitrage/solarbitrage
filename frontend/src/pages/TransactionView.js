@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { AppContext } from "../App";
 import { useParams } from "react-router-dom";
-import {Button, Table} from "react-bootstrap"
+import {Button, Col, Table} from "react-bootstrap"
 import {BigNumber} from "../components/bigNumber";
 
 export const TransactionView = () => {
@@ -32,7 +32,7 @@ export const TransactionView = () => {
             <div style={{ width: "70%" }}>
                 <iframe src={`https://solscan.io/tx/${tx}`} style={{ width: "100%", height: 'calc(100vh - 56px)'}} title="Solarbitrage Monitoring"></iframe>
             </div>
-            <div style={{ flex: 1 }} className="bg-white p-3">
+            <div style={{ flex: 1, maxHeight: 'calc(100vh - 56px)', overflow: "auto" }} className="bg-white p-3">
                 <Button variant="outline-primary mb-4" href={`https://solscan.io/tx/${tx}`} target="_blank">Open in Solscan</Button>
                 {txData ? (
                 <>
@@ -43,6 +43,16 @@ export const TransactionView = () => {
                         <img alt={txData.middleToken} src={`https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/${txData.middleTokenMint}/logo.png`} style={{borderRadius: "50%", width: "1.2rem", height: "1.2rem", marginBottom: "0.2rem"}} className="mx-2 border"/>
                         {txData.middleToken} and back
                     </h4>
+                    <dl className="row">
+                        <Col>
+                        <dt>First Pool</dt>
+                        <dd><code>{txData.route[0]}</code></dd>
+                        </Col>
+                        <Col>
+                        <dt>Second Pool</dt>
+                        <dd><code>{txData.route[1]}</code></dd>
+                        </Col>
+                    </dl>
                     <h5>Expectation vs Reality</h5>
                     <Table size="small">
                         <thead>
