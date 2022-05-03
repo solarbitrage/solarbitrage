@@ -5,6 +5,7 @@
   "main": "dist/trading_bot.js",
   "scripts": {
     "start": "tsc || node dist/trading_bot.js",
+    "build": "tsc",
     "trading-bot-slip-check": "tsc || node dist/trading_bot.js SLIP_CHECK",
     "trading-bot": "tsc || node dist/trading_bot.js",
     "lint": "eslint . --ext .ts",
