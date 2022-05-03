@@ -1,0 +1,1 @@
+web: node dist/insight_server.js
