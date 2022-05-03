@@ -12,4 +12,8 @@ RUN mkdir src/common
 COPY .env src/common/.env
 COPY dist dist/
 ENV PORT $PORT
+<<<<<<< HEAD
 CMD node dist/insight_server.js $PORT
+=======
+CMD ["node", "dist/insight_server.js", "$PORT"]
+>>>>>>> 6dfda0387950188f938cbb8baf500881930e0caf
