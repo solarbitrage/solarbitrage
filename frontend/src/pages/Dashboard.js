@@ -4,6 +4,7 @@ import HistoryPlot from "../components/historyPlot";
 import Label from "../components/dashboard/label";
 import Checkbox from "../components/checkbox";
 import {Button, Table} from "react-bootstrap";
+import { Link } from "react-router-dom";
 
 import { getDatabase, ref, child, get, update } from "firebase/database";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -442,11 +443,11 @@ function Dashboard() {
 								allDisplayableTransactions !== null ?
 									arrayPagination(allDisplayableTransactions, 10, allPageNumber).map((transaction, index) => {
 										return (
-											<tr>
+											<tr key={transaction.txHash}>
 												<td key={"AllSignitureKey" + index}>
-													<a href={"https://solscan.io/tx/" + transaction.txHash} target="_blank" rel="noreferrer">
+													<Link to={"/tx/" + transaction.txHash} target="_blank" rel="noreferrer">
 														{transaction.txHash.substring(0, 15) + "..."}
-													</a></td>
+													</Link></td>
 												<td key={"AllBlockKey" + index}>{"#" + transaction.slot}</td>
 												<td key={"AllTimeKey" + index}>{timeSince(new Date(transaction.blockTime * 1000))}</td>
 												<td key={"AllInstructionsKey" + index}>{transaction.parsedInstruction.map(instruction => instruction.type).join(", ")}</td>

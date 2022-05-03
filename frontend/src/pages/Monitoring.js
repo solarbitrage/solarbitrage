@@ -5,6 +5,10 @@ function Monitoring() {
     const { setShowFooter } = React.useContext(AppContext);
     React.useEffect(() => {
         setShowFooter(false);
+
+        return () => {
+            setShowFooter(true);
+        }
     }, [setShowFooter])
     return (
         <div>
