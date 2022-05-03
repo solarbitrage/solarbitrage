@@ -31,6 +31,8 @@ const firebaseConfig = {
     appId: config.FIREBASE_APP_ID
 };
 
+const args = process.argv.slice(2);
+
 const firebaseApp = initializeApp(firebaseConfig);
 // Get a reference to the database service
 const database = getDatabase(firebaseApp);
@@ -38,7 +40,7 @@ const database = getDatabase(firebaseApp);
 const mainConnection = new Connection(CONNECTION_ENDPOINT_LIST[0], CONNECTION_COMMITMENT);
 
 const app = express();
-const port = process.env.port ? parseInt(process.env.port) : 4000;
+const port = args[0] ? parseInt(args[0]) : 4000;
 
 const poolKeysMap = {};
 const poolAddrToOrcaPool = {};
