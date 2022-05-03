@@ -73,9 +73,12 @@ function Dashboard() {
 	 * @param {string} transactionId txHash of a failed transaction.
 	 * @returns 
 	 */
-	 async function getFailedAmm(transactionId) {
+	// 
+	async function getFailedAmm(transactionId) {
 		const url = "https://public-api.solscan.io/transaction/"+transactionId;
-		const orcaId = "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"
+		const orcaIns = "8D7UaJcASNVK9m6wbJvRebPFn6kbfg5m2t4Vt8MpKxrL"  // orca program instruction
+		const raydiumIns = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"  // raydium program instruction
+		const orcaId = "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"   
 		const raydiumId = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"
 		let logArray;
 		let res = await axios.get(url).then(function (res){
@@ -85,7 +88,41 @@ function Dashboard() {
 			}
 			else{
 				logArray = response.logMessage  // what if transaction doesn't have log message
-				// always swapping within Orca
+				// Orca swap exits at some point
+				if(logArray[0].split(' ')[1] === orcaId){
+					// intra-orca swaps
+					if(logArray[6].split(' ')[1] === orcaIns){
+						if(logArray.length <= 17){
+							return "Failed at First Swap. AMM: Orca"
+						}
+						else{
+							return "Failed at Second Swap. AMM: Orca"
+						}
+					}
+					// swaps always between raydium <-> orca
+					else{
+						let startAmm = logArray[10].split(' ')[1]
+						let endAmm = logArray[logArray.length - 1].split(' ')[1]
+						if(startAmm === orcaId && endAmm === orcaId){
+							return "Failed at First Swap. AMM: Orca"
+						}
+						else if(startAmm === orcaId && endAmm === raydiumId){
+							return "Failed at Second Swap. AMM: Raydium"
+						}
+						else if(startAmm === raydiumId && endAmm === raydiumId){
+							return "Failed at First Swap. AMM: Raydium"
+						}
+						else if(startAmm === raydiumId && endAmm === orcaId){
+							return "Failed at Second Swap. AMM: Orca"
+						}
+					}
+				}
+				// intra-raydium swaps
+				else{
+	
+				}
+	
+				if(logArray[6].split(' ')[1] === orcaIns)
 				if(logArray[0].split(' ')[1] === orcaId){
 					if(logArray.length <= 5){
 						return "Failed at First Swap. AMM: Orca"
