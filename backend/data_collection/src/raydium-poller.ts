@@ -92,6 +92,7 @@ function updateDatabase(poolName, data) {
     })));
   }, 5000);
 
+  let rpcLastRate = {};
 
   return Promise.all(
     listenerSlice.map(async (pool) => {
@@ -160,7 +161,11 @@ function updateDatabase(poolName, data) {
             amountOut.minAmountOut.currency.decimals
           );
 
-          updateDatabase(`${poolName}`, poolResults);
+          if (rpcLastRate[connection.rpcEndpoint] === undefined || rpcLastRate[connection.rpcEndpoint] !== parsedAmountOut) {
+            rpcLastRate[connection.rpcEndpoint] = parsedAmountOut;
+            updateDatabase(`${poolName}`, poolResults);
+          }
+
         } catch (e) {
           console.error(e);
         }  
