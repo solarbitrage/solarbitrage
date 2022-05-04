@@ -25,7 +25,7 @@ import {
 } from "./common/src/raydium-utils/constants";
 import { useConnection } from "./common/src/connection";
 import { fetchWithTimeout } from "./common/src/fetch-timeout";
-import { formatDistance } from "date-fns";
+import { formatDistance, parse } from "date-fns";
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -92,6 +92,7 @@ function updateDatabase(poolName, data) {
     })));
   }, 5000);
 
+  let rpcLastRate = {};
 
   return Promise.all(
     listenerSlice.map(async (pool) => {
@@ -160,7 +161,11 @@ function updateDatabase(poolName, data) {
             amountOut.minAmountOut.currency.decimals
           );
 
-          updateDatabase(`${poolName}`, poolResults);
+          if (rpcLastRate[connection.rpcEndpoint] === null || rpcLastRate[connection.rpcEndpoint] !== parsedAmountOut) {
+            rpcLastRate[connection.rpcEndpoint] = parsedAmountOut;
+            updateDatabase(`${poolName}`, poolResults);
+          }
+
         } catch (e) {
           console.error(e);
         }  
