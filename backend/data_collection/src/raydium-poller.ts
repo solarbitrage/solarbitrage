@@ -161,7 +161,7 @@ function updateDatabase(poolName, data) {
             amountOut.minAmountOut.currency.decimals
           );
 
-          if (rpcLastRate[connection.rpcEndpoint] === null || rpcLastRate[connection.rpcEndpoint] !== parsedAmountOut) {
+          if (rpcLastRate[connection.rpcEndpoint] === undefined || rpcLastRate[connection.rpcEndpoint] !== parsedAmountOut) {
             rpcLastRate[connection.rpcEndpoint] = parsedAmountOut;
             updateDatabase(`${poolName}`, poolResults);
           }
