@@ -11,7 +11,7 @@ import { formatDistance } from "date-fns"
 import fetch from "node-fetch";
 
 
-const getNextConnection = useConnection(true, {
+const getNextConnection = useConnection(false, {
   fetch: (url, opts) => fetchWithTimeout(fetch, url, {...opts, timeout: 8000}),
 });
 
@@ -40,7 +40,7 @@ const orcaRequests = async () => {
 
   const listenerSlice = listeners.slice(...myArgs);
   const lastUpdatedMap = {};
-  for (const [_, poolId] of listenerSlice) {
+  for (const [, poolId] of listenerSlice) {
     lastUpdatedMap[poolId] = null;
   }
 
@@ -51,9 +51,11 @@ const orcaRequests = async () => {
     })));
   }, 5000);
 
+  
   // Gather swapping data
   await Promise.allSettled(
     listenerSlice.map(async ([pool, poolId]) => {
+      const rpcLastRate = {};
       for (;;) {
         try {
           const connection = getNextConnection();
@@ -71,17 +73,21 @@ const orcaRequests = async () => {
           const buyRate = buyQuote.getExpectedOutputAmount().toNumber();
           const sellRate = 1 / buyQuote.getExpectedOutputAmount().toNumber();
 
-          // Update Firebase Real-time Database
-          updateDatabase(
-            poolId,
-            pool.address.toBase58(),
-            buyRate,
-            sellRate,
-            coinA,
-            coinB
-          );
+          // Only checking buy rate here because the sell rate here depends on the buy rate anyways.
+          if (rpcLastRate[connection.rpcEndpoint] === undefined || rpcLastRate[connection.rpcEndpoint] !== buyRate) {
+            rpcLastRate[connection.rpcEndpoint] = buyRate;
+            // Update Firebase Real-time Database
+            updateDatabase(
+              poolId,
+              pool.address.toBase58(),
+              buyRate,
+              sellRate,
+              coinA,
+              coinB
+            );
+          }
         } catch (e) {
-          console.error(e);
+          console.error(e.message);
         }
         await sleep(400);
       }
