@@ -299,3 +299,8 @@ Note: Beware of modifying this element as it can break the animations - you shou
 .borderGrey {
   border: 1px solid grey;
 }
+
+.logo {
+  margin-top: 5px;
+  height: 20px;
+}

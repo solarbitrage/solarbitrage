@@ -1,13 +1,23 @@
 import React from "react";
-import { Container, Nav, Navbar, Button} from "react-bootstrap"
+import { Container, Nav, Navbar, Button, Image} from "react-bootstrap"
 import { LinkContainer } from 'react-router-bootstrap'
+
+import logo from '../../assets/logo.svg'
 
 function NavBar() {
 	return (
 		<Navbar collapseOnSelect expand="lg" sticky="top" bg="dark" variant="dark">
 			<Container fluid>
 				<LinkContainer to="/">
-					<Navbar.Brand>Solarbitrage</Navbar.Brand>
+					<Navbar.Brand href="#home">
+						<img
+							src={logo}
+							width="150"
+							height="30"
+							className="d-inline-block align-top logo"
+							alt="Solarbitrage logo"
+						/>
+					</Navbar.Brand>
 				</LinkContainer>
 				<Navbar.Toggle aria-controls="responsive-navbar-nav" />
 				<Navbar.Collapse id="responsive-navbar-nav">
