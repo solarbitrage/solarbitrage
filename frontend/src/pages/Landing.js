@@ -19,7 +19,7 @@ function Dashboard() {
                                         </h1>
                                         <h2>
                                             <strong>18</strong> cryptocurrencies. <br></br> 
-                                            <strong>2</strong> automatic money makers. <br></br>
+                                            <strong>2</strong> automatic market makers. <br></br>
                                             <strong>1</strong> platform.
                                         </h2> 
                                         <br></br>
