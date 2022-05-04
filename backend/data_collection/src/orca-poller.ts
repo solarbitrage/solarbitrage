@@ -51,6 +51,8 @@ const orcaRequests = async () => {
     })));
   }, 5000);
 
+  let rpcLastRate = {};
+
   // Gather swapping data
   await Promise.allSettled(
     listenerSlice.map(async ([pool, poolId]) => {
@@ -71,15 +73,19 @@ const orcaRequests = async () => {
           const buyRate = buyQuote.getExpectedOutputAmount().toNumber();
           const sellRate = 1 / buyQuote.getExpectedOutputAmount().toNumber();
 
-          // Update Firebase Real-time Database
-          updateDatabase(
-            poolId,
-            pool.address.toBase58(),
-            buyRate,
-            sellRate,
-            coinA,
-            coinB
-          );
+          // Only checking buy rate here because the sell rate here depends on the buy rate anyways.
+          if (rpcLastRate[connection.rpcEndpoint] === null || rpcLastRate[connection.rpcEndpoint] !== buyRate) {
+            rpcLastRate[connection.rpcEndpoint] = buyRate;
+            // Update Firebase Real-time Database
+            updateDatabase(
+              poolId,
+              pool.address.toBase58(),
+              buyRate,
+              sellRate,
+              coinA,
+              coinB
+            );
+          }
         } catch (e) {
           console.error(e);
         }
