@@ -50,7 +50,7 @@ function Dashboard() {
 
 	// Handler for incrementing successful transactions
 	function incrementSuccPage() {
-		if (succPageNumber < Math.ceil(successfulTransactions.length / 10)) {
+		if (!successfulTransactions || successfulTransactions.length <= 0 || succPageNumber < Math.ceil(successfulTransactions.length / 10)) {
 			setSuccPageNumber(succPageNumber + 1);
 		}
 	}
@@ -64,7 +64,7 @@ function Dashboard() {
 
 	// Handler for incrementing all transactions
 	function incrementAllPage() {
-		if (allPageNumber < Math.ceil(allTransactions.length / 10)) {
+		if (!allTransactions || allTransactions.length <= 0 || allPageNumber < Math.ceil(allTransactions.length / 10)) {
 			setAllPageNumber(allPageNumber + 1);
 		}
 	}
