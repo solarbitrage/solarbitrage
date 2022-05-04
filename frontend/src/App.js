@@ -14,6 +14,7 @@ import Metrics from "./pages/Metrics";
 import Landing from './pages/Landing';
 import Footer from './components/footer'
 import Monitoring from './pages/Monitoring'
+import { TransactionView } from './pages/TransactionView';
 
 export const AppContext = React.createContext({
   showFooter: true,
@@ -34,6 +35,7 @@ function App() {
               <Route element={ <App /> } />
               <Route path="/" element={ <Landing /> } />
               <Route path="/dashboard" element={ <Dashboard /> } />
+              <Route path="/tx/:tx" element={ <TransactionView /> } />
               <Route path="/metrics" element={ <Metrics /> } />
               <Route path="/monitoring" element= { <Monitoring /> } />
           </Routes>

@@ -460,7 +460,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSki
                         const poolKeys = poolKeysMap[pool_addr];
                         
                         const amountOut = RaydiumRateFuncs.getRate(poolKeys, parsedRaydiumAccInfo, fromToken, toToken, amountIn);
-                        const parsedAmountOut = (amountOut.amountOut.raw.toNumber() / Math.pow(10, toToken.decimals)) * (1 - ADDITIONAL_SLIPPAGE);
+                        const parsedAmountOut = (amountOut.amountOut.raw.toNumber() / Math.pow(10, toToken.decimals));
                         
                         const slippageShouldBe = parsedAmountOut / estimatedAmtOut;
                         console.warn(`POOL_ID{${poolId}}: old slippage: ${pool_to_slippage_map[poolId][i]} ;new slippage: ${slippageShouldBe}; actual: ${parsedAmountOut} estimate: ${estimatedAmtOut}`);
@@ -486,7 +486,7 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSki
                         const fromToken = poolTokens[fromTokenStr];
 
                         const quote = await currentPool.getQuoteWithPoolAmounts(fromToken, new Decimal(amountIn), new BN(inputAccAmtParsed) as any, new BN(outputAccAmtParsed) as any);
-                        const parsedAmountOut = quote.getExpectedOutputAmount().toNumber() * (1 - ADDITIONAL_SLIPPAGE);
+                        const parsedAmountOut = quote.getExpectedOutputAmount().toNumber();
                         const slippageShouldBe = parsedAmountOut / estimatedAmtOut;
                         console.warn(`POOL_ID{${poolId}}: old slippage: ${pool_to_slippage_map[poolId][i]} ;new slippage: ${slippageShouldBe}; actual: ${parsedAmountOut} estimate: ${estimatedAmtOut}`);
                         update(ref(database, 'mainnet_pool_to_slippage_map/'+poolId), { [i]: slippageShouldBe });

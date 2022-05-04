@@ -18,7 +18,7 @@ function Dashboard() {
                                             <strong>Blazing fast</strong>, <strong>no fee</strong> arbitraging.
                                         </h1>
                                         <h2>
-                                            <strong>15</strong> cryptocurrencies. <br></br> 
+                                            <strong>18</strong> cryptocurrencies. <br></br> 
                                             <strong>2</strong> automatic money makers. <br></br>
                                             <strong>1</strong> platform.
                                         </h2> 

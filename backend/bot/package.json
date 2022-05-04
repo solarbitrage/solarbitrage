@@ -5,6 +5,7 @@
   "main": "dist/trading_bot.js",
   "scripts": {
     "start": "tsc || node dist/trading_bot.js",
+    "build": "tsc",
     "trading-bot-slip-check": "tsc || node dist/trading_bot.js SLIP_CHECK",
     "trading-bot": "tsc || node dist/trading_bot.js",
     "lint": "eslint . --ext .ts",
@@ -27,12 +28,16 @@
     "@solana/web3.js": "^1.39.1",
     "base-x": "^4.0.0",
     "bignumber.js": "^9.0.2",
+    "cors": "^2.8.5",
     "decimal.js": "^10.3.1",
     "dotenv": "^16.0.0",
+    "express": "^4.18.1",
     "firebase": "^9.6.7",
     "node-fetch": "^2.6.7"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.12",
+    "@types/express": "^4.17.13",
     "cross-env": "^7.0.3",
     "nodemon": "^2.0.15",
     "ts-node": "^10.5.0",
