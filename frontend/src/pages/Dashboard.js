@@ -382,22 +382,22 @@ function Dashboard() {
 					<Label
 						name="Current Balance"
 						detail={balance ? balance.toFixed(4) + " USDC" : null}
-						color="#64d3a3"
+						color="#2BDBA0"
 					/>
 					<Label
 						name="Earnings / Week"
 						detail={successfulTransactions ? calculateEarningsPerWeek(successfulTransactions).toFixed(4) + " USDC" : null} 
-						color="#6e8beb"
+						color="#48B6C1"
 					/>
 					<Label
 						name="Transactions Attempted"
 						detail={allTransactions ? allTransactions.length : null}
-						color="#a66eeb"
+						color="#8578DB"
 					/>
 					<Label
 						name="Profitable trades"
 						detail={successfulTransactions ? successfulTransactions.filter(transaction => transaction.change.changeAmount > 0 && transaction.blockTime >= 1649323165).length : null}
-						color="#a66eeb"
+						color="#E26CFC"
 					/>
 				</div>
 					
