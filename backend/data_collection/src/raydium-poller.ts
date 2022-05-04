@@ -25,7 +25,7 @@ import {
 } from "./common/src/raydium-utils/constants";
 import { useConnection } from "./common/src/connection";
 import { fetchWithTimeout } from "./common/src/fetch-timeout";
-import { formatDistance, parse } from "date-fns";
+import { formatDistance } from "date-fns";
 
 // Firebase Configuration
 const firebaseConfig = {
