@@ -74,7 +74,7 @@ const orcaRequests = async () => {
           const sellRate = 1 / buyQuote.getExpectedOutputAmount().toNumber();
 
           // Only checking buy rate here because the sell rate here depends on the buy rate anyways.
-          if (rpcLastRate[connection.rpcEndpoint] === null || rpcLastRate[connection.rpcEndpoint] !== buyRate) {
+          if (rpcLastRate[connection.rpcEndpoint] === undefined || rpcLastRate[connection.rpcEndpoint] !== buyRate) {
             rpcLastRate[connection.rpcEndpoint] = buyRate;
             // Update Firebase Real-time Database
             updateDatabase(
