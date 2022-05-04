@@ -98,8 +98,8 @@ app.get('/api/tx/:txId', (req, res) => {
         response.baseToken = status.baseToken;
         response.middleToken = status.middleToken;
 
-        const baseToken = status.baseToken === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[status.baseToken];
-        const middleToken = status.middleToken === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[status.middleToken];
+        const baseToken = MAINNET_SPL_TOKENS[status.baseToken];
+        const middleToken = MAINNET_SPL_TOKENS[status.middleToken];
 
         response.baseTokenMint = baseToken.mint;
         response.middleTokenMint = middleToken.mint;
@@ -130,8 +130,8 @@ app.get('/api/tx/:txId', (req, res) => {
             if (provider.split("|")[0] === "RAYDIUM") {
                 const [parsedRaydiumAccInfo, nextLogs] = getRaydiumPoolInfoFromLogs(currLogs);
                 currLogs = nextLogs;
-                const fromToken = fromTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[fromTokenStr];
-                const toToken = toTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[toTokenStr];
+                const fromToken = MAINNET_SPL_TOKENS[fromTokenStr];
+                const toToken = MAINNET_SPL_TOKENS[toTokenStr];
                 
                 const poolKeys = poolKeysMap[pool_addr];
                 

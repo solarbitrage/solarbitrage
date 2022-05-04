@@ -454,8 +454,8 @@ const arbitrage = async (route, fromCoinAmount: number, _expected_end, shouldSki
                     if (provider.split("|")[0] === "RAYDIUM") {
                         const [parsedRaydiumAccInfo, nextLogs] = getRaydiumPoolInfoFromLogs(currLogs);
                         currLogs = nextLogs;
-                        const fromToken = fromTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[fromTokenStr];
-                        const toToken = toTokenStr === "SOL" ? NATIVE_SOL : MAINNET_SPL_TOKENS[toTokenStr];
+                        const fromToken = MAINNET_SPL_TOKENS[fromTokenStr];
+                        const toToken = MAINNET_SPL_TOKENS[toTokenStr];
                         
                         const poolKeys = poolKeysMap[pool_addr];
                         
@@ -615,13 +615,22 @@ async function getTokenAccounts() {
         const tokenAccountPubkey = tokenAccountInfo.pubkey
         const tokenAccountAddress = tokenAccountPubkey.toBase58()
         const parsedInfo = tokenAccountInfo.account.data.parsed.info
-        const mintAddress = parsedInfo.mint
+        const mintAddress = parsedInfo.mint;
         const balance = new TokenAmount(parsedInfo.tokenAmount.amount, parsedInfo.tokenAmount.decimals)
 
         tokenAccounts[mintAddress] = {
             tokenAccountAddress,
             balance,
             parsedInfo
+        }
+
+        if (mintAddress === WSOL.mint) {
+            tokenAccounts[NATIVE_SOL.mint] = {
+                tokenAccountAddress,
+                balance,
+                parsedInfo
+            }
+
         }
     }
 
