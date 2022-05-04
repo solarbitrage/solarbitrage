@@ -281,7 +281,7 @@ function Dashboard() {
 	 */
 	function calculateEarningsPerWeek(transactions) {
 		let oneWeekAgo = new Date();
-		oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+		oneWeekAgo.setDate(oneWeekAgo.getDate() - 30);
 
 		const transactionsPastWeek = transactions.filter(x => new Date(x.blockTime * 1000.0) > oneWeekAgo);
 
@@ -386,7 +386,7 @@ function Dashboard() {
 						color="#2BDBA0"
 					/>
 					<Label
-						name="Earnings / Week"
+						name="Earnings / Month"
 						detail={successfulTransactions ? calculateEarningsPerWeek(successfulTransactions).toFixed(4) + " USDC" : null} 
 						color="#48B6C1"
 					/>
