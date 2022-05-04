@@ -96,7 +96,7 @@ export const TransactionView = () => {
                     <Table size="small">
                         <thead>
                             <tr>
-                                <th>Alternative Reality</th>
+                                <th>Best Case Scenario</th>
                             </tr>
                         </thead>
                         <tbody>
