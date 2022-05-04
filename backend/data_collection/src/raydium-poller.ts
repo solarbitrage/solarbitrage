@@ -92,10 +92,9 @@ function updateDatabase(poolName, data) {
     })));
   }, 5000);
 
-  let rpcLastRate = {};
-
   return Promise.all(
     listenerSlice.map(async (pool) => {
+      const rpcLastRate = {};
       for (;;) {
         try {
           const connection = getNextConnection();
@@ -167,7 +166,7 @@ function updateDatabase(poolName, data) {
           }
 
         } catch (e) {
-          console.error(e);
+          console.error(e.message);
         }  
         await sleep(200);
       }
