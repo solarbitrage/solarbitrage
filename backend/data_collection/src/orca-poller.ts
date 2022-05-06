@@ -69,9 +69,15 @@ const orcaRequests = async () => {
             currentPool.getQuote(coinB, tradingAmount),
             new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("getQuote Timeout")), 8000))
           ])
+          
+          const sellQuote = await Promise.race([
+            currentPool.getQuote(coinA, buyQuote.getExpectedOutputAmount().toNumber()),
+            new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("getQuote Timeout")), 8000))
+          ])
+          
           lastUpdatedMap[poolId] = new Date();
           const buyRate = buyQuote.getExpectedOutputAmount().toNumber();
-          const sellRate = 1 / buyQuote.getExpectedOutputAmount().toNumber();
+          const sellRate = sellQuote.getExpectedOutputAmount().toNumber();
 
           // Only checking buy rate here because the sell rate here depends on the buy rate anyways.
           if (rpcLastRate[connection.rpcEndpoint] === undefined || rpcLastRate[connection.rpcEndpoint] !== buyRate) {
