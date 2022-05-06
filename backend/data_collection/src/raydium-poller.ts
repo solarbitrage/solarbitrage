@@ -122,6 +122,18 @@ function updateDatabase(poolName, data) {
           const parsedAmountOut =
             amountOut.amountOut.raw.toNumber() /
             Math.pow(10, MAINNET_SPL_TOKENS[coinTickers[0]].decimals);
+          
+          const amountIn = getRate(
+            pool,
+            poolInfo,
+            MAINNET_SPL_TOKENS[coinTickers[0]],
+            MAINNET_SPL_TOKENS[coinTickers[1]],
+            parsedAmountOut
+          );
+          
+          const parsedAmountIn =
+            amountIn.amountOut.raw.toNumber() /
+            Math.pow(10, MAINNET_SPL_TOKENS[coinTickers[0]].decimals);
 
           const results = {
             provider: "RAYDIUM",
@@ -130,9 +142,9 @@ function updateDatabase(poolName, data) {
 
           const sellResults = {
             ...results,
-            rate_raw: `${1 / parsedAmountOut}`,
+            rate_raw: `${parsedAmountIn}`,
             from: coinTickers[0],
-            rate: 1 / parsedAmountOut,
+            rate: parsedAmountIn,
             to: coinTickers[1],
           };
 
