@@ -13,7 +13,6 @@ export const CONNECTION_ENDPOINT_LIST = [
     "https://solana--mainnet.datahub.figment.io/apikey/7420af7f219764968c91b3b4e256324a/",
     "https://solana--mainnet.datahub.figment.io/apikey/a4e126b6c16b142e08f70896357fe1cd/",
     "https://solana-api.projectserum.com",
-    "https://public-rpc.blockpi.io/http/solana",
     "https://solana.public-rpc.com",
     "https://solana--mainnet.datahub.figment.io/apikey/7c82f707593b1df3b484f84543e10cd6/",
 ]
