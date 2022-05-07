@@ -94,7 +94,10 @@ function updateDatabase(poolName, data) {
 
   return Promise.all(
     listenerSlice.map(async (pool) => {
-      const rpcLastRate = {};
+      const currencyLastRate = {
+        buy: undefined,
+        sell: undefined
+      };
       for (;;) {
         try {
           const connection = getNextConnection();
@@ -122,18 +125,22 @@ function updateDatabase(poolName, data) {
           const parsedAmountOut =
             amountOut.amountOut.raw.toNumber() /
             Math.pow(10, MAINNET_SPL_TOKENS[coinTickers[0]].decimals);
+          
+          const amountIn = getRate(
+            pool,
+            poolInfo,
+            MAINNET_SPL_TOKENS[coinTickers[0]],
+            MAINNET_SPL_TOKENS[coinTickers[1]],
+            1
+          );
+          
+          const parsedAmountIn =
+            amountIn.amountOut.raw.toNumber() /
+            Math.pow(10, MAINNET_SPL_TOKENS[coinTickers[0]].decimals);
 
           const results = {
             provider: "RAYDIUM",
             network_fees: 10000,
-          };
-
-          const sellResults = {
-            ...results,
-            rate_raw: `${1 / parsedAmountOut}`,
-            from: coinTickers[0],
-            rate: 1 / parsedAmountOut,
-            to: coinTickers[1],
           };
 
           const buyResults = {
@@ -142,6 +149,14 @@ function updateDatabase(poolName, data) {
             rate: parsedAmountOut,
             from: coinTickers[1],
             to: coinTickers[0],
+          };
+
+          const sellResults = {
+            ...results,
+            rate_raw: `${parsedAmountIn}`,
+            from: coinTickers[0],
+            rate: parsedAmountIn,
+            to: coinTickers[1],
           };
 
           const poolResults = {
@@ -155,13 +170,21 @@ function updateDatabase(poolName, data) {
             },
           };
 
-          console.log(
-            `${poolName}`,
-            amountOut.minAmountOut.currency.decimals
-          );
+          if (currencyLastRate[poolName] === undefined 
+            || currencyLastRate[poolName].buy !== parsedAmountOut
+            || currencyLastRate[poolName].sell !== parsedAmountIn) {
+            currencyLastRate[poolName] = {
+              buy: parsedAmountOut,
+              sell: parsedAmountIn
+            }
 
-          if (rpcLastRate[connection.rpcEndpoint] === undefined || rpcLastRate[connection.rpcEndpoint] !== parsedAmountOut) {
-            rpcLastRate[connection.rpcEndpoint] = parsedAmountOut;
+            console.log(
+              `${poolName}`,
+              amountOut.minAmountOut.currency.decimals,
+              parsedAmountOut,
+              parsedAmountIn
+            );
+
             updateDatabase(`${poolName}`, poolResults);
           }
 
