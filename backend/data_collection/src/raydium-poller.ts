@@ -136,7 +136,7 @@ function updateDatabase(poolName, data) {
           
           const parsedAmountIn =
             amountIn.amountOut.raw.toNumber() /
-            Math.pow(10, MAINNET_SPL_TOKENS[coinTickers[0]].decimals);
+            Math.pow(10, MAINNET_SPL_TOKENS[coinTickers[1]].decimals);
 
           const results = {
             provider: "RAYDIUM",
