@@ -103,13 +103,13 @@ const orcaRequests = async () => {
                 coinB
               );
 
-              console.log(poolId, buyRate, sellRate);
+              console.log(poolId, buyRate, sellRate, connection.rpcEndpoint);
             }
           }).catch(e => console.error(e.message));
         } catch (e) {
           console.error(e.message);
         }
-        await sleep(400);
+        await sleep(1200);
       }
     })
   );
