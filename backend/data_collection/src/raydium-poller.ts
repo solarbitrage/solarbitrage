@@ -182,7 +182,8 @@ function updateDatabase(poolName, data) {
               `${poolName}`,
               amountOut.minAmountOut.currency.decimals,
               parsedAmountOut,
-              parsedAmountIn
+              parsedAmountIn,
+              connection.rpcEndpoint
             );
 
             updateDatabase(`${poolName}`, poolResults);
@@ -191,7 +192,7 @@ function updateDatabase(poolName, data) {
         } catch (e) {
           console.error(e.message);
         }  
-        await sleep(200);
+        await sleep(1200);
       }
     })
   );
