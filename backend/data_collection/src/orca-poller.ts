@@ -55,7 +55,10 @@ const orcaRequests = async () => {
   // Gather swapping data
   await Promise.allSettled(
     listenerSlice.map(async ([pool, poolId]) => {
-      const rpcLastRate = {};
+      const currencyLastRate = {
+        buy: undefined,
+        sell: undefined
+      };
       for (;;) {
         try {
           const connection = getNextConnection();
@@ -65,33 +68,44 @@ const orcaRequests = async () => {
           const coinB = currentPool.getTokenB();
 
           const tradingAmount = new Decimal(1);
-          const buyQuote = await Promise.race([
+          const buyQuote = Promise.race([
             currentPool.getQuote(coinB, tradingAmount),
             new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("getQuote Timeout")), 8000))
           ])
           
-          const sellQuote = await Promise.race([
-            currentPool.getQuote(coinA, buyQuote.getExpectedOutputAmount().toNumber()),
+          const sellQuote = Promise.race([
+            currentPool.getQuote(coinA, tradingAmount),
             new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("getQuote Timeout")), 8000))
           ])
-          
-          lastUpdatedMap[poolId] = new Date();
-          const buyRate = buyQuote.getExpectedOutputAmount().toNumber();
-          const sellRate = sellQuote.getExpectedOutputAmount().toNumber();
 
-          // Only checking buy rate here because the sell rate here depends on the buy rate anyways.
-          if (rpcLastRate[connection.rpcEndpoint] === undefined || rpcLastRate[connection.rpcEndpoint] !== buyRate) {
-            rpcLastRate[connection.rpcEndpoint] = buyRate;
-            // Update Firebase Real-time Database
-            updateDatabase(
-              poolId,
-              pool.address.toBase58(),
-              buyRate,
-              sellRate,
-              coinA,
-              coinB
-            );
-          }
+          Promise.all([buyQuote, sellQuote]).then((values) => {
+
+            lastUpdatedMap[poolId] = new Date();
+            const buyRate = values[0].getExpectedOutputAmount().toNumber();
+            const sellRate = values[1].getExpectedOutputAmount().toNumber();
+
+
+            // If the currency rate actually changed
+            if ( currencyLastRate[poolId] === undefined
+              || currencyLastRate[poolId].buy !== buyRate
+              || currencyLastRate[poolId].sell !== sellRate) {
+              currencyLastRate[poolId] = {
+                buy: buyRate,
+                sell: sellRate
+              }
+              // Update Firebase Real-time Database
+              updateDatabase(
+                poolId,
+                pool.address.toBase58(),
+                buyRate,
+                sellRate,
+                coinA,
+                coinB
+              );
+
+              console.log(poolId, buyRate, sellRate);
+            }
+          }).catch(e => console.error(e.message));
         } catch (e) {
           console.error(e.message);
         }
@@ -126,8 +140,6 @@ function updateDatabase(
       to: coinB.tag,
     },
   };
-
-  console.log(poolName);
 
   update(ref(database, "latest_prices/" + poolName), results);
 }
