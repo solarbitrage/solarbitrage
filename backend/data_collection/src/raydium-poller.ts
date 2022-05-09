@@ -13,6 +13,7 @@ import { MAINNET_SPL_TOKENS } from "./common/src/raydium-utils/tokens";
 
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set } from "firebase/database";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import _ from "lodash";
 
 import config from "./common/src/config";
@@ -51,6 +52,7 @@ MAINNET_SPL_TOKENS["ETH"] = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
+const auth = getAuth(app);
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -64,136 +66,149 @@ function updateDatabase(poolName, data) {
   return set(ref(database, "latest_prices/" + poolName), data);
 }
 
-(async () => {
-  const lpMetadata = await fetch(RAYDIUM_POOLS_ENDPOINT).then((res) =>
-    res.json()
-  );
-  const allLpPools: LiquidityPoolJsonInfo[] = [
-    ...lpMetadata["official"],
-    ...lpMetadata["unOfficial"],
-    ...moreUnofficialLpPools,
-  ];
-  const lpPools = allLpPools
-    .filter((val) => listeners.includes(val.id))
-    .map((p) => jsonInfo2PoolKeys(p));
-
-  const myArgs = process.argv.slice(2).map(item => parseInt(item));
-
-  const listenerSlice = lpPools.slice(...myArgs);
-  const lastUpdatedMap = {};
-  for (const pool of listenerSlice) {
-    lastUpdatedMap[poolMintAddrToName[pool.id.toBase58()]] = null;
-  }
-
-  setInterval(() => {
-    console.table(Object.keys(lastUpdatedMap).map((poolId) => ({
-      "Pool ID": poolId,
-      "Last Checked": lastUpdatedMap[poolId] ? formatDistance(lastUpdatedMap[poolId], new Date(), { addSuffix: true, includeSeconds: true }) : "~",
-    })));
-  }, 5000);
-
-  return Promise.all(
-    listenerSlice.map(async (pool) => {
-      const currencyLastRate = {
-        buy: undefined,
-        sell: undefined
-      };
-      for (;;) {
-        try {
-          const connection = getNextConnection();
-
-          const poolInfo =  await Promise.race([
-            Liquidity.fetchInfo({
-              connection,
-              poolKeys: pool
-            }),
-            new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("fetchInfo Timeout")), 8000))
-          ]);
-
-          const poolName = poolMintAddrToName[pool.id.toBase58()];
-          lastUpdatedMap[poolName] = new Date();
-          const coinTickers = poolName.split("_").slice(1);
-
-          const amountOut = getRate(
-            pool,
-            poolInfo,
-            MAINNET_SPL_TOKENS[coinTickers[1]],
-            MAINNET_SPL_TOKENS[coinTickers[0]],
-            1
-          );
-
-          const parsedAmountOut =
-            amountOut.amountOut.raw.toNumber() /
-            Math.pow(10, MAINNET_SPL_TOKENS[coinTickers[0]].decimals);
-          
-          const amountIn = getRate(
-            pool,
-            poolInfo,
-            MAINNET_SPL_TOKENS[coinTickers[0]],
-            MAINNET_SPL_TOKENS[coinTickers[1]],
-            1
-          );
-          
-          const parsedAmountIn =
-            amountIn.amountOut.raw.toNumber() /
-            Math.pow(10, MAINNET_SPL_TOKENS[coinTickers[1]].decimals);
-
-          const results = {
-            provider: "RAYDIUM",
-            network_fees: 10000,
-          };
-
-          const buyResults = {
-            ...results,
-            rate_raw: `${parsedAmountOut}`,
-            rate: parsedAmountOut,
-            from: coinTickers[1],
-            to: coinTickers[0],
-          };
-
-          const sellResults = {
-            ...results,
-            rate_raw: `${parsedAmountIn}`,
-            from: coinTickers[0],
-            rate: parsedAmountIn,
-            to: coinTickers[1],
-          };
-
-          const poolResults = {
-            provider: "RAYDIUM",
-            pool_addr: pool.id.toBase58(),
-            buy: {
-              ...buyResults,
-            },
-            sell: {
-              ...sellResults,
-            },
-          };
-
-          if (currencyLastRate[poolName] === undefined 
-            || currencyLastRate[poolName].buy !== parsedAmountOut
-            || currencyLastRate[poolName].sell !== parsedAmountIn) {
-            currencyLastRate[poolName] = {
-              buy: parsedAmountOut,
-              sell: parsedAmountIn
-            }
-
-            console.log(
-              `${poolName}`,
-              amountOut.minAmountOut.currency.decimals,
-              parsedAmountOut,
-              parsedAmountIn,
-              connection.rpcEndpoint
-            );
-
-            updateDatabase(`${poolName}`, poolResults);
-          }
-
-        } catch (e) {
-          console.error(e.message);
-        }  
-        await sleep(1200);
+signInWithEmailAndPassword(auth, config.FIREBASE_EMAIL, config.FIREBASE_PASSWORD)
+  .then(() => {
+    // Signed in..
+    console.log("Signed in!");
+    
+    (async () => {
+      const lpMetadata = await fetch(RAYDIUM_POOLS_ENDPOINT).then((res) =>
+        res.json()
+      );
+      const allLpPools: LiquidityPoolJsonInfo[] = [
+        ...lpMetadata["official"],
+        ...lpMetadata["unOfficial"],
+        ...moreUnofficialLpPools,
+      ];
+      const lpPools = allLpPools
+        .filter((val) => listeners.includes(val.id))
+        .map((p) => jsonInfo2PoolKeys(p));
+    
+      const myArgs = process.argv.slice(2).map(item => parseInt(item));
+    
+      const listenerSlice = lpPools.slice(...myArgs);
+      const lastUpdatedMap = {};
+      for (const pool of listenerSlice) {
+        lastUpdatedMap[poolMintAddrToName[pool.id.toBase58()]] = null;
       }
-    })
-  );
-})().catch((e) => console.error("FATAL ERROR:", e));
+    
+      setInterval(() => {
+        console.table(Object.keys(lastUpdatedMap).map((poolId) => ({
+          "Pool ID": poolId,
+          "Last Checked": lastUpdatedMap[poolId] ? formatDistance(lastUpdatedMap[poolId], new Date(), { addSuffix: true, includeSeconds: true }) : "~",
+        })));
+      }, 5000);
+    
+      return Promise.all(
+        listenerSlice.map(async (pool) => {
+          const currencyLastRate = {
+            buy: undefined,
+            sell: undefined
+          };
+          for (;;) {
+            try {
+              const connection = getNextConnection();
+    
+              const poolInfo =  await Promise.race([
+                Liquidity.fetchInfo({
+                  connection,
+                  poolKeys: pool
+                }),
+                new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("fetchInfo Timeout")), 8000))
+              ]);
+    
+              const poolName = poolMintAddrToName[pool.id.toBase58()];
+              lastUpdatedMap[poolName] = new Date();
+              const coinTickers = poolName.split("_").slice(1);
+    
+              const amountOut = getRate(
+                pool,
+                poolInfo,
+                MAINNET_SPL_TOKENS[coinTickers[1]],
+                MAINNET_SPL_TOKENS[coinTickers[0]],
+                1
+              );
+    
+              const parsedAmountOut =
+                amountOut.amountOut.raw.toNumber() /
+                Math.pow(10, MAINNET_SPL_TOKENS[coinTickers[0]].decimals);
+              
+              const amountIn = getRate(
+                pool,
+                poolInfo,
+                MAINNET_SPL_TOKENS[coinTickers[0]],
+                MAINNET_SPL_TOKENS[coinTickers[1]],
+                1
+              );
+              
+              const parsedAmountIn =
+                amountIn.amountOut.raw.toNumber() /
+                Math.pow(10, MAINNET_SPL_TOKENS[coinTickers[1]].decimals);
+    
+              const results = {
+                provider: "RAYDIUM",
+                network_fees: 10000,
+              };
+    
+              const buyResults = {
+                ...results,
+                rate_raw: `${parsedAmountOut}`,
+                rate: parsedAmountOut,
+                from: coinTickers[1],
+                to: coinTickers[0],
+              };
+    
+              const sellResults = {
+                ...results,
+                rate_raw: `${parsedAmountIn}`,
+                from: coinTickers[0],
+                rate: parsedAmountIn,
+                to: coinTickers[1],
+              };
+    
+              const poolResults = {
+                provider: "RAYDIUM",
+                pool_addr: pool.id.toBase58(),
+                buy: {
+                  ...buyResults,
+                },
+                sell: {
+                  ...sellResults,
+                },
+              };
+    
+              if (currencyLastRate[poolName] === undefined 
+                || currencyLastRate[poolName].buy !== parsedAmountOut
+                || currencyLastRate[poolName].sell !== parsedAmountIn) {
+                currencyLastRate[poolName] = {
+                  buy: parsedAmountOut,
+                  sell: parsedAmountIn
+                }
+    
+                console.log(
+                  `${poolName}`,
+                  amountOut.minAmountOut.currency.decimals,
+                  parsedAmountOut,
+                  parsedAmountIn,
+                  connection.rpcEndpoint
+                );
+    
+                updateDatabase(`${poolName}`, poolResults);
+              }
+    
+            } catch (e) {
+              console.error(e.message);
+            }  
+            await sleep(1200);
+          }
+        })
+      );
+    })().catch((e) => console.error("FATAL ERROR:", e));
+
+  })
+  .catch((error) => {
+    const errorCode = error.code;
+    const errorMessage = error.message;
+    console.log(errorMessage);
+    // ...
+  });

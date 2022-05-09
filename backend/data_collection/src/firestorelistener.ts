@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, onChildChanged, get } from "firebase/database";
 import { collection, getFirestore, addDoc, serverTimestamp} from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import fetch from "node-fetch"
 import config from "./common/src/config"
 import { formatDistance, formatDuration } from "date-fns"
@@ -18,6 +19,7 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 const database = getDatabase(app);
 const firestore = getFirestore(app);
 
@@ -131,4 +133,15 @@ async function main() {
     })
 }
 
-main().catch(e => console.error(e));
+signInWithEmailAndPassword(auth, config.FIREBASE_EMAIL, config.FIREBASE_PASSWORD)
+  .then(() => {
+    // Signed in..
+    console.log("Signed in!");
+    main().catch(e => console.error(e));
+  })
+  .catch((error) => {
+    const errorCode = error.code;
+    const errorMessage = error.message;
+    console.log(errorMessage);
+    // ...
+  });

@@ -4,6 +4,7 @@ import { MAINNET_SPL_TOKENS } from "./common/src/raydium-utils/tokens";
 import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction, TransactionInstruction } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { initializeApp } from 'firebase/app';
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { get, getDatabase, onChildChanged, onValue, ref, set, update } from "firebase/database";
 import { addDoc, collection, getFirestore, serverTimestamp } from "firebase/firestore";
 import { readFile } from "mz/fs";
@@ -50,6 +51,7 @@ MAINNET_SPL_TOKENS["ETH"] = {
 }
 
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 // Get a reference to the database service
 const database = getDatabase(app);
 const firestore = getFirestore(app);
@@ -245,8 +247,18 @@ async function main() {
         await new Promise((resolve) => setTimeout(resolve, 60));
     }
 }
-
-main().then(() => {}).catch(e => {console.error("FATAL", e); process.exit(1)})
+signInWithEmailAndPassword(auth, config.FIREBASE_EMAIL, config.FIREBASE_PASSWORD)
+  .then(() => {
+    // Signed in..
+    console.log("Signed in!");
+    main().then(() => {}).catch(e => {console.error("FATAL", e); process.exit(1)})
+  })
+  .catch((error) => {
+    const errorCode = error.code;
+    const errorMessage = error.message;
+    console.log(errorMessage);
+    // ...
+  });
 
 async function calculate_trade({route, estimatedProfit}, index) {
     let starting = STARTING_BET;

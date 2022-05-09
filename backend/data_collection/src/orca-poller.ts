@@ -3,6 +3,7 @@ import { OrcaPoolImpl } from "@orca-so/sdk/dist/model/orca/pool/orca-pool";
 import Decimal from "decimal.js";
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, update } from "firebase/database";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import config from "./common/src/config";
 import { fetchWithTimeout } from "./common/src/fetch-timeout";
 import { useConnection } from "./common/src/connection";
@@ -30,6 +31,7 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 const database = getDatabase(app);
 
 const orcaRequests = async () => {
@@ -144,10 +146,22 @@ function updateDatabase(
   update(ref(database, "latest_prices/" + poolName), results);
 }
 
-orcaRequests()
+signInWithEmailAndPassword(auth, config.FIREBASE_EMAIL, config.FIREBASE_PASSWORD)
   .then(() => {
-    console.log("Done");
+    // Signed in..
+    console.log("Signed in!");
+    orcaRequests()
+    .then(() => {
+      console.log("Done");
+    })
+    .catch((e) => {
+      console.error(e);
+    });
   })
-  .catch((e) => {
-    console.error(e);
+  .catch((error) => {
+    const errorCode = error.code;
+    const errorMessage = error.message;
+    console.log(errorMessage);
+    // ...
   });
+
