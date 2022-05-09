@@ -107,6 +107,7 @@ signInWithEmailAndPassword(auth, config.FIREBASE_EMAIL, config.FIREBASE_PASSWORD
           };
           for (;;) {
             try {
+              const startTime = new Date().getTime();
               const connection = getNextConnection();
     
               const poolInfo =  await Promise.race([
@@ -187,6 +188,7 @@ signInWithEmailAndPassword(auth, config.FIREBASE_EMAIL, config.FIREBASE_PASSWORD
     
                 console.log(
                   `${poolName}`,
+                  `${new Date().getTime() - startTime}ms`,
                   amountOut.minAmountOut.currency.decimals,
                   parsedAmountOut,
                   parsedAmountIn,

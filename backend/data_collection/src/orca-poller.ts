@@ -63,6 +63,7 @@ const orcaRequests = async () => {
       };
       for (;;) {
         try {
+          const startTime = new Date().getTime();
           const connection = getNextConnection();
           const currentPool = new OrcaPoolImpl(connection, Network.MAINNET, pool);
 
@@ -105,7 +106,7 @@ const orcaRequests = async () => {
                 coinB
               );
 
-              console.log(poolId, buyRate, sellRate, connection.rpcEndpoint);
+              console.log(poolId, `${new Date().getTime() - startTime}ms`, buyRate, sellRate, connection.rpcEndpoint);
             }
           }).catch(e => console.error(e.message));
         } catch (e) {
