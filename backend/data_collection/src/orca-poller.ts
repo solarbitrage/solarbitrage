@@ -71,48 +71,39 @@ const orcaRequests = async () => {
           const coinB = currentPool.getTokenB();
 
           const tradingAmount = new Decimal(1);
-          const buyQuote = Promise.race([
+          const buyQuote = await Promise.race([
             currentPool.getQuote(coinB, tradingAmount),
             new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("getQuote Timeout")), 8000))
           ])
-          
-          const sellQuote = Promise.race([
-            currentPool.getQuote(coinA, tradingAmount),
-            new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("getQuote Timeout")), 8000))
-          ])
 
-          Promise.all([buyQuote, sellQuote]).then((values) => {
+          lastUpdatedMap[poolId] = new Date();
+          const buyRate = buyQuote.getExpectedOutputAmount().toNumber();
+          const sellRate = 1 / buyQuote.getExpectedOutputAmount().toNumber() * (0.9940071);
 
-            lastUpdatedMap[poolId] = new Date();
-            const buyRate = values[0].getExpectedOutputAmount().toNumber();
-            const sellRate = values[1].getExpectedOutputAmount().toNumber();
-
-
-            // If the currency rate actually changed
-            if ( currencyLastRate[poolId] === undefined
-              || currencyLastRate[poolId].buy !== buyRate
-              || currencyLastRate[poolId].sell !== sellRate) {
-              currencyLastRate[poolId] = {
-                buy: buyRate,
-                sell: sellRate
-              }
-              // Update Firebase Real-time Database
-              updateDatabase(
-                poolId,
-                pool.address.toBase58(),
-                buyRate,
-                sellRate,
-                coinA,
-                coinB
-              );
-
-              console.log(poolId, `${new Date().getTime() - startTime}ms`, buyRate, sellRate, connection.rpcEndpoint);
+          // If the currency rate actually changed
+          if ( currencyLastRate[poolId] === undefined
+            || currencyLastRate[poolId].buy !== buyRate
+            || currencyLastRate[poolId].sell !== sellRate) {
+            currencyLastRate[poolId] = {
+              buy: buyRate,
+              sell: sellRate
             }
-          }).catch(e => console.error(e.message));
+            // Update Firebase Real-time Database
+            updateDatabase(
+              poolId,
+              pool.address.toBase58(),
+              buyRate,
+              sellRate,
+              coinA,
+              coinB
+            );
+
+            console.log(poolId, `${new Date().getTime() - startTime}ms`, buyRate, sellRate, connection.rpcEndpoint);
+          }
         } catch (e) {
           console.error(e.message);
         }
-        await sleep(1200);
+        await sleep(400);
       }
     })
   );

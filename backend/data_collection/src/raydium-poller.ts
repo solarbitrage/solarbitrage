@@ -201,7 +201,7 @@ signInWithEmailAndPassword(auth, config.FIREBASE_EMAIL, config.FIREBASE_PASSWORD
             } catch (e) {
               console.error(e.message);
             }  
-            await sleep(1200);
+            await sleep(400);
           }
         })
       );
