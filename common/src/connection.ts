@@ -2,7 +2,6 @@ import { Connection, Commitment, ConnectionConfig } from "@solana/web3.js";
 
 export const CONNECTION_COMMITMENT = (process.env.CONNECTION_COMMITMENT ?? "singleGossip") as Commitment;
 export const CONNECTION_ENDPOINT_LIST = [
-    "https://ssc-dao.genesysgo.net/",
     "https://solana--mainnet.datahub.figment.io/apikey/dc8777df6fba0d48b5448ba05b42b284/",
     "https://solana--mainnet.datahub.figment.io/apikey/5346b90a5de1697d94d6eb94e0cb4858/",
     "https://solana--mainnet.datahub.figment.io/apikey/5778a58d381b2846cf87381a35b071ea/",
@@ -15,10 +14,18 @@ export const CONNECTION_ENDPOINT_LIST = [
     "https://solana-api.projectserum.com",
     "https://solana.public-rpc.com",
     "https://solana--mainnet.datahub.figment.io/apikey/7c82f707593b1df3b484f84543e10cd6/",
+    "https://ssc-dao.genesysgo.net/"
 ]
 
-export const useConnection = (logChange?: boolean, config?: ConnectionConfig) => {
-    let connectionIndex = Math.floor(Math.random() * CONNECTION_ENDPOINT_LIST.length);
+var connectionIndex = 0;
+var connectionMap = {};
+
+export const useConnection = (logChange?: boolean, config?: ConnectionConfig, poolName?: string) => {
+    //let connectionIndex = Math.floor(Math.random() * CONNECTION_ENDPOINT_LIST.length);
+    if (connectionMap[poolName] === undefined) {
+        connectionMap[poolName] = connectionIndex;
+        connectionIndex++;
+    }
 
     const connections = CONNECTION_ENDPOINT_LIST.map(endpoint => new Connection(endpoint, { commitment: CONNECTION_COMMITMENT, ...config }));
 
@@ -33,8 +40,7 @@ export const useConnection = (logChange?: boolean, config?: ConnectionConfig) =>
         if (logChange) {
             console.log("[connection] NEW CONNECTION:", CONNECTION_ENDPOINT_LIST[connectionIndex])
         }
-        const c = connections[connectionIndex];
-        connectionIndex = (connectionIndex + 1) % CONNECTION_ENDPOINT_LIST.length;
+        const c = connections[connectionMap[poolName] % CONNECTION_ENDPOINT_LIST.length];
 
         return c;
     }

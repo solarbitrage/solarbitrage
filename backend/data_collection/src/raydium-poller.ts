@@ -28,6 +28,8 @@ import { useConnection } from "./common/src/connection";
 import { fetchWithTimeout } from "./common/src/fetch-timeout";
 import { formatDistance } from "date-fns";
 
+const SLEEP_TIME = 800;
+
 // Firebase Configuration
 const firebaseConfig = {
   apiKey: config.FIREBASE_API_KEY,
@@ -58,9 +60,10 @@ const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 // Connection info
 
-const getNextConnection = useConnection(false, {
-  fetch: (url, opts) => fetchWithTimeout(fetch, url, {...opts, timeout: 8000}),
-});
+const getNextConnection = (poolName: string) => useConnection(false, {
+  fetch: (url, opts) => fetchWithTimeout(fetch, url, {...opts, timeout: SLEEP_TIME * 4}),
+  },
+  poolName);
 
 function updateDatabase(poolName, data) {
   return set(ref(database, "latest_prices/" + poolName), data);
@@ -89,13 +92,19 @@ signInWithEmailAndPassword(auth, config.FIREBASE_EMAIL, config.FIREBASE_PASSWORD
       const listenerSlice = lpPools.slice(...myArgs);
       const lastUpdatedMap = {};
       for (const pool of listenerSlice) {
-        lastUpdatedMap[poolMintAddrToName[pool.id.toBase58()]] = null;
+        lastUpdatedMap[poolMintAddrToName[pool.id.toBase58()]] = {
+          date: new Date(),
+          rpc: 0,
+          rtt: 0
+        };
       }
     
       setInterval(() => {
         console.table(Object.keys(lastUpdatedMap).map((poolId) => ({
           "Pool ID": poolId,
-          "Last Checked": lastUpdatedMap[poolId] ? formatDistance(lastUpdatedMap[poolId], new Date(), { addSuffix: true, includeSeconds: true }) : "~",
+          "Last Checked": lastUpdatedMap[poolId] ? formatDistance(lastUpdatedMap[poolId].date, new Date(), { addSuffix: true, includeSeconds: true }) : "~",
+          "RPC": lastUpdatedMap[poolId] ? lastUpdatedMap[poolId].rpc : "~",
+          "RTT": lastUpdatedMap[poolId] ? lastUpdatedMap[poolId].rtt : "~"
         })));
       }, 5000);
     
@@ -108,18 +117,18 @@ signInWithEmailAndPassword(auth, config.FIREBASE_EMAIL, config.FIREBASE_PASSWORD
           for (;;) {
             try {
               const startTime = new Date().getTime();
-              const connection = getNextConnection();
+              const connection = getNextConnection(poolMintAddrToName[pool.id.toBase58()])();
     
               const poolInfo =  await Promise.race([
                 Liquidity.fetchInfo({
                   connection,
                   poolKeys: pool
                 }),
-                new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("fetchInfo Timeout")), 8000))
+                new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("fetchInfo Timeout")), SLEEP_TIME * 4))
               ]);
     
               const poolName = poolMintAddrToName[pool.id.toBase58()];
-              lastUpdatedMap[poolName] = new Date();
+              lastUpdatedMap[poolName].date = new Date();
               const coinTickers = poolName.split("_").slice(1);
     
               const amountOut = getRate(
@@ -177,6 +186,9 @@ signInWithEmailAndPassword(auth, config.FIREBASE_EMAIL, config.FIREBASE_PASSWORD
                   ...sellResults,
                 },
               };
+
+              lastUpdatedMap[poolName].rpc = connection.rpcEndpoint;
+              lastUpdatedMap[poolName].rtt = `${new Date().getTime() - startTime}ms`;
     
               if (currencyLastRate[poolName] === undefined 
                 || currencyLastRate[poolName].buy !== parsedAmountOut
@@ -188,7 +200,7 @@ signInWithEmailAndPassword(auth, config.FIREBASE_EMAIL, config.FIREBASE_PASSWORD
     
                 console.log(
                   `${poolName}`,
-                  `${new Date().getTime() - startTime}ms`,
+                  lastUpdatedMap[poolName].rtt,
                   amountOut.minAmountOut.currency.decimals,
                   parsedAmountOut,
                   parsedAmountIn,
@@ -201,7 +213,7 @@ signInWithEmailAndPassword(auth, config.FIREBASE_EMAIL, config.FIREBASE_PASSWORD
             } catch (e) {
               console.error(e.message);
             }  
-            await sleep(400);
+            await sleep(SLEEP_TIME);
           }
         })
       );

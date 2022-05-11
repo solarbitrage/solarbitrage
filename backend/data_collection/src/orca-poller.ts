@@ -11,10 +11,12 @@ import { listeners } from "./common/src/orca-utils/constants";
 import { formatDistance } from "date-fns"
 import fetch from "node-fetch";
 
+const SLEEP_TIME = 800;
 
-const getNextConnection = useConnection(false, {
-  fetch: (url, opts) => fetchWithTimeout(fetch, url, {...opts, timeout: 8000}),
-});
+const getNextConnection = (poolName: string) => useConnection(false, {
+  fetch: (url, opts) => fetchWithTimeout(fetch, url, {...opts, timeout: SLEEP_TIME * 4}),
+  },
+  poolName);
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -43,13 +45,19 @@ const orcaRequests = async () => {
   const listenerSlice = listeners.slice(...myArgs);
   const lastUpdatedMap = {};
   for (const [, poolId] of listenerSlice) {
-    lastUpdatedMap[poolId] = null;
+    lastUpdatedMap[poolId] = {
+      date: new Date(),
+      rpc: 0,
+      rtt: 0
+    };
   }
 
   setInterval(() => {
     console.table(Object.keys(lastUpdatedMap).map((poolId) => ({
       "Pool ID": poolId,
-      "Last Checked": lastUpdatedMap[poolId] ? formatDistance(lastUpdatedMap[poolId], new Date(), { addSuffix: true, includeSeconds: true }) : "~",
+      "Last Checked": lastUpdatedMap[poolId] ? formatDistance(lastUpdatedMap[poolId].date, new Date(), { addSuffix: true, includeSeconds: true }) : "~",
+      "RPC": lastUpdatedMap[poolId] ? lastUpdatedMap[poolId].rpc : "~",
+      "RTT": lastUpdatedMap[poolId] ? lastUpdatedMap[poolId].rtt : "~"
     })));
   }, 5000);
 
@@ -64,7 +72,7 @@ const orcaRequests = async () => {
       for (;;) {
         try {
           const startTime = new Date().getTime();
-          const connection = getNextConnection();
+          const connection = getNextConnection(poolId)();
           const currentPool = new OrcaPoolImpl(connection, Network.MAINNET, pool);
 
           const coinA = currentPool.getTokenA();
@@ -73,10 +81,10 @@ const orcaRequests = async () => {
           const tradingAmount = new Decimal(1);
           const buyQuote = await Promise.race([
             currentPool.getQuote(coinB, tradingAmount),
-            new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("getQuote Timeout")), 8000))
+            new Promise<undefined>((_, rej) => setTimeout(() => rej(new Error("getQuote Timeout")), SLEEP_TIME * 4))
           ])
 
-          lastUpdatedMap[poolId] = new Date();
+          lastUpdatedMap[poolId].date = new Date();
           const buyRate = buyQuote.getExpectedOutputAmount().toNumber();
           const sellRate = 1 / buyQuote.getExpectedOutputAmount().toNumber() * (0.9940071);
 
@@ -98,12 +106,16 @@ const orcaRequests = async () => {
               coinB
             );
 
-            console.log(poolId, `${new Date().getTime() - startTime}ms`, buyRate, sellRate, connection.rpcEndpoint);
+            lastUpdatedMap[poolId].rtt = `${new Date().getTime() - startTime}ms`;
+            lastUpdatedMap[poolId].rpc = connection.rpcEndpoint;
+            
+
+            console.log(poolId, lastUpdatedMap[poolId].rtt, buyRate, sellRate, connection.rpcEndpoint);
           }
         } catch (e) {
-          console.error(e.message);
+          console.error(poolId, e.message);
         }
-        await sleep(400);
+        await sleep(SLEEP_TIME);
       }
     })
   );

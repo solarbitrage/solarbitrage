@@ -63,6 +63,9 @@ async function main() {
     })
 
     onChildChanged(latestPricesRef, (data) => {
+        
+        if (!data.exists()) return;
+
         const now = new Date();
         currentRates[data.key] = {
             ...data.val(),
